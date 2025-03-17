@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>國小學員分數管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        h2 {
+            margin: 20px 0 10px;
+        }
+        .top-controls {
+            margin-bottom: 10px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        /* 學生卡片列表 */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            padding-bottom: 30px;
+        }
+        .student-card {
+            width: 200px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .student-card img {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+        }
+        .btn-edit {
+            background: #ffa500;
+            color: white;
+        }
+        .btn-delete {
+            background: #ff4d4d;
+            color: white;
+        }
+        .btn-score {
+            background: #4caf50;
+            color: white;
+        }
+        .quickAdjust {
+            margin-top: 5px;
+        }
+        .quickAdjust select,
+        .quickAdjust input {
+            margin-right: 5px;
+        }
+        /* 遮罩 & popup */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 320px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3);
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .popup.show {
+            display: block;
+            opacity: 1;
+        }
+        .overlay.show {
+            display: block;
+        }
+        .popup input,
+        .popup select {
+            width: 90%;
+            margin-top: 10px;
+            padding: 8px;
+        }
+        .image-preview {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .image-preview img {
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .image-preview img.selected {
+            border: 2px solid blue;
+        }
+    </style>
+</head>
+<body>
+<h2>國小學員分數管理</h2>
+<div class="top-controls">
+    <button onclick="showPopup()">新增學生</button>
+    <button onclick="exportCSV()">匯出 CSV</button>
+    <!-- 匯入 CSV -->
+    <input type="file" id="importCSV" accept=".csv" onchange="importCSV(event)" />
+</div>
+
+<!-- 遮罩 -->
+<div class="overlay" id="overlay" onclick="closePopup()"></div>
+
+<!-- Popup 視窗 -->
+<div class="popup" id="studentPopup">
+    <h3 id="popupTitle">新增學生</h3>
+    <input type="text" id="studentName" placeholder="輸入姓名" />
+    <input type="number" id="studentScore" placeholder="輸入分數" min="0" />
+    <select id="studentGender" onchange="updateImagePreview()">
+        <option value="男">男生</option>
+        <option value="女">女生</option>
+    </select>
+
+    <!-- 圖片預覽區塊 -->
+    <div class="image-preview" id="imageSelection"></div>
+
+    <br />
+    <button onclick="saveStudent()">儲存</button>
+    <button onclick="closePopup()">取消</button>
+</div>
+
+<!-- 學生卡片容器 -->
+<div class="container" id="studentContainer"></div>
+
+<script>
+    // === 全域資料 ===
+    let students = JSON.parse(localStorage.getItem("students")) || [];
+    let editIndex = -1;        // 目前是否在編輯某個學生(索引)
+    let selectedImage = "";    // 目前在 popup 中選擇的「男1」/「男2」/「男3」/「女1」/「女2」/「女3」
+
+    // 男/女各 3 張可選圖片 (以「男1」「男2」「男3」「女1」...為 key)
+    // CSV 只存「男1」...「女3」，前台再用此映射找出對應連結
+    let imageMap = {
+        "男1": "https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000",
+        "男2": "https://img.icons8.com/?size=100&id=C3wj6TWvegSk&format=png&color=000000",
+        "男3": "https://img.icons8.com/?size=100&id=2lwL3N2H9Tbm&format=png&color=000000",
+        "女1": "https://img.icons8.com/?size=100&id=eNAHQgRxtqVv&format=png&color=000000",
+        "女2": "https://img.icons8.com/?size=100&id=DH9FJ32siusV&format=png&color=000000",
+        "女3": "https://img.icons8.com/?size=100&id=gvFfuFtdrY7s&format=png&color=000000"
+    };
+
+    // 性別->圖片label（供預覽用）
+    let genderImageLabels = {
+        "男": ["男1", "男2", "男3"],
+        "女": ["女1", "女2", "女3"]
+    };
+
+    // === 主流程 ===
+    window.onload = () => {
+        renderStudents();
+    };
+    // 監聽 ESC -> 關閉 Popup
+    window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closePopup();
+        }
+    });
+
+    // === 1. 顯示學生列表 ===
+    function renderStudents() {
+        let container = document.getElementById("studentContainer");
+        container.innerHTML = "";
+        students.forEach((student, index) => {
+            let card = document.createElement("div");
+            card.classList.add("student-card");
+            // 根據 CSV 儲存的標籤(ex: "男1")，找對應連結
+            let imgSrc = imageMap[student.imageLabel] || "";
+            card.innerHTML = `
+          <img src="${imgSrc}" alt="${student.gender}" onclick="editStudent(${index})">
+          <p>${student.name}</p>
+          <p id="score-${index}">${student.score} 分</p>
+
+          <!-- 分數調整按鈕 -->
+          <button class="btn-score" onclick="updateScore(${index}, -5)">-5</button>
+          <button class="btn-score" onclick="updateScore(${index}, -1)">-1</button>
+          <button class="btn-score" onclick="updateScore(${index}, 1)">+1</button>
+          <button class="btn-score" onclick="updateScore(${index}, 5)">+5</button>
+
+          <!-- 快速加減任意數 -->
+          <div class="quickAdjust">
+            <select id="sign-${index}">
+              <option value="+">+</option>
+              <option value="-">-</option>
+            </select>
+            <input type="number" id="custom-${index}" placeholder="自訂分數" style="width:60px;">
+            <button onclick="customAdjust(${index})">確定</button>
+          </div>
+
+          <br>
+          <button class="btn-edit" onclick="editStudent(${index})">編輯</button>
+          <button class="btn-delete" onclick="deleteStudent(${index})">刪除</button>
+        `;
+            container.appendChild(card);
+        });
+    }
+
+    // === 2. 新增 / 編輯 學生 ===
+    // 打開 popup（若 editIdx != -1 就是編輯）
+    function showPopup(editIdx = -1) {
+        editIndex = editIdx;
+        document.getElementById("popupTitle").innerText =
+            editIdx === -1 ? "新增學生" : "編輯學生";
+
+        if (editIdx === -1) {
+            // 新增
+            document.getElementById("studentName").value = "";
+            document.getElementById("studentScore").value = 0;
+            document.getElementById("studentGender").value = "男";
+        } else {
+            // 編輯
+            document.getElementById("studentName").value = students[editIdx].name;
+            document.getElementById("studentScore").value = students[editIdx].score;
+            document.getElementById("studentGender").value = students[editIdx].gender;
+        }
+
+        // 初始化圖片預覽區
+        updateImagePreview();
+
+        // 若在編輯模式，就預選之前選過的標籤
+        if (editIdx !== -1) {
+            selectedImage = students[editIdx].imageLabel; // ex: "男2"
+            setTimeout(() => {
+                let previewImgs = document.querySelectorAll("#imageSelection img");
+                previewImgs.forEach((imgEl) => {
+                    // src中的最後一段(男1,女2) 不好比對 -> 我們把存的 label 放 data-label 來對比
+                    let label = imgEl.getAttribute("data-label");
+                    if (label === selectedImage) {
+                        imgEl.classList.add("selected");
+                    }
+                });
+            }, 0);
+        }
+
+        // 顯示 popup
+        document.getElementById("overlay").classList.add("show");
+        document.getElementById("studentPopup").classList.add("show");
+    }
+
+    // 編輯模式進入
+    function editStudent(index) {
+        showPopup(index);
+    }
+
+    // 關閉 popup (不再彈出確認)
+    function closePopup() {
+        document.getElementById("overlay").classList.remove("show");
+        document.getElementById("studentPopup").classList.remove("show");
+    }
+
+    // 根據性別更新「可選圖片」列表 + 設定預設選擇
+    function updateImagePreview() {
+        let gender = document.getElementById("studentGender").value;
+        let imageSelection = document.getElementById("imageSelection");
+        imageSelection.innerHTML = "";
+        selectedImage = ""; // 若未選任何圖片時，預設第一張
+
+        let labels = genderImageLabels[gender]; // ex: ["男1","男2","男3"]
+        labels.forEach((label, idx) => {
+            let img = document.createElement("img");
+            img.src = imageMap[label]; // 找對應連結
+            img.setAttribute("data-label", label);
+            img.onclick = () => {
+                // 清除所有 selected
+                document
+                    .querySelectorAll(".image-preview img")
+                    .forEach((x) => x.classList.remove("selected"));
+                // 自己被選中
+                img.classList.add("selected");
+                selectedImage = label;
+            };
+            if (idx === 0 && editIndex === -1) {
+                // 若是新增模式，預設第一張
+                img.classList.add("selected");
+                selectedImage = label;
+            }
+            imageSelection.appendChild(img);
+        });
+    }
+
+    // 儲存學生 (新增 / 編輯)
+    function saveStudent() {
+        let name = document.getElementById("studentName").value.trim();
+        let score = parseInt(document.getElementById("studentScore").value);
+        let gender = document.getElementById("studentGender").value;
+
+        if (name === "" || isNaN(score)) {
+            alert("請輸入正確的資料");
+            return;
+        }
+        if (!selectedImage) {
+            // 如果沒有手動選圖片，就預設第一張
+            let labels = genderImageLabels[gender];
+            selectedImage = labels[0]; // ex: "男1" 或 "女1"
+        }
+
+        if (editIndex === -1) {
+            // 新增
+            students.push({
+                name,
+                score,
+                gender,
+                imageLabel: selectedImage
+            });
+        } else {
+            // 編輯
+            students[editIndex] = {
+                name,
+                score,
+                gender,
+                imageLabel: selectedImage
+            };
+        }
+
+        saveToLocalStorage();
+        closePopup();
+        renderStudents();
+    }
+
+    // === 3. 刪除學生 ===
+    function deleteStudent(index) {
+        if (confirm("確定要刪除這位學生嗎？")) {
+            students.splice(index, 1);
+            saveToLocalStorage();
+            renderStudents();
+        }
+    }
+
+    // === 4. 分數調整 ===
+    // 固定選項: -5, -1, +1, +5
+    function updateScore(index, delta) {
+        students[index].score += delta;
+        saveToLocalStorage();
+        document.getElementById(`score-${index}`).textContent =
+            students[index].score + " 分";
+    }
+
+    // 快速加減任意數：以 + 或 - 搭配使用者輸入的數值
+    function customAdjust(index) {
+        let signSelect = document.getElementById(`sign-${index}`);
+        let customInput = document.getElementById(`custom-${index}`);
+        let sign = signSelect.value;      // "+" or "-"
+        let val = parseInt(customInput.value) || 0;
+        if (sign === "-") {
+            val = -val;
+        }
+        students[index].score += val;
+        saveToLocalStorage();
+        document.getElementById(`score-${index}`).textContent =
+            students[index].score + " 分";
+
+        // 用完後清空輸入框
+        customInput.value = "";
+    }
+
+    // === 5. 匯出 / 匯入 CSV ===
+    function exportCSV() {
+        // CSV 標頭: 姓名,分數,性別,圖片(男1/女2...)
+        let csvContent =
+            "姓名,分數,性別,圖片\n" +
+            students
+                .map(
+                    (s) =>
+                        `${s.name},${s.score},${s.gender},${s.imageLabel}`
+                )
+                .join("\n");
+
+        let blob = new Blob([csvContent], { type: "text/csv" });
+        let a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "students.csv";
+        a.click();
+    }
+
+    function importCSV(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function (e) {
+            // 讀取檔案內容
+            let lines = e.target.result
+                .split("\n")
+                .map((line) => line.trim())
+                .filter((line) => line);
+
+            // 移除標頭 (第一行)
+            lines.shift();
+
+            let newStudents = [];
+            lines.forEach((line) => {
+                let [name, score, gender, imageLabel] = line.split(",");
+                score = parseInt(score) || 0;
+                if (!imageLabel) {
+                    // 若匯入 CSV 沒提供圖片標籤 => 自動使用第一張
+                    let labels = genderImageLabels[gender] || ["男1"];
+                    imageLabel = labels[0];
+                }
+                newStudents.push({ name, score, gender, imageLabel });
+            });
+
+            // 匯入後直接覆蓋舊資料
+            students = newStudents;
+            saveToLocalStorage();
+            renderStudents();
+        };
+        reader.readAsText(file);
+    }
+
+    // === 6. localStorage ===
+    function saveToLocalStorage() {
+        localStorage.setItem("students", JSON.stringify(students));
+    }
+</script>
+</body>
+</html>
