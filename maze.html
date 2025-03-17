@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>線條迷宮</title>
+    <style>
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            font-family: sans-serif;
+        }
+        #appContainer {
+            display: flex;
+            width: 100%; height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* 左側操作區 */
+        #sidebar {
+            width: 300px; background-color: #f1f1f1;
+            padding: 20px; box-sizing: border-box;
+            overflow-y: auto;
+        }
+        #sidebar h1 {
+            margin-top: 0;
+        }
+        label { display: block; margin: 10px 0 5px; }
+        select, input[type=range] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        /* 拖曳上傳 */
+        #dropZone {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed gray;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        /* 暫存區 (圖庫) */
+        #imageLibrary {
+            margin-top: 20px; padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 100px;
+        }
+        #imageLibrary img {
+            width: 50px; margin: 5px; cursor: move;
+        }
+
+        /* 右側迷宮 + 圖片容器 */
+        #mainContent {
+            flex: 1;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        #mazeContainer {
+            position: relative;
+            /* canvas 與 可拖曳圖片都放在這個容器 */
+            width: 600px; height: 600px;
+            border: none; /* 若不想要外框就拿掉 */
+        }
+
+        /* canvas 本身鋪滿容器 */
+        #mazeCanvas {
+            width: 100%; height: 100%;
+            background-color: #fff;
+        }
+
+        /* 圖片 wrapper + 刪除按鈕 */
+        .img-wrapper {
+            position: absolute; /* 絕對定位於 #mazeContainer */
+            display: inline-block;
+        }
+        .draggable { cursor: grab; }
+        .delete-btn {
+            position: absolute; top: 0; right: 0;
+            width: 18px; height: 18px; line-height: 18px;
+            background-color: rgba(255,0,0,0.7);
+            color: #fff; text-align: center; border-radius: 50%;
+            font-size: 14px; cursor: pointer; display: none;
+        }
+        .img-wrapper:hover .delete-btn {
+            display: block; /* 滑鼠移入顯示 */
+        }
+    </style>
+</head>
+<body>
+<div id="appContainer">
+    <!-- 左側側邊欄 -->
+    <div id="sidebar">
+        <h1>線條迷宮 (純前端)</h1>
+
+        <label>迷宮大小：<span id="sizeValue">10 x 10</span></label>
+        <input type="range" id="size" min="5" max="50" value="10" step="1"
+               oninput="onSizeChange('slider')">
+
+        <label>迷宮行數 (n):</label>
+        <select id="sizeDropdownN" onchange="onSizeChange('dropdown')">
+            <script>
+                for (let i=5; i<=50; i++){
+                    document.write(`<option value="${i}">${i}</option>`);
+                }
+            </script>
+        </select>
+
+        <label>迷宮列數 (m):</label>
+        <select id="sizeDropdownM" onchange="onSizeChange('dropdown')">
+            <script>
+                for (let i=5; i<=50; i++){
+                    document.write(`<option value="${i}">${i}</option>`);
+                }
+            </script>
+        </select>
+
+        <label>線條粗細 (lw): <span id="lwValue">1.0</span></label>
+        <input type="range" id="lineWidth" min="0.1" max="5" step="0.1" value="1"
+               oninput="document.getElementById('lwValue').innerText=this.value"
+               onchange="drawMaze()">
+
+        <!-- 按鈕: 重新產生迷宮 -->
+        <button onclick="generateMaze()">產生迷宮</button>
+
+        <!-- 拖曳上傳區域 -->
+        <div id="dropZone">將圖片拖拉到這裡</div>
+
+        <!-- 圖片暫存區 (可拖到迷宮裡) -->
+        <div id="imageLibrary">
+            <p><strong>圖片庫 (可拖曳到迷宮)</strong></p>
+        </div>
+    </div>
+
+    <!-- 右側: 迷宮Canvas + 圖片容器 -->
+    <div id="mainContent">
+        <div id="mazeContainer">
+            <canvas id="mazeCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===================== Maze Data & Generation (JS) =====================
+    let maze = null; // 二維陣列 (2n+1 x 2m+1), 0=通道, 1=牆
+    let rows = 10, cols = 10; // 預設 10x10
+
+    function onSizeChange(source){
+        let slider = document.getElementById("size");
+        let ddN = document.getElementById("sizeDropdownN");
+        let ddM = document.getElementById("sizeDropdownM");
+        let valN, valM;
+        if(source==="slider"){
+            ddN.value = slider.value;
+            ddM.value = slider.value;
+            valN = +ddN.value;
+            valM = +ddM.value;
+        } else {
+            valN = +ddN.value;
+            valM = +ddM.value;
+            slider.value = Math.min(valN, valM);
+        }
+        document.getElementById("sizeValue").innerText = valN + " x " + valM;
+        rows = valN; cols = valM;
+    }
+
+    // 產生迷宮 => (2*rows+1) x (2*cols+1)
+    function generateMaze(){
+        let n = rows, m = cols;
+        // 初始化
+        let w = 2*n + 1, h = 2*m + 1;
+        maze = Array(w).fill(null).map(()=>Array(h).fill(1));
+
+        // DFS stack
+        let stack = [{x:1, y:1}];
+        maze[1][1] = 0;
+
+        while(stack.length>0){
+            let top = stack[stack.length-1];
+            let {x,y} = top;
+            let dirs = [ [0,2],[2,0],[0,-2],[-2,0] ];
+            shuffle(dirs);
+
+            let found = false;
+            for(let [dx, dy] of dirs){
+                let nx = x+dx, ny = y+dy;
+                if(nx>0 && nx<2*n && ny>0 && ny<2*m && maze[nx][ny]===1){
+                    // 打通中間
+                    maze[x+dx/2][y+dy/2] = 0;
+                    maze[nx][ny] = 0;
+                    stack.push({x:nx, y:ny});
+                    found = true;
+                    break;
+                }
+            }
+            if(!found){
+                stack.pop();
+            }
+        }
+        // 入口
+        maze[1][0] = 0;
+        // 出口 (底部隨機)
+        let exit_candidates = [];
+        for(let j=1; j<2*m; j+=2){
+            if(maze[2*n-1][j]===0){
+                exit_candidates.push(j);
+            }
+        }
+        if(exit_candidates.length>0){
+            let r = exit_candidates[Math.floor(Math.random()*exit_candidates.length)];
+            maze[2*n][r] = 0;
+        } else {
+            maze[2*n][1] = 0;
+        }
+
+        // 畫
+        drawMaze();
+    }
+
+    // 洗牌函式
+    function shuffle(arr){
+        for(let i=arr.length-1; i>0; i--){
+            let r = Math.floor(Math.random()*(i+1));
+            [arr[i], arr[r]] = [arr[r], arr[i]];
+        }
+    }
+
+    // ===================== 繪製迷宮 (Canvas) =====================
+    function drawMaze(){
+        if(!maze) return;
+        let n = rows, m = cols;
+        let canvas = document.getElementById("mazeCanvas");
+        let ctx = canvas.getContext("2d");
+        // 設定 canvas 實際尺寸 => 讓繪圖清晰
+        let pxSize = 600; // 你想要的畫面大小(正方形)
+        canvas.width = pxSize;
+        canvas.height = pxSize;
+
+        // 背景全白
+        ctx.fillStyle="#fff";
+        ctx.fillRect(0,0,pxSize,pxSize);
+
+        let lineWidth = parseFloat(document.getElementById("lineWidth").value);
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = lineWidth;
+
+        // cell 大小 => (pxSize / n, pxSize / n)
+        let cellSizeX = pxSize / n;
+        let cellSizeY = pxSize / n;
+
+        // 走訪每個 cell (r,c)
+        //   北牆 => maze[2r, 2c+1] == 1 => 在 (c, r) 的上方 畫線
+        //   ...
+        for(let r=0; r<n; r++){
+            for(let c=0; c<m; c++){
+                // 注意對應 maze 陣列
+                // 北牆
+                if(maze[2*r][2*c+1] === 1){
+                    ctx.beginPath();
+                    ctx.moveTo(c*cellSizeX, r*cellSizeY);
+                    ctx.lineTo((c+1)*cellSizeX, r*cellSizeY);
+                    ctx.stroke();
+                }
+                // 南牆
+                if(maze[2*r+2][2*c+1] === 1){
+                    ctx.beginPath();
+                    ctx.moveTo(c*cellSizeX, (r+1)*cellSizeY);
+                    ctx.lineTo((c+1)*cellSizeX, (r+1)*cellSizeY);
+                    ctx.stroke();
+                }
+                // 西牆
+                if(maze[2*r+1][2*c] === 1){
+                    ctx.beginPath();
+                    ctx.moveTo(c*cellSizeX, r*cellSizeY);
+                    ctx.lineTo(c*cellSizeX, (r+1)*cellSizeY);
+                    ctx.stroke();
+                }
+                // 東牆
+                if(maze[2*r+1][2*c+2] === 1){
+                    ctx.beginPath();
+                    ctx.moveTo((c+1)*cellSizeX, r*cellSizeY);
+                    ctx.lineTo((c+1)*cellSizeX, (r+1)*cellSizeY);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    // ===================== 拖曳上傳 => 暫存區 =====================
+    window.addEventListener("load", ()=>{
+        let dropZone = document.getElementById("dropZone");
+        dropZone.addEventListener("dragover", (e)=>{
+            e.preventDefault();
+            dropZone.style.border="2px dashed blue";
+        });
+        dropZone.addEventListener("dragleave", (e)=>{
+            dropZone.style.border="2px dashed gray";
+        });
+        dropZone.addEventListener("drop", (e)=>{
+            e.preventDefault();
+            dropZone.style.border="2px dashed gray";
+            let file = e.dataTransfer.files[0];
+            if(file){
+                let reader = new FileReader();
+                reader.onload=(evt)=>{
+                    addImageToLibrary(evt.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    });
+
+    // 新增圖片到左側庫
+    function addImageToLibrary(dataURL){
+        let lib = document.getElementById("imageLibrary");
+        let img = document.createElement("img");
+        img.src = dataURL;
+        img.draggable = true;
+        img.addEventListener("dragstart",(e)=>{
+            e.dataTransfer.setData("text/plain", dataURL);
+        });
+        lib.appendChild(img);
+    }
+
+    // ===================== Maze Container => 接受拖曳圖片 =====================
+    window.addEventListener("load", ()=>{
+        let mazeContainer = document.getElementById("mazeContainer");
+        mazeContainer.ondragover = (e)=> e.preventDefault();
+        mazeContainer.ondrop = (e)=>{
+            e.preventDefault();
+            let dataURL = e.dataTransfer.getData("text/plain");
+            if(dataURL){
+                addImageToMazeContainer(dataURL, e.clientX, e.clientY);
+            }
+        };
+    });
+
+    function addImageToMazeContainer(dataURL, clientX, clientY){
+        let container = document.getElementById("mazeContainer");
+        let rect = container.getBoundingClientRect();
+        let offsetX = clientX - rect.left;
+        let offsetY = clientY - rect.top;
+
+        let wrapper = document.createElement("div");
+        wrapper.classList.add("img-wrapper");
+        wrapper.style.left = offsetX+"px";
+        wrapper.style.top  = offsetY+"px";
+
+        let img = document.createElement("img");
+        img.src = dataURL;
+        img.classList.add("draggable");
+        img.style.width="50px";
+
+        let delBtn = document.createElement("div");
+        delBtn.classList.add("delete-btn");
+        delBtn.innerText="X";
+        delBtn.onclick=()=> wrapper.remove();
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(delBtn);
+        container.appendChild(wrapper);
+
+        makeDraggable(wrapper);
+    }
+
+    function makeDraggable(element){
+        let isDragging=false;
+        let offsetX=0, offsetY=0;
+        let container = document.getElementById("mazeContainer");
+
+        element.onmousedown=(e)=>{
+            if(e.target.classList.contains("delete-btn")){
+                return; // 點擊刪除按鈕不拖曳
+            }
+            e.preventDefault();
+            isDragging=true;
+
+            let rect = element.getBoundingClientRect();
+            let contRect = container.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+
+            function onMove(ev){
+                if(isDragging){
+                    let newLeft = ev.clientX - contRect.left - offsetX;
+                    let newTop  = ev.clientY - contRect.top  - offsetY;
+                    element.style.left=newLeft+"px";
+                    element.style.top=newTop+"px";
+                }
+            }
+            function onUp(){
+                isDragging=false;
+                document.removeEventListener("mousemove", onMove);
+                document.removeEventListener("mouseup", onUp);
+            }
+            document.addEventListener("mousemove", onMove);
+            document.addEventListener("mouseup", onUp);
+        };
+        element.ondragstart=()=>false;
+
+        // 滾輪縮放 => 只縮該 wrapper 中的 <img>
+        element.addEventListener("wheel",(e)=>{
+            e.preventDefault();
+            let img = element.querySelector("img");
+            if(!img)return;
+            let w = parseFloat(getComputedStyle(img).width);
+            let newW = w + (e.deltaY>0 ? -10:10);
+            if(newW<10) newW=10;
+            img.style.width=newW+"px";
+        });
+    }
+
+    // ===================== 預設 ICON =====================
+    const defaultIcons = [
+        // login
+        "https://img.icons8.com/?size=50&id=1090&format=png",
+        // logout
+        "https://img.icons8.com/?size=50&id=2445&format=png",
+        // point
+        "https://img.icons8.com/?size=50&id=21614&format=png",
+        // hand
+        "https://img.icons8.com/?size=50&id=37393&format=png"
+    ];
+
+    window.addEventListener("load", ()=>{
+        // 預設插入幾個 icon
+        defaultIcons.forEach(url=> addImageToLibrary(url));
+
+        // 預設 生成一次迷宮
+        onSizeChange("slider");
+        generateMaze();
+    });
+</script>
+</body>
+</html>
