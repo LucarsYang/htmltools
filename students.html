@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>國小學員分數管理</title>
+    <!-- 載入 Google API -->
+    <script src="https://apis.google.com/js/api.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -48,84 +50,49 @@
             height: 80px;
             cursor: pointer;
         }
-        .btn-edit {
-            background: #ffa500;
-            color: white;
-        }
-        .btn-delete {
-            background: #ff4d4d;
-            color: white;
-        }
-        .btn-score {
-            background: #4caf50;
-            color: white;
-        }
-        .quickAdjust {
-            margin-top: 5px;
-        }
-        .quickAdjust select,
-        .quickAdjust input {
-            margin-right: 5px;
-        }
+        .btn-edit { background: #ffa500; color: white; }
+        .btn-delete { background: #ff4d4d; color: white; }
+        .btn-score { background: #4caf50; color: white; }
+        .quickAdjust { margin-top: 5px; }
+        .quickAdjust select, .quickAdjust input { margin-right: 5px; }
         /* 遮罩 & popup */
         .overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
+            display: none; position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.5);
             z-index: 10;
         }
         .popup {
-            display: none;
-            position: fixed;
-            top: 50%; left: 50%;
+            display: none; position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            width: 320px;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3);
-            z-index: 20;
-            opacity: 0;
-            transition: opacity 0.3s;
+            background: white; padding: 20px; border-radius: 10px; text-align: center; width: 320px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.3); z-index: 20; opacity: 0; transition: opacity 0.3s;
         }
-        .popup.show {
-            display: block;
-            opacity: 1;
-        }
-        .overlay.show {
-            display: block;
-        }
-        .popup input,
-        .popup select {
-            width: 90%;
-            margin-top: 10px;
-            padding: 8px;
+        .popup.show { display: block; opacity: 1; }
+        .overlay.show { display: block; }
+        .popup input, .popup select {
+            width: 90%; margin-top: 10px; padding: 8px;
         }
         .image-preview {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
+            display: flex; justify-content: center; gap: 10px; margin-top: 10px;
         }
         .image-preview img {
-            width: 50px;
-            height: 50px;
-            cursor: pointer;
-            border: 2px solid transparent;
+            width: 50px; height: 50px; cursor: pointer; border: 2px solid transparent;
         }
-        .image-preview img.selected {
-            border: 2px solid blue;
-        }
+        .image-preview img.selected { border: 2px solid blue; }
     </style>
 </head>
 <body>
 <h2>國小學員分數管理</h2>
+
+<!-- Google 登入 / 登出 -->
+<button id="login-btn" onclick="signIn()">登入 Google</button>
+<button id="logout-btn" onclick="signOut()" style="display: none;">登出</button>
+
 <div class="top-controls">
     <button onclick="showPopup()">新增學生</button>
     <button onclick="exportCSV()">匯出 CSV</button>
+    <button onclick="saveToDrive()">儲存至 Google Drive</button>
     <!-- 匯入 CSV -->
     <input type="file" id="importCSV" accept=".csv" onchange="importCSV(event)" />
 </div>
@@ -142,10 +109,7 @@
         <option value="男">男生</option>
         <option value="女">女生</option>
     </select>
-
-    <!-- 圖片預覽區塊 -->
     <div class="image-preview" id="imageSelection"></div>
-
     <br />
     <button onclick="saveStudent()">儲存</button>
     <button onclick="closePopup()">取消</button>
@@ -155,13 +119,156 @@
 <div class="container" id="studentContainer"></div>
 
 <script>
-    // === 全域資料 ===
-    let students = JSON.parse(localStorage.getItem("students")) || [];
-    let editIndex = -1;        // 目前是否在編輯某個學生(索引)
-    let selectedImage = "";    // 目前在 popup 中選擇的「男1」/「男2」/「男3」/「女1」/「女2」/「女3」
+    /** ===================
+     *  1. Google OAuth 與 Drive 同步設定
+     * =================== */
+        // ✅ 修改為你的 Client ID
+    const CLIENT_ID = "310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com";
+    const API_KEY = "";  // 若需要可加入，否則可留空
+    const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+    const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
-    // 男/女各 3 張可選圖片 (以「男1」「男2」「男3」「女1」...為 key)
-    // CSV 只存「男1」...「女3」，前台再用此映射找出對應連結
+    // 狀態
+    let isGoogleSignedIn = false;
+
+    // 初始化：載入 Google API
+    document.addEventListener("DOMContentLoaded", function() {
+        gapi.load("client:auth2", initClient);
+        renderStudents(); // 先渲染本地資料
+    });
+
+    function initClient() {
+        gapi.client.init({
+            apiKey: API_KEY,
+            clientId: CLIENT_ID,
+            discoveryDocs: DISCOVERY_DOCS,
+            scope: SCOPES
+        }).then(() => {
+            const authInstance = gapi.auth2.getAuthInstance();
+            // 監聽登入狀態
+            authInstance.isSignedIn.listen(updateSigninStatus);
+            // 預設判斷是否已登入
+            updateSigninStatus(authInstance.isSignedIn.get());
+        }).catch(err => {
+            console.error("Google OAuth 初始化失敗：", err);
+        });
+    }
+
+    function updateSigninStatus(isSignedIn) {
+        isGoogleSignedIn = isSignedIn;
+        document.getElementById("login-btn").style.display = isSignedIn ? "none" : "block";
+        document.getElementById("logout-btn").style.display = isSignedIn ? "block" : "none";
+
+        if (isSignedIn) {
+            console.log("✅ Google登入成功");
+            loadStudentsFromDrive(); // 從雲端載入
+        } else {
+            console.log("🚫 Google未登入，使用本地 LocalStorage");
+            // 如果未登入，就用 localStorage 資料
+            students = JSON.parse(localStorage.getItem("students")) || [];
+            renderStudents();
+        }
+    }
+
+    function signIn() {
+        gapi.auth2.getAuthInstance().signIn().then(() => {
+            console.log("🎉 成功登入 Google");
+        }).catch(err => {
+            console.error("❌ Google登入失敗", err);
+        });
+    }
+
+    function signOut() {
+        gapi.auth2.getAuthInstance().signOut().then(() => {
+            console.log("🟡 已登出 Google");
+            document.getElementById("studentContainer").innerHTML = "";
+        });
+    }
+
+    // 讀取/建立 students.json
+    function loadStudentsFromDrive() {
+        gapi.client.drive.files.list({
+            q: "name='students.json'",
+            spaces: "drive",
+            fields: "files(id, name)"
+        }).then(response => {
+            const files = response.result.files;
+            if (files && files.length > 0) {
+                const fileId = files[0].id;
+                gapi.client.drive.files.get({
+                    fileId: fileId,
+                    alt: 'media'
+                }).then(res => {
+                    // 把讀到的 JSON 存到 students 陣列
+                    students = JSON.parse(res.body) || [];
+                    console.log("從 Google Drive 載入：", students);
+                    saveToLocalStorage();
+                    renderStudents();
+                });
+            } else {
+                console.log("未找到 students.json，創建新文件...");
+                saveToDrive(); // 建立空檔案
+            }
+        }).catch(err => {
+            console.error("讀取 Drive 檔案失敗：", err);
+        });
+    }
+
+    // 儲存到 Google Drive
+    function saveToDrive() {
+        if (!isGoogleSignedIn) {
+            alert("請先登入 Google");
+            return;
+        }
+        gapi.client.drive.files.list({
+            q: "name='students.json'",
+            spaces: "drive",
+            fields: "files(id, name)"
+        }).then(response => {
+            const files = response.result.files;
+            let fileId = files && files.length > 0 ? files[0].id : null;
+
+            const fileMetadata = {
+                name: 'students.json',
+                mimeType: 'application/json'
+            };
+            const fileContent = new Blob([JSON.stringify(students)], { type: 'application/json' });
+            const form = new FormData();
+            form.append("metadata", new Blob([JSON.stringify(fileMetadata)], { type: "application/json" }));
+            form.append("file", fileContent);
+
+            // 如果已存在就 PATCH，否則 POST
+            const url = fileId
+                ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`
+                : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+
+            fetch(url, {
+                method: fileId ? "PATCH" : "POST",
+                headers: {
+                    "Authorization": "Bearer " + gapi.auth.getToken().access_token
+                },
+                body: form
+            })
+                .then(res => res.json())
+                .then(data => {
+                    console.log("已儲存至 Google Drive：", data);
+                })
+                .catch(err => {
+                    console.error("儲存到 Drive 失敗：", err);
+                });
+        }).catch(err => {
+            console.error("查詢 Drive 檔案失敗：", err);
+        });
+    }
+
+    /** ===================
+     *  2. 學生資料管理 (UI + LocalStorage + CSV)
+     * =================== */
+    let students = JSON.parse(localStorage.getItem("students")) || [];
+    let editIndex = -1;  // 目前是否在編輯某個學生
+    let selectedImage = ""; // 目前 popup 中選擇的「男1」「女2」等
+
+    // 供預覽用
     let imageMap = {
         "男1": "https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000",
         "男2": "https://img.icons8.com/?size=100&id=C3wj6TWvegSk&format=png&color=000000",
@@ -170,17 +277,11 @@
         "女2": "https://img.icons8.com/?size=100&id=DH9FJ32siusV&format=png&color=000000",
         "女3": "https://img.icons8.com/?size=100&id=gvFfuFtdrY7s&format=png&color=000000"
     };
-
-    // 性別->圖片label（供預覽用）
     let genderImageLabels = {
         "男": ["男1", "男2", "男3"],
         "女": ["女1", "女2", "女3"]
     };
 
-    // === 主流程 ===
-    window.onload = () => {
-        renderStudents();
-    };
     // 監聽 ESC -> 關閉 Popup
     window.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
@@ -188,21 +289,18 @@
         }
     });
 
-    // === 1. 顯示學生列表 ===
+    // 顯示學生列表
     function renderStudents() {
         let container = document.getElementById("studentContainer");
         container.innerHTML = "";
         students.forEach((student, index) => {
             let card = document.createElement("div");
             card.classList.add("student-card");
-            // 根據 CSV 儲存的標籤(ex: "男1")，找對應連結
             let imgSrc = imageMap[student.imageLabel] || "";
             card.innerHTML = `
           <img src="${imgSrc}" alt="${student.gender}" onclick="editStudent(${index})">
           <p>${student.name}</p>
           <p id="score-${index}">${student.score} 分</p>
-
-          <!-- 分數調整按鈕 -->
           <button class="btn-score" onclick="updateScore(${index}, -5)">-5</button>
           <button class="btn-score" onclick="updateScore(${index}, -1)">-1</button>
           <button class="btn-score" onclick="updateScore(${index}, 1)">+1</button>
@@ -226,8 +324,7 @@
         });
     }
 
-    // === 2. 新增 / 編輯 學生 ===
-    // 打開 popup（若 editIdx != -1 就是編輯）
+    // 顯示彈出視窗 (新增 / 編輯)
     function showPopup(editIdx = -1) {
         editIndex = editIdx;
         document.getElementById("popupTitle").innerText =
@@ -245,16 +342,15 @@
             document.getElementById("studentGender").value = students[editIdx].gender;
         }
 
-        // 初始化圖片預覽區
+        // 更新圖片預覽區
         updateImagePreview();
 
-        // 若在編輯模式，就預選之前選過的標籤
+        // 若在編輯模式，就預選之前的 imageLabel
         if (editIdx !== -1) {
             selectedImage = students[editIdx].imageLabel; // ex: "男2"
             setTimeout(() => {
                 let previewImgs = document.querySelectorAll("#imageSelection img");
                 previewImgs.forEach((imgEl) => {
-                    // src中的最後一段(男1,女2) 不好比對 -> 我們把存的 label 放 data-label 來對比
                     let label = imgEl.getAttribute("data-label");
                     if (label === selectedImage) {
                         imgEl.classList.add("selected");
@@ -268,40 +364,35 @@
         document.getElementById("studentPopup").classList.add("show");
     }
 
-    // 編輯模式進入
-    function editStudent(index) {
-        showPopup(index);
-    }
-
-    // 關閉 popup (不再彈出確認)
     function closePopup() {
         document.getElementById("overlay").classList.remove("show");
         document.getElementById("studentPopup").classList.remove("show");
     }
 
-    // 根據性別更新「可選圖片」列表 + 設定預設選擇
+    function editStudent(index) {
+        showPopup(index);
+    }
+
+    // 更新圖片預覽 (根據性別)
     function updateImagePreview() {
         let gender = document.getElementById("studentGender").value;
         let imageSelection = document.getElementById("imageSelection");
         imageSelection.innerHTML = "";
-        selectedImage = ""; // 若未選任何圖片時，預設第一張
+        selectedImage = "";
 
-        let labels = genderImageLabels[gender]; // ex: ["男1","男2","男3"]
+        let labels = genderImageLabels[gender];
         labels.forEach((label, idx) => {
             let img = document.createElement("img");
-            img.src = imageMap[label]; // 找對應連結
+            img.src = imageMap[label];
             img.setAttribute("data-label", label);
             img.onclick = () => {
-                // 清除所有 selected
-                document
-                    .querySelectorAll(".image-preview img")
-                    .forEach((x) => x.classList.remove("selected"));
-                // 自己被選中
+                document.querySelectorAll(".image-preview img")
+                    .forEach(x => x.classList.remove("selected"));
                 img.classList.add("selected");
                 selectedImage = label;
             };
+            // 若是新增模式，預設第一張
             if (idx === 0 && editIndex === -1) {
-                // 若是新增模式，預設第一張
                 img.classList.add("selected");
                 selectedImage = label;
             }
@@ -309,7 +400,7 @@
         });
     }
 
-    // 儲存學生 (新增 / 編輯)
+    // 儲存學生
     function saveStudent() {
         let name = document.getElementById("studentName").value.trim();
         let score = parseInt(document.getElementById("studentScore").value);
@@ -320,82 +411,61 @@
             return;
         }
         if (!selectedImage) {
-            // 如果沒有手動選圖片，就預設第一張
+            // 沒選圖片 -> 預設第一張
             let labels = genderImageLabels[gender];
-            selectedImage = labels[0]; // ex: "男1" 或 "女1"
+            selectedImage = labels[0];
         }
 
         if (editIndex === -1) {
             // 新增
-            students.push({
-                name,
-                score,
-                gender,
-                imageLabel: selectedImage
-            });
+            students.push({ name, score, gender, imageLabel: selectedImage });
         } else {
             // 編輯
-            students[editIndex] = {
-                name,
-                score,
-                gender,
-                imageLabel: selectedImage
-            };
+            students[editIndex] = { name, score, gender, imageLabel: selectedImage };
         }
-
         saveToLocalStorage();
         closePopup();
         renderStudents();
+        if (isGoogleSignedIn) saveToDrive(); // 順便同步 Drive
     }
 
-    // === 3. 刪除學生 ===
+    // 刪除學生
     function deleteStudent(index) {
         if (confirm("確定要刪除這位學生嗎？")) {
             students.splice(index, 1);
             saveToLocalStorage();
             renderStudents();
+            if (isGoogleSignedIn) saveToDrive();
         }
     }
 
-    // === 4. 分數調整 ===
-    // 固定選項: -5, -1, +1, +5
+    // 分數調整 (固定)
     function updateScore(index, delta) {
         students[index].score += delta;
         saveToLocalStorage();
-        document.getElementById(`score-${index}`).textContent =
-            students[index].score + " 分";
+        document.getElementById(`score-${index}`).textContent = students[index].score + " 分";
+        if (isGoogleSignedIn) saveToDrive();
     }
 
-    // 快速加減任意數：以 + 或 - 搭配使用者輸入的數值
+    // 分數調整 (自訂)
     function customAdjust(index) {
         let signSelect = document.getElementById(`sign-${index}`);
         let customInput = document.getElementById(`custom-${index}`);
-        let sign = signSelect.value;      // "+" or "-"
+        let sign = signSelect.value; // "+" or "-"
         let val = parseInt(customInput.value) || 0;
-        if (sign === "-") {
-            val = -val;
-        }
+        if (sign === "-") val = -val;
+
         students[index].score += val;
         saveToLocalStorage();
-        document.getElementById(`score-${index}`).textContent =
-            students[index].score + " 分";
-
-        // 用完後清空輸入框
+        document.getElementById(`score-${index}`).textContent = students[index].score + " 分";
         customInput.value = "";
+        if (isGoogleSignedIn) saveToDrive();
     }
 
-    // === 5. 匯出 / 匯入 CSV ===
+    // 匯出 CSV
     function exportCSV() {
-        // CSV 標頭: 姓名,分數,性別,圖片(男1/女2...)
-        let csvContent =
-            "姓名,分數,性別,圖片\n" +
-            students
-                .map(
-                    (s) =>
-                        `${s.name},${s.score},${s.gender},${s.imageLabel}`
-                )
-                .join("\n");
-
+        let csvContent = "姓名,分數,性別,圖片\n" +
+            students.map(s => `${s.name},${s.score},${s.gender},${s.imageLabel}`).join("\n");
         let blob = new Blob([csvContent], { type: "text/csv" });
         let a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
@@ -403,42 +473,34 @@
         a.click();
     }
 
+    // 匯入 CSV
     function importCSV(event) {
         let file = event.target.files[0];
         if (!file) return;
 
         let reader = new FileReader();
-        reader.onload = function (e) {
-            // 讀取檔案內容
-            let lines = e.target.result
-                .split("\n")
-                .map((line) => line.trim())
-                .filter((line) => line);
-
-            // 移除標頭 (第一行)
-            lines.shift();
-
+        reader.onload = (e) => {
+            let lines = e.target.result.split("\n").map(line => line.trim()).filter(line => line);
+            lines.shift(); // 去掉標頭
             let newStudents = [];
-            lines.forEach((line) => {
+            lines.forEach(line => {
                 let [name, score, gender, imageLabel] = line.split(",");
                 score = parseInt(score) || 0;
                 if (!imageLabel) {
-                    // 若匯入 CSV 沒提供圖片標籤 => 自動使用第一張
                     let labels = genderImageLabels[gender] || ["男1"];
                     imageLabel = labels[0];
                 }
                 newStudents.push({ name, score, gender, imageLabel });
             });
-
-            // 匯入後直接覆蓋舊資料
             students = newStudents;
             saveToLocalStorage();
             renderStudents();
+            if (isGoogleSignedIn) saveToDrive();
         };
         reader.readAsText(file);
     }
 
-    // === 6. localStorage ===
+    // 儲存到 localStorage
     function saveToLocalStorage() {
         localStorage.setItem("students", JSON.stringify(students));
     }
