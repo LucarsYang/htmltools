@@ -772,50 +772,65 @@
 
     // 新增/編輯 學生
     function showPopup(idx=-1){
-        editIndex=idx;
+        editIndex = idx;
         document.getElementById("overlay").classList.add("show");
         document.getElementById("studentPopup").classList.add("show");
-        if(idx===-1){
-            document.getElementById("popupTitle").textContent="新增學生";
-            document.getElementById("studentName").value="";
-            document.getElementById("studentScore").value=0;
-            document.getElementById("studentGender").value="男";
-            selectedImage="";
-        }else{
-            document.getElementById("popupTitle").textContent="編輯學生";
-            let arr=getStudents();
-            let st=arr[idx];
-            document.getElementById("studentName").value=st.name;
-            document.getElementById("studentScore").value=st.score;
-            document.getElementById("studentGender").value=st.gender;
-            selectedImage=st.imageLabel;
+        
+        // 取得性別選擇元素並添加事件監聽
+        let genderSelect = document.getElementById("studentGender");
+        genderSelect.addEventListener("change", updateImagePreview);
+        
+        if(idx === -1){
+            document.getElementById("popupTitle").textContent = "新增學生";
+            document.getElementById("studentName").value = "";
+            document.getElementById("studentScore").value = 0;
+            genderSelect.value = "男";
+            selectedImage = "";
+        } else {
+            document.getElementById("popupTitle").textContent = "編輯學生";
+            let arr = getStudents();
+            let st = arr[idx];
+            document.getElementById("studentName").value = st.name;
+            document.getElementById("studentScore").value = st.score;
+            genderSelect.value = st.gender;
+            selectedImage = st.imageLabel;
         }
         updateImagePreview();
     }
     function closePopup(){
+        // 移除性別選擇的事件監聽器
+        let genderSelect = document.getElementById("studentGender");
+        genderSelect.removeEventListener("change", updateImagePreview);
+        
         document.getElementById("overlay").classList.remove("show");
         document.getElementById("studentPopup").classList.remove("show");
     }
     function updateImagePreview(){
-        let gender=document.getElementById("studentGender").value;
-        let imageSelection=document.getElementById("imageSelection");
-        imageSelection.innerHTML="";
-        let labels=genderImageLabels[gender];
-        labels.forEach((lbl,idx)=>{
-            let img=document.createElement("img");
-            img.src=imageMap[lbl];
-            img.onclick=()=>{
-                document.querySelectorAll(".image-preview img").forEach(x=>x.classList.remove("selected"));
+        let gender = document.getElementById("studentGender").value;
+        let imageSelection = document.getElementById("imageSelection");
+        imageSelection.innerHTML = "";
+        let labels = genderImageLabels[gender];
+        
+        // 如果切換性別後，之前選中的圖片不屬於新性別，則重置選擇
+        if(selectedImage && !labels.includes(selectedImage)){
+            selectedImage = "";
+        }
+        
+        labels.forEach((lbl, idx) => {
+            let img = document.createElement("img");
+            img.src = imageMap[lbl];
+            img.onclick = () => {
+                document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
                 img.classList.add("selected");
-                selectedImage=lbl;
+                selectedImage = lbl;
             };
-            if(idx===0 && editIndex===-1 && !selectedImage){
+            
+            // 選中圖片的邏輯
+            if((idx === 0 && !selectedImage) || selectedImage === lbl){
                 img.classList.add("selected");
-                selectedImage=lbl;
+                selectedImage = lbl;
             }
-            if(editIndex!==-1 && selectedImage===lbl){
-                img.classList.add("selected");
-            }
+            
             imageSelection.appendChild(img);
         });
     }
