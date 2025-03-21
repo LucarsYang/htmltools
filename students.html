@@ -38,7 +38,21 @@
 
         /* 三狀態: 有異動/更新中/已同步 */
         #syncStatusBar {
-            display:flex; gap:10px; align-items:center;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #syncStatusBar:hover {
+            background: #e0e0e0;
+        }
+        #syncStatusBar.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
         }
         .red    { color:red;    }
         .yellow { color:#FFC107;}
@@ -314,6 +328,11 @@
     let editIndex = -1;
     let selectedImage = "";
 
+    // 新增自動同步相關變數
+    let autoSyncTimer = null;
+    const AUTO_SYNC_DELAY = 30; // 30秒
+    let remainingSeconds = 0;
+
     // 性別->圖片
     const imageMap = {
         "男1":"https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000",
@@ -328,27 +347,120 @@
         "女":["女1","女2","女3"]
     };
 
-    // 三狀態：markDirty, markUpdating, markSynced
+    // 修改狀態相關函數
     function markDirty(){
-        document.getElementById("statusDirty")   .className="red";
-        document.getElementById("statusUpdating").className="grey";
-        document.getElementById("statusSynced")  .className="grey";
-        updatingState=false;
+        document.getElementById("statusDirty").className = "red";
+        document.getElementById("statusUpdating").className = "grey";
+        document.getElementById("statusSynced").className = "grey";
+        document.getElementById("syncStatusBar").title = "點擊進行同步";
+        updatingState = false;
         hideSyncOverlay();
+        enableSyncBar();
+        startAutoSyncTimer(); // 開始倒數
     }
+
     function markUpdating(){
-        document.getElementById("statusDirty")   .className="grey";
-        document.getElementById("statusUpdating").className="yellow";
-        document.getElementById("statusSynced")  .className="grey";
-        updatingState=true;
+        document.getElementById("statusDirty").className = "grey";
+        document.getElementById("statusUpdating").className = "yellow";
+        document.getElementById("statusSynced").className = "grey";
+        document.getElementById("syncStatusBar").title = "同步處理中...";
+        updatingState = true;
         showSyncOverlay();
+        disableSyncBar();
+        stopAutoSyncTimer(); // 停止倒數
     }
+
     function markSynced(){
-        document.getElementById("statusDirty")   .className="grey";
-        document.getElementById("statusUpdating").className="grey";
-        document.getElementById("statusSynced")  .className="green";
-        updatingState=false;
+        document.getElementById("statusDirty").className = "grey";
+        document.getElementById("statusUpdating").className = "grey";
+        document.getElementById("statusSynced").className = "green";
+        document.getElementById("syncStatusBar").title = "資料已同步";
+        updatingState = false;
         hideSyncOverlay();
+        enableSyncBar();
+        stopAutoSyncTimer(); // 停止倒數
+    }
+
+    // 新增自動同步相關函數
+    function startAutoSyncTimer() {
+        // 如果未登入 Google，不啟動計時器
+        if (!googleAuth.getIsSignedIn()) return;
+        
+        // 清除現有計時器
+        stopAutoSyncTimer();
+        
+        // 設定初始倒數時間
+        remainingSeconds = AUTO_SYNC_DELAY;
+        updateSyncStatus();
+        
+        // 啟動新計時器
+        autoSyncTimer = setInterval(() => {
+            remainingSeconds--;
+            updateSyncStatus();
+            
+            // 時間到，執行同步
+            if (remainingSeconds <= 0) {
+                clearInterval(autoSyncTimer);
+                autoSyncTimer = null;
+                performSync();
+            }
+        }, 1000);
+    }
+
+    function stopAutoSyncTimer() {
+        if (autoSyncTimer) {
+            clearInterval(autoSyncTimer);
+            autoSyncTimer = null;
+        }
+        remainingSeconds = 0;
+    }
+
+    function updateSyncStatus() {
+        let statusBar = document.getElementById("syncStatusBar");
+        if (remainingSeconds > 0) {
+            statusBar.title = `點擊同步 (${remainingSeconds}秒後自動同步)`;
+            // 更新狀態文字
+            document.getElementById("statusDirty").textContent = `有異動 (${remainingSeconds}s)`;
+        } else {
+            statusBar.title = "點擊進行同步";
+            document.getElementById("statusDirty").textContent = "有異動";
+        }
+    }
+
+    // 新增執行同步的函數
+    function performSync() {
+        // 檢查是否可以同步
+        if (!googleAuth.getIsSignedIn()) {
+            alert("尚未登入 Google");
+            return;
+        }
+        if (updatingState) {
+            alert("同步處理中，請稍候...");
+            return;
+        }
+        
+        // 執行同步
+        markUpdating();
+        googleDrive.saveDriveFile("classes.json", classes)
+            .then(() => {
+                markSynced();
+            })
+            .catch(err => {
+                console.error("儲存失敗:", err);
+                markDirty();
+                alert("同步失敗，請稍後再試");
+            });
+    }
+
+    // 新增狀態列啟用/禁用函數
+    function enableSyncBar() {
+        let bar = document.getElementById("syncStatusBar");
+        bar.classList.remove("disabled");
+    }
+
+    function disableSyncBar() {
+        let bar = document.getElementById("syncStatusBar");
+        bar.classList.add("disabled");
     }
 
     // 更新中時顯示遮罩
@@ -446,12 +558,18 @@
             importCSV(evt);
         });
 
-        // 手動同步
-        let syncBtn=document.createElement("button");
-        syncBtn.id="btn-manual-sync";
-        syncBtn.textContent="手動同步";
-        syncBtn.addEventListener("click",handleManualSync);
-        document.querySelector(".toolbar").appendChild(syncBtn);
+        // 點擊狀態列觸發同步
+        let syncBar = document.getElementById("syncStatusBar");
+        syncBar.addEventListener("click", () => {
+            // 檢查是否需要同步
+            let isDirty = document.getElementById("statusDirty").className === "red";
+            if (!isDirty) {
+                alert("資料已是最新狀態");
+                return;
+            }
+            
+            performSync();
+        });
 
         // 學生popup
         document.getElementById("btnSaveStudent").addEventListener("click",saveStudent);
@@ -486,6 +604,7 @@
             alert("尚未登入");
             return;
         }
+        stopAutoSyncTimer(); // 停止自動同步計時器
         googleAuth.signOut(()=>{
             console.log("已登出");
             hideMainButtons();
@@ -495,27 +614,23 @@
 
     // 顯示/隱藏主功能按鈕
     function hideMainButtons(){
-        document.getElementById("login-btn").style.display="none";
-        document.getElementById("logout-btn").style.display="none";
-        document.getElementById("classSelect").style.display="none";
-        document.getElementById("btn-manage-classes").style.display="none";
-        document.getElementById("btn-add-student").style.display="none";
-        document.getElementById("btn-export-csv").style.display="none";
-        document.getElementById("importCSV").style.display="none";
-        let syncBtn=document.getElementById("btn-manual-sync");
-        if(syncBtn) syncBtn.style.display="none";
+        document.getElementById("login-btn").style.display = "none";
+        document.getElementById("logout-btn").style.display = "none";
+        document.getElementById("classSelect").style.display = "none";
+        document.getElementById("btn-manage-classes").style.display = "none";
+        document.getElementById("btn-add-student").style.display = "none";
+        document.getElementById("btn-export-csv").style.display = "none";
+        document.getElementById("importCSV").style.display = "none";
     }
     function showMainButtons(){
-        let isSigned=googleAuth.getIsSignedIn();
-        document.getElementById("login-btn").style.display=isSigned?"none":"inline-block";
-        document.getElementById("logout-btn").style.display=isSigned?"inline-block":"none";
-        document.getElementById("classSelect").style.display="inline-block";
-        document.getElementById("btn-manage-classes").style.display="inline-block";
-        document.getElementById("btn-add-student").style.display="inline-block";
-        document.getElementById("btn-export-csv").style.display="inline-block";
-        document.getElementById("importCSV").style.display="inline-block";
-        let syncBtn=document.getElementById("btn-manual-sync");
-        if(syncBtn) syncBtn.style.display="inline-block";
+        let isSigned = googleAuth.getIsSignedIn();
+        document.getElementById("login-btn").style.display = isSigned ? "none" : "inline-block";
+        document.getElementById("logout-btn").style.display = isSigned ? "inline-block" : "none";
+        document.getElementById("classSelect").style.display = "inline-block";
+        document.getElementById("btn-manage-classes").style.display = "inline-block";
+        document.getElementById("btn-add-student").style.display = "inline-block";
+        document.getElementById("btn-export-csv").style.display = "inline-block";
+        document.getElementById("importCSV").style.display = "inline-block";
     }
 
     // 登入選擇視窗
@@ -569,25 +684,6 @@
             console.error("loadClasses失敗:",err);
             markDirty();
         }
-    }
-
-    // 手動同步
-    function handleManualSync(){
-        if(!googleAuth.getIsSignedIn()){
-            alert("尚未登入 Google");
-            return;
-        }
-        if(checkIfUpdating()) return; // 已在更新中
-
-        markUpdating();
-        googleDrive.saveDriveFile("classes.json", classes)
-            .then(()=>{
-                markSynced();
-            })
-            .catch(err=>{
-                console.error("儲存失敗:",err);
-                markDirty();
-            });
     }
 
     // 班級
