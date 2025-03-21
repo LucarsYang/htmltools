@@ -38,7 +38,21 @@
 
         /* 三狀態: 有異動/更新中/已同步 */
         #syncStatusBar {
-            display:flex; gap:10px; align-items:center;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #syncStatusBar:hover {
+            background: #e0e0e0;
+        }
+        #syncStatusBar.disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
         }
         .red    { color:red;    }
         .yellow { color:#FFC107;}
@@ -124,7 +138,7 @@
     </style>
 </head>
 <body>
-<h2>多班級管理 - 國小學員分數管理 (三狀態 + 手動同步 + 單檔 + 僅更新中阻擋)</h2>
+<h2>班級學員分數管理</h2>
 
 <div class="toolbar">
     <button id="login-btn"  style="display:none;">登入 Google</button>
@@ -198,21 +212,22 @@
 <script type="module">
     // ======== [1] GoogleAuth - 單檔: OAuth ========
     const googleAuth = (function(){
-        let accessToken=null;
-        let isGoogleSignedIn=false;
-        let tokenClient=null;
+        let accessToken = localStorage.getItem("googleAccessToken") || null;
+        let isGoogleSignedIn = !!accessToken;
+        let tokenClient = null;
 
         function initGoogleAuth(onSuccess, onFailure){
             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id:"310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com", // 請替換
+                client_id:"310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com",
                 scope:"https://www.googleapis.com/auth/drive.file",
                 callback:(resp)=>{
                     if(resp.error){
                         if(onFailure) onFailure(resp.error);
                     } else {
                         // 成功
-                        accessToken=resp.access_token;
-                        isGoogleSignedIn=true;
+                        accessToken = resp.access_token;
+                        localStorage.setItem("googleAccessToken", accessToken);
+                        isGoogleSignedIn = true;
                         if(onSuccess) onSuccess();
                     }
                 }
@@ -228,8 +243,9 @@
                 return;
             }
             google.accounts.oauth2.revoke(accessToken,()=>{
-                accessToken=null;
-                isGoogleSignedIn=false;
+                accessToken = null;
+                isGoogleSignedIn = false;
+                localStorage.removeItem("googleAccessToken");
                 if(cb) cb();
             });
         }
@@ -312,6 +328,11 @@
     let editIndex = -1;
     let selectedImage = "";
 
+    // 新增自動同步相關變數
+    let autoSyncTimer = null;
+    const AUTO_SYNC_DELAY = 30; // 30秒
+    let remainingSeconds = 0;
+
     // 性別->圖片
     const imageMap = {
         "男1":"https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000",
@@ -326,27 +347,120 @@
         "女":["女1","女2","女3"]
     };
 
-    // 三狀態：markDirty, markUpdating, markSynced
+    // 修改狀態相關函數
     function markDirty(){
-        document.getElementById("statusDirty")   .className="red";
-        document.getElementById("statusUpdating").className="grey";
-        document.getElementById("statusSynced")  .className="grey";
-        updatingState=false;
+        document.getElementById("statusDirty").className = "red";
+        document.getElementById("statusUpdating").className = "grey";
+        document.getElementById("statusSynced").className = "grey";
+        document.getElementById("syncStatusBar").title = "點擊進行同步";
+        updatingState = false;
         hideSyncOverlay();
+        enableSyncBar();
+        startAutoSyncTimer(); // 開始倒數
     }
+
     function markUpdating(){
-        document.getElementById("statusDirty")   .className="grey";
-        document.getElementById("statusUpdating").className="yellow";
-        document.getElementById("statusSynced")  .className="grey";
-        updatingState=true;
+        document.getElementById("statusDirty").className = "grey";
+        document.getElementById("statusUpdating").className = "yellow";
+        document.getElementById("statusSynced").className = "grey";
+        document.getElementById("syncStatusBar").title = "同步處理中...";
+        updatingState = true;
         showSyncOverlay();
+        disableSyncBar();
+        stopAutoSyncTimer(); // 停止倒數
     }
+
     function markSynced(){
-        document.getElementById("statusDirty")   .className="grey";
-        document.getElementById("statusUpdating").className="grey";
-        document.getElementById("statusSynced")  .className="green";
-        updatingState=false;
+        document.getElementById("statusDirty").className = "grey";
+        document.getElementById("statusUpdating").className = "grey";
+        document.getElementById("statusSynced").className = "green";
+        document.getElementById("syncStatusBar").title = "資料已同步";
+        updatingState = false;
         hideSyncOverlay();
+        enableSyncBar();
+        stopAutoSyncTimer(); // 停止倒數
+    }
+
+    // 新增自動同步相關函數
+    function startAutoSyncTimer() {
+        // 如果未登入 Google，不啟動計時器
+        if (!googleAuth.getIsSignedIn()) return;
+        
+        // 清除現有計時器
+        stopAutoSyncTimer();
+        
+        // 設定初始倒數時間
+        remainingSeconds = AUTO_SYNC_DELAY;
+        updateSyncStatus();
+        
+        // 啟動新計時器
+        autoSyncTimer = setInterval(() => {
+            remainingSeconds--;
+            updateSyncStatus();
+            
+            // 時間到，執行同步
+            if (remainingSeconds <= 0) {
+                clearInterval(autoSyncTimer);
+                autoSyncTimer = null;
+                performSync();
+            }
+        }, 1000);
+    }
+
+    function stopAutoSyncTimer() {
+        if (autoSyncTimer) {
+            clearInterval(autoSyncTimer);
+            autoSyncTimer = null;
+        }
+        remainingSeconds = 0;
+    }
+
+    function updateSyncStatus() {
+        let statusBar = document.getElementById("syncStatusBar");
+        if (remainingSeconds > 0) {
+            statusBar.title = `點擊同步 (${remainingSeconds}秒後自動同步)`;
+            // 更新狀態文字
+            document.getElementById("statusDirty").textContent = `有異動 (${remainingSeconds}s)`;
+        } else {
+            statusBar.title = "點擊進行同步";
+            document.getElementById("statusDirty").textContent = "有異動";
+        }
+    }
+
+    // 新增執行同步的函數
+    function performSync() {
+        // 檢查是否可以同步
+        if (!googleAuth.getIsSignedIn()) {
+            alert("尚未登入 Google");
+            return;
+        }
+        if (updatingState) {
+            alert("同步處理中，請稍候...");
+            return;
+        }
+        
+        // 執行同步
+        markUpdating();
+        googleDrive.saveDriveFile("classes.json", classes)
+            .then(() => {
+                markSynced();
+            })
+            .catch(err => {
+                console.error("儲存失敗:", err);
+                markDirty();
+                alert("同步失敗，請稍後再試");
+            });
+    }
+
+    // 新增狀態列啟用/禁用函數
+    function enableSyncBar() {
+        let bar = document.getElementById("syncStatusBar");
+        bar.classList.remove("disabled");
+    }
+
+    function disableSyncBar() {
+        let bar = document.getElementById("syncStatusBar");
+        bar.classList.add("disabled");
     }
 
     // 更新中時顯示遮罩
@@ -369,9 +483,17 @@
     }
 
     // onload
-    window.onload=()=>{
+    window.onload = () => {
         hideMainButtons();
-        showLoginChoice();
+        
+        // 檢查是否已有 token
+        if(googleAuth.getIsSignedIn()){
+            showMainButtons();
+            markSynced();
+            loadClassesFromDrive();
+        } else {
+            showLoginChoice();
+        }
 
         // 初始化 googleAuth
         googleAuth.initGoogleAuth(
@@ -379,9 +501,8 @@
                 // onSuccess
                 hideLoginProcessingOverlay();
                 console.log("Google登入成功!");
-                // 取得 token
-                document.getElementById("login-btn").style.display="none";
-                document.getElementById("logout-btn").style.display="inline-block";
+                document.getElementById("login-btn").style.display = "none";
+                document.getElementById("logout-btn").style.display = "inline-block";
                 markSynced();
                 loadClassesFromDrive();
             },
@@ -389,6 +510,7 @@
                 // onFailure
                 hideLoginProcessingOverlay();
                 console.log("Google登入失敗:",err);
+                localStorage.removeItem("googleAccessToken"); // 移除無效的 token
                 backToLoginChoice();
             }
         );
@@ -436,12 +558,18 @@
             importCSV(evt);
         });
 
-        // 手動同步
-        let syncBtn=document.createElement("button");
-        syncBtn.id="btn-manual-sync";
-        syncBtn.textContent="手動同步";
-        syncBtn.addEventListener("click",handleManualSync);
-        document.querySelector(".toolbar").appendChild(syncBtn);
+        // 點擊狀態列觸發同步
+        let syncBar = document.getElementById("syncStatusBar");
+        syncBar.addEventListener("click", () => {
+            // 檢查是否需要同步
+            let isDirty = document.getElementById("statusDirty").className === "red";
+            if (!isDirty) {
+                alert("資料已是最新狀態");
+                return;
+            }
+            
+            performSync();
+        });
 
         // 學生popup
         document.getElementById("btnSaveStudent").addEventListener("click",saveStudent);
@@ -476,6 +604,7 @@
             alert("尚未登入");
             return;
         }
+        stopAutoSyncTimer(); // 停止自動同步計時器
         googleAuth.signOut(()=>{
             console.log("已登出");
             hideMainButtons();
@@ -485,27 +614,23 @@
 
     // 顯示/隱藏主功能按鈕
     function hideMainButtons(){
-        document.getElementById("login-btn").style.display="none";
-        document.getElementById("logout-btn").style.display="none";
-        document.getElementById("classSelect").style.display="none";
-        document.getElementById("btn-manage-classes").style.display="none";
-        document.getElementById("btn-add-student").style.display="none";
-        document.getElementById("btn-export-csv").style.display="none";
-        document.getElementById("importCSV").style.display="none";
-        let syncBtn=document.getElementById("btn-manual-sync");
-        if(syncBtn) syncBtn.style.display="none";
+        document.getElementById("login-btn").style.display = "none";
+        document.getElementById("logout-btn").style.display = "none";
+        document.getElementById("classSelect").style.display = "none";
+        document.getElementById("btn-manage-classes").style.display = "none";
+        document.getElementById("btn-add-student").style.display = "none";
+        document.getElementById("btn-export-csv").style.display = "none";
+        document.getElementById("importCSV").style.display = "none";
     }
     function showMainButtons(){
-        let isSigned=googleAuth.getIsSignedIn();
-        document.getElementById("login-btn").style.display=isSigned?"none":"inline-block";
-        document.getElementById("logout-btn").style.display=isSigned?"inline-block":"none";
-        document.getElementById("classSelect").style.display="inline-block";
-        document.getElementById("btn-manage-classes").style.display="inline-block";
-        document.getElementById("btn-add-student").style.display="inline-block";
-        document.getElementById("btn-export-csv").style.display="inline-block";
-        document.getElementById("importCSV").style.display="inline-block";
-        let syncBtn=document.getElementById("btn-manual-sync");
-        if(syncBtn) syncBtn.style.display="inline-block";
+        let isSigned = googleAuth.getIsSignedIn();
+        document.getElementById("login-btn").style.display = isSigned ? "none" : "inline-block";
+        document.getElementById("logout-btn").style.display = isSigned ? "inline-block" : "none";
+        document.getElementById("classSelect").style.display = "inline-block";
+        document.getElementById("btn-manage-classes").style.display = "inline-block";
+        document.getElementById("btn-add-student").style.display = "inline-block";
+        document.getElementById("btn-export-csv").style.display = "inline-block";
+        document.getElementById("importCSV").style.display = "inline-block";
     }
 
     // 登入選擇視窗
@@ -559,25 +684,6 @@
             console.error("loadClasses失敗:",err);
             markDirty();
         }
-    }
-
-    // 手動同步
-    function handleManualSync(){
-        if(!googleAuth.getIsSignedIn()){
-            alert("尚未登入 Google");
-            return;
-        }
-        if(checkIfUpdating()) return; // 已在更新中
-
-        markUpdating();
-        googleDrive.saveDriveFile("classes.json", classes)
-            .then(()=>{
-                markSynced();
-            })
-            .catch(err=>{
-                console.error("儲存失敗:",err);
-                markDirty();
-            });
     }
 
     // 班級
@@ -666,50 +772,65 @@
 
     // 新增/編輯 學生
     function showPopup(idx=-1){
-        editIndex=idx;
+        editIndex = idx;
         document.getElementById("overlay").classList.add("show");
         document.getElementById("studentPopup").classList.add("show");
-        if(idx===-1){
-            document.getElementById("popupTitle").textContent="新增學生";
-            document.getElementById("studentName").value="";
-            document.getElementById("studentScore").value=0;
-            document.getElementById("studentGender").value="男";
-            selectedImage="";
-        }else{
-            document.getElementById("popupTitle").textContent="編輯學生";
-            let arr=getStudents();
-            let st=arr[idx];
-            document.getElementById("studentName").value=st.name;
-            document.getElementById("studentScore").value=st.score;
-            document.getElementById("studentGender").value=st.gender;
-            selectedImage=st.imageLabel;
+        
+        // 取得性別選擇元素並添加事件監聽
+        let genderSelect = document.getElementById("studentGender");
+        genderSelect.addEventListener("change", updateImagePreview);
+        
+        if(idx === -1){
+            document.getElementById("popupTitle").textContent = "新增學生";
+            document.getElementById("studentName").value = "";
+            document.getElementById("studentScore").value = 0;
+            genderSelect.value = "男";
+            selectedImage = "";
+        } else {
+            document.getElementById("popupTitle").textContent = "編輯學生";
+            let arr = getStudents();
+            let st = arr[idx];
+            document.getElementById("studentName").value = st.name;
+            document.getElementById("studentScore").value = st.score;
+            genderSelect.value = st.gender;
+            selectedImage = st.imageLabel;
         }
         updateImagePreview();
     }
     function closePopup(){
+        // 移除性別選擇的事件監聽器
+        let genderSelect = document.getElementById("studentGender");
+        genderSelect.removeEventListener("change", updateImagePreview);
+        
         document.getElementById("overlay").classList.remove("show");
         document.getElementById("studentPopup").classList.remove("show");
     }
     function updateImagePreview(){
-        let gender=document.getElementById("studentGender").value;
-        let imageSelection=document.getElementById("imageSelection");
-        imageSelection.innerHTML="";
-        let labels=genderImageLabels[gender];
-        labels.forEach((lbl,idx)=>{
-            let img=document.createElement("img");
-            img.src=imageMap[lbl];
-            img.onclick=()=>{
-                document.querySelectorAll(".image-preview img").forEach(x=>x.classList.remove("selected"));
+        let gender = document.getElementById("studentGender").value;
+        let imageSelection = document.getElementById("imageSelection");
+        imageSelection.innerHTML = "";
+        let labels = genderImageLabels[gender];
+        
+        // 如果切換性別後，之前選中的圖片不屬於新性別，則重置選擇
+        if(selectedImage && !labels.includes(selectedImage)){
+            selectedImage = "";
+        }
+        
+        labels.forEach((lbl, idx) => {
+            let img = document.createElement("img");
+            img.src = imageMap[lbl];
+            img.onclick = () => {
+                document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
                 img.classList.add("selected");
-                selectedImage=lbl;
+                selectedImage = lbl;
             };
-            if(idx===0 && editIndex===-1 && !selectedImage){
+            
+            // 選中圖片的邏輯
+            if((idx === 0 && !selectedImage) || selectedImage === lbl){
                 img.classList.add("selected");
-                selectedImage=lbl;
+                selectedImage = lbl;
             }
-            if(editIndex!==-1 && selectedImage===lbl){
-                img.classList.add("selected");
-            }
+            
             imageSelection.appendChild(img);
         });
     }
