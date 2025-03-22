@@ -982,7 +982,10 @@
             customImageData = imageUrl;
             
             // 更新預覽
-            preview.innerHTML = `<img src="${imageUrl}" alt="自訂圖片">`;
+            preview.innerHTML = `
+                <img src="${imageUrl}" alt="自訂圖片">
+                <button onclick="clearCustomImage()" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+            `;
             
             // 取消選擇預設圖片
             document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
@@ -993,6 +996,20 @@
             preview.innerHTML = '';
         }
     }
+
+    // 新增：清除自訂圖片的函數
+    window.clearCustomImage = function() {
+        customImageData = null;
+        customImageFileId = null;
+        document.getElementById("customImagePreview").innerHTML = "";
+        document.getElementById("customImageUpload").value = "";
+        
+        // 選擇第一個預設圖片
+        let gender = document.getElementById("studentGender").value;
+        let labels = genderImageLabels[gender];
+        selectedImage = labels[0];
+        updateImagePreview();
+    };
 
     // 新增/編輯 學生
     function showPopup(idx=-1){
@@ -1061,10 +1078,15 @@
                 document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
                 img.classList.add("selected");
                 selectedImage = lbl;
+                // 清除自訂圖片
+                customImageData = null;
+                customImageFileId = null;
+                document.getElementById("customImagePreview").innerHTML = "";
+                document.getElementById("customImageUpload").value = "";
             };
             
-            // 選中圖片的邏輯
-            if((idx === 0 && !selectedImage) || selectedImage === lbl){
+            // 選中圖片的邏輯：如果沒有自訂圖片時才套用
+            if(!customImageData && ((idx === 0 && !selectedImage) || selectedImage === lbl)){
                 img.classList.add("selected");
                 selectedImage = lbl;
             }
@@ -1081,12 +1103,14 @@
         // 處理圖片選擇
         let imageData = null;
         let imageFileId = null;
+        let imageLabel = "";
+        
         if (customImageData) {
             imageData = customImageData;
             imageFileId = customImageFileId;
-        } else if (!selectedImage) {
-            let labs=genderImageLabels[gender];
-            selectedImage=labs[0];
+            imageLabel = "";  // 使用自訂圖片時，清空 imageLabel
+        } else {
+            imageLabel = selectedImage || genderImageLabels[gender][0];
         }
         
         if(!name){
@@ -1100,7 +1124,7 @@
                 name,
                 score,
                 gender,
-                imageLabel: selectedImage,
+                imageLabel,
                 customImage: imageData,
                 customImageFileId: imageFileId
             });
@@ -1109,7 +1133,7 @@
                 name,
                 score,
                 gender,
-                imageLabel: selectedImage,
+                imageLabel,
                 customImage: imageData,
                 customImageFileId: imageFileId
             };
