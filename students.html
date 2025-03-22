@@ -211,7 +211,20 @@
         }
         .student-card img { width:80px; height:80px; cursor:pointer; }
         .btn-score {
-            background:#8bc34a; color:#fff; border-radius:3px; margin:2px;
+            color:#fff; border-radius:3px; margin:2px;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-score:hover {
+            opacity: 0.9;
+        }
+        .btn-score.positive {
+            background: #4caf50;  /* 綠色 */
+        }
+        .btn-score.negative {
+            background: #f44336;  /* 紅色 */
         }
         .btn-edit {
             background:#ffa500; color:white; margin:5px 2px;
@@ -589,14 +602,14 @@
         <a class="menu-item" id="btnAddStudent">
             <i>➕</i><span>新增學生</span>
         </a>
+        <a class="menu-item" id="btnWheel">
+            <i>🎡</i><span>輪轉盤</span>
+        </a>
         <a class="menu-item" id="btnExportCSV">
             <i>📤</i><span>匯出 CSV</span>
         </a>
         <a class="menu-item" id="btnImportCSV">
             <i>📥</i><span>匯入 CSV</span>
-        </a>
-        <a class="menu-item" id="btnWheel">
-            <i>🎡</i><span>輪轉盤</span>
         </a>
     </div>
 
@@ -1514,15 +1527,20 @@
             card.addEventListener('dragover', handleDragOver);
             card.addEventListener('drop', handleDrop);
             
+            // 根據分數正負決定按鈕類別
+            const getButtonClass = (score) => {
+                return score >= 0 ? 'positive' : 'negative';
+            };
+            
             card.innerHTML=`
       <button class="delete-btn" onclick="deleteStudent(${idx})">×</button>
       <img src="${imgSrc}" alt="${st.gender}" onclick="editStudent(${idx})">
       <p>${st.name}</p>
       <p id="score-${idx}">${st.score} 分</p>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[0]})">${classes.scoreButtons[0] >= 0 ? '+' : ''}${classes.scoreButtons[0]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[1]})">${classes.scoreButtons[1] >= 0 ? '+' : ''}${classes.scoreButtons[1]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[0])}" onclick="updateScore(${idx}, ${classes.scoreButtons[0]})">${classes.scoreButtons[0] >= 0 ? '+' : ''}${classes.scoreButtons[0]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[1])}" onclick="updateScore(${idx}, ${classes.scoreButtons[1]})">${classes.scoreButtons[1] >= 0 ? '+' : ''}${classes.scoreButtons[1]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[2])}" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[3])}" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
       <div class="quickAdjust">
         <select id="sign-${idx}">
           <option value="+">+</option>
