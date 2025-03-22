@@ -183,9 +183,28 @@
         }
         .image-container {
             position: relative;
-            width: 60px;
+            width: 70px;
             margin: 5px;
             text-align: center;
+        }
+        .image-delete-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            padding: 0;
+            line-height: 1;
+        }
+        .image-container:hover .image-delete-btn {
+            display: block;
         }
         .image-name {
             font-size: 10px;
@@ -197,7 +216,7 @@
         }
         .uploaded-images-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
             gap: 10px;
             margin-top: 10px;
             max-height: 200px;
@@ -552,9 +571,31 @@
             }
         }
 
+        // 新增：從 Google Drive 刪除檔案
+        async function deleteFile(fileId) {
+            if (!googleAuth.getIsSignedIn()) return;
+            const token = googleAuth.getAccessToken();
+            
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { "Authorization": `Bearer ${token}` }
+                    }
+                );
+                
+                if (!response.ok) throw new Error("刪除失敗");
+                return true;
+            } catch(err) {
+                console.error("刪除檔案失敗:", err);
+                throw err;
+            }
+        }
+
         return {
             loadDriveFile, saveDriveFile, uploadImageToDrive, getImageUrlFromDrive,
-            getAllImages  // 匯出新函數
+            getAllImages, deleteFile  // 匯出新函數
         };
     })();
 
@@ -1468,6 +1509,7 @@
                 imgContainer.className = 'image-container';
                 imgContainer.innerHTML = `
                     <img src="${url}" alt="${name}" title="${name}">
+                    <button class="image-delete-btn" title="刪除圖片">×</button>
                     <div class="image-name">${name}</div>
                 `;
                 
@@ -1476,6 +1518,7 @@
                     img.classList.add('selected');
                 }
                 
+                // 圖片點擊事件
                 img.onclick = () => {
                     document.querySelectorAll('.uploaded-images-grid img').forEach(img => {
                         img.classList.remove('selected');
@@ -1493,6 +1536,46 @@
                         <img src="${url}" alt="${name}">
                         <button onclick="clearCustomImage()" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
                     `;
+                };
+
+                // 刪除按鈕點擊事件
+                const deleteBtn = imgContainer.querySelector('.image-delete-btn');
+                deleteBtn.onclick = async (e) => {
+                    e.stopPropagation();  // 防止觸發圖片的點擊事件
+                    
+                    // 檢查圖片是否正在使用中
+                    let isInUse = false;
+                    Object.values(classes).forEach(students => {
+                        students.forEach(student => {
+                            if (student.customImageFileId === id) {
+                                isInUse = true;
+                            }
+                        });
+                    });
+
+                    if (isInUse) {
+                        alert('此圖片正在使用中，無法刪除');
+                        return;
+                    }
+
+                    if (!confirm('確定要刪除這張圖片嗎？')) return;
+
+                    try {
+                        await googleDrive.deleteFile(id);
+                        
+                        // 如果刪除的是目前選中的圖片，清除預覽
+                        if (customImageFileId === id) {
+                            clearCustomImage();
+                        }
+                        
+                        // 從集合中移除
+                        uploadedImages.delete(imageInfo);
+                        
+                        // 重新渲染圖片區域
+                        updateUploadedImagesSection();
+                    } catch (err) {
+                        alert('刪除失敗，請稍後再試');
+                    }
                 };
                 
                 grid.appendChild(imgContainer);
