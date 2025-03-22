@@ -602,7 +602,10 @@
     // ======== [3] 主程式 students.js ========
 
     // 全域狀態
-    let classes = JSON.parse(localStorage.getItem("classes")) || { "一班":[] };
+    let classes = JSON.parse(localStorage.getItem("classes")) || { 
+        "一班": [],
+        "scoreButtons": [-5, -1, 1, 5]  // 預設值
+    };
     let currentClass = Object.keys(classes)[0] || "一班";
 
     let updatingState = false; // true表示「更新中(黃)」階段 => 阻擋操作
@@ -930,6 +933,18 @@
         document.getElementById("btn-add-student").style.display = "inline-block";
         document.getElementById("btn-export-csv").style.display = "inline-block";
         document.getElementById("importCSV").style.display = "inline-block";
+        
+        // 新增設定按鈕
+        let settingsBtn = document.getElementById("btn-settings");
+        if (!settingsBtn) {
+            settingsBtn = document.createElement("button");
+            settingsBtn.id = "btn-settings";
+            settingsBtn.textContent = "分數按鈕設定";
+            settingsBtn.style.background = "#607d8b";
+            document.querySelector(".toolbar").appendChild(settingsBtn);
+            settingsBtn.addEventListener("click", showScoreButtonsSettings);
+        }
+        settingsBtn.style.display = "inline-block";
     }
 
     // 登入選擇視窗
@@ -965,12 +980,16 @@
     async function loadClassesFromDrive(){
         if(!googleAuth.getIsSignedIn()) return;
         try {
-            let data=await googleDrive.loadDriveFile("classes.json");
+            let data = await googleDrive.loadDriveFile("classes.json");
             if(data){
-                classes=data;
+                // 確保 scoreButtons 存在
+                if (!data.scoreButtons) {
+                    data.scoreButtons = [-5, -1, 1, 5];  // 使用預設值
+                }
+                classes = data;
                 saveClassesLocal();
                 if(!classes[currentClass]){
-                    currentClass=Object.keys(classes)[0]||"一班";
+                    currentClass = Object.keys(classes).find(key => key !== 'scoreButtons') || "一班";
                 }
                 renderClassDropdown();
                 renderStudents();
@@ -987,13 +1006,16 @@
 
     // 班級
     function renderClassDropdown(){
-        let sel=document.getElementById("classSelect");
-        sel.innerHTML="";
+        let sel = document.getElementById("classSelect");
+        sel.innerHTML = "";
         for(let cName in classes){
-            let opt=document.createElement("option");
-            opt.value=cName;
-            opt.textContent=cName;
-            if(cName===currentClass) opt.selected=true;
+            // 跳過 scoreButtons
+            if(cName === 'scoreButtons') continue;
+            
+            let opt = document.createElement("option");
+            opt.value = cName;
+            opt.textContent = cName;
+            if(cName === currentClass) opt.selected = true;
             sel.appendChild(opt);
         }
     }
@@ -1013,10 +1035,10 @@
       <img src="${imgSrc}" alt="${st.gender}" onclick="editStudent(${idx})">
       <p>${st.name}</p>
       <p id="score-${idx}">${st.score} 分</p>
-      <button class="btn-score" onclick="updateScore(${idx}, -5)">-5</button>
-      <button class="btn-score" onclick="updateScore(${idx}, -1)">-1</button>
-      <button class="btn-score" onclick="updateScore(${idx},  1)">+1</button>
-      <button class="btn-score" onclick="updateScore(${idx},  5)">+5</button>
+      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[0]})">${classes.scoreButtons[0] >= 0 ? '+' : ''}${classes.scoreButtons[0]}</button>
+      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[1]})">${classes.scoreButtons[1] >= 0 ? '+' : ''}${classes.scoreButtons[1]}</button>
+      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
+      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
       <div class="quickAdjust">
         <select id="sign-${idx}">
           <option value="+">+</option>
@@ -1584,6 +1606,84 @@
             customImageUpload.appendChild(section);
         }
     }
+
+    // 新增設定視窗的 HTML
+    function addSettingsPopup() {
+        const overlay = document.createElement("div");
+        overlay.id = "settingsOverlay";
+        overlay.className = "overlay";
+        
+        const popup = document.createElement("div");
+        popup.id = "settingsPopup";
+        popup.className = "popup";
+        popup.innerHTML = `
+            <h3>分數按鈕設定</h3>
+            <p>請設定四個按鈕的分數值：</p>
+            <div style="display:flex; flex-direction:column; gap:10px; margin:15px 0;">
+                <div>
+                    <label>第一個按鈕：</label>
+                    <input type="number" id="btn1" value="${classes.scoreButtons[0]}">
+                </div>
+                <div>
+                    <label>第二個按鈕：</label>
+                    <input type="number" id="btn2" value="${classes.scoreButtons[1]}">
+                </div>
+                <div>
+                    <label>第三個按鈕：</label>
+                    <input type="number" id="btn3" value="${classes.scoreButtons[2]}">
+                </div>
+                <div>
+                    <label>第四個按鈕：</label>
+                    <input type="number" id="btn4" value="${classes.scoreButtons[3]}">
+                </div>
+            </div>
+            <button onclick="saveScoreButtonsSettings()" style="background:#4caf50;">儲存</button>
+            <button onclick="closeScoreButtonsSettings()" style="background:#757575;">取消</button>
+        `;
+        
+        document.body.appendChild(overlay);
+        document.body.appendChild(popup);
+    }
+
+    // 顯示設定視窗
+    function showScoreButtonsSettings() {
+        if(checkIfUpdating()) return;
+        
+        // 如果設定視窗不存在，先建立
+        if (!document.getElementById("settingsOverlay")) {
+            addSettingsPopup();
+        }
+        
+        document.getElementById("settingsOverlay").classList.add("show");
+        document.getElementById("settingsPopup").classList.add("show");
+    }
+
+    // 關閉設定視窗
+    function closeScoreButtonsSettings() {
+        document.getElementById("settingsOverlay").classList.remove("show");
+        document.getElementById("settingsPopup").classList.remove("show");
+    }
+
+    // 儲存設定
+    function saveScoreButtonsSettings() {
+        if(checkIfUpdating()) return;
+        
+        const btn1 = parseInt(document.getElementById("btn1").value) || 0;
+        const btn2 = parseInt(document.getElementById("btn2").value) || 0;
+        const btn3 = parseInt(document.getElementById("btn3").value) || 0;
+        const btn4 = parseInt(document.getElementById("btn4").value) || 0;
+        
+        classes.scoreButtons = [btn1, btn2, btn3, btn4];
+        saveClassesLocal();
+        renderStudents();
+        closeScoreButtonsSettings();
+        markDirty();
+    }
+
+    // 將新函數加入 window 物件
+    window.showScoreButtonsSettings = showScoreButtonsSettings;
+    window.closeScoreButtonsSettings = closeScoreButtonsSettings;
+    window.saveScoreButtonsSettings = saveScoreButtonsSettings;
 </script>
 </body>
 </html>
