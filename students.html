@@ -16,6 +16,115 @@
         }
         h2 { margin-top:20px; margin-bottom:10px; }
 
+        /* 側邊欄樣式 */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            padding-top: 60px;
+        }
+
+        .sidebar.collapsed {
+            width: 60px;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .menu-group {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .menu-group-title {
+            color: #ecf0f1;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            opacity: 0.7;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            transition: all 0.2s;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar.collapsed .menu-item span,
+        .sidebar.collapsed .menu-group-title {
+            display: none;
+        }
+
+        /* 主內容區域樣式 */
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .main-content.expanded {
+            margin-left: 60px;
+        }
+
+        /* 修改工具列樣式 */
+        .toolbar {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        /* 狀態指示器樣式 */
+        #syncStatusBar {
+            background: transparent;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         /* 工具列群組樣式 */
         .toolbar-group {
             display: flex;
@@ -294,52 +403,68 @@
     </style>
 </head>
 <body>
-<h2>班級學員分數管理</h2>
+<!-- 側邊欄 -->
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    
+    <!-- 帳號管理群組 -->
+    <div class="menu-group">
+        <div class="menu-group-title">帳號管理</div>
+        <a class="menu-item" id="login-btn" style="display:none;">
+            <i>👤</i><span>登入 Google</span>
+        </a>
+        <a class="menu-item" id="logout-btn" style="display:none;">
+            <i>🚪</i><span>登出</span>
+        </a>
+    </div>
 
-<div class="toolbar">
-    <!-- 登入/班級管理群組 -->
-    <div class="toolbar-group auth">
-        <button id="login-btn" style="display:none;">登入 Google</button>
-        <button id="logout-btn" style="display:none;">登出</button>
-        <select id="classSelect" style="display:none;"></select>
+    <!-- 班級管理群組 -->
+    <div class="menu-group">
+        <div class="menu-group-title">班級</div>
+        <div class="menu-item">
+            <i>📚</i>
+            <span><select id="classSelect" style="display:none;"></select></span>
+        </div>
+    </div>
+
+    <!-- 功能群組 -->
+    <div class="menu-group">
+        <div class="menu-group-title">功能選單</div>
+        <a class="menu-item" id="btnScoreSettings">
+            <i>⚙️</i><span>分數按鈕設定</span>
+        </a>
+        <a class="menu-item" id="btnClassManage">
+            <i>📝</i><span>班級管理</span>
+        </a>
+        <a class="menu-item" id="btnAddStudent">
+            <i>➕</i><span>新增學生</span>
+        </a>
+        <a class="menu-item" id="btnExportCSV">
+            <i>📤</i><span>匯出 CSV</span>
+        </a>
+        <a class="menu-item" id="btnImportCSV">
+            <i>📥</i><span>匯入 CSV</span>
+        </a>
+    </div>
+
+    <!-- 同步狀態 -->
+    <div class="menu-group">
+        <div class="menu-group-title">同步狀態</div>
         <div id="syncStatusBar">
             <span id="statusDirty" class="grey">有異動</span>
             <span id="statusUpdating" class="grey">更新中</span>
             <span id="statusSynced" class="grey">已同步</span>
         </div>
     </div>
-
-    <!-- 功能群組 -->
-    <div class="toolbar-group">
-        <!-- 設定選單 -->
-        <div class="dropdown">
-            <button class="dropbtn">設定</button>
-            <div class="dropdown-content">
-                <a id="btnScoreSettings">分數按鈕設定</a>
-            </div>
-        </div>
-
-        <!-- 管理選單 -->
-        <div class="dropdown">
-            <button class="dropbtn">管理</button>
-            <div class="dropdown-content">
-                <a id="btnClassManage">班級管理</a>
-                <a id="btnAddStudent">新增學生</a>
-            </div>
-        </div>
-
-        <!-- 功能選單 -->
-        <div class="dropdown">
-            <button class="dropbtn">功能</button>
-            <div class="dropdown-content">
-                <a id="btnExportCSV">匯出 CSV</a>
-                <a id="btnImportCSV">匯入 CSV</a>
-            </div>
-        </div>
-    </div>
-
-    <input type="file" id="importCSV" accept=".csv" style="display:none;" />
 </div>
+
+<!-- 主內容區域 -->
+<div class="main-content" id="mainContent">
+    <h2>班級學員分數管理</h2>
+    <div class="container" id="studentContainer"></div>
+</div>
+
+<input type="file" id="importCSV" accept=".csv" style="display:none;" />
 
 <!-- 登入 or 離線 遮罩 & 彈窗 -->
 <div class="login-overlay" id="loginOverlay"></div>
@@ -388,9 +513,6 @@
     <button id="btnCloseClassPopup" style="background:#757575;">關閉</button>
 </div>
 
-<!-- 學生卡片容器 -->
-<div class="container" id="studentContainer"></div>
-
 <!-- 同步中 遮罩 + popup -->
 <div class="sync-overlay" id="syncOverlay"></div>
 <div class="sync-popup" id="syncPopup">
@@ -399,6 +521,14 @@
 
 <!-- 一切邏輯集中到一個 <script type="module"> -->
 <script type="module">
+    // 將 toggleSidebar 函數加入到全局範圍
+    window.toggleSidebar = function() {
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('expanded');
+    };
+
     // ======== [1] GoogleAuth - 單檔: OAuth ========
     const googleAuth = (function(){
         let accessToken = localStorage.getItem("googleAccessToken") || null;
