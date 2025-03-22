@@ -620,6 +620,62 @@
     const AUTO_SYNC_DELAY = 30; // 30秒
     let remainingSeconds = 0;
 
+    // 新增自動檢查相關變數
+    let inactivityTimer = null;
+    const INACTIVITY_CHECK_DELAY = 60; // 60秒
+    let lastActivityTime = Date.now();
+
+    // 新增：重置不活動計時器
+    function resetInactivityTimer() {
+        if (inactivityTimer) {
+            clearTimeout(inactivityTimer);
+        }
+        lastActivityTime = Date.now();
+        inactivityTimer = setTimeout(checkCloudFile, INACTIVITY_CHECK_DELAY * 1000);
+    }
+
+    // 新增：檢查雲端檔案
+    async function checkCloudFile() {
+        if (!googleAuth.getIsSignedIn()) return;
+
+        try {
+            const cloudData = await googleDrive.loadDriveFile("classes.json");
+            if (!cloudData) return;
+
+            // 比較本地和雲端資料
+            const localData = JSON.stringify(classes);
+            const cloudDataStr = JSON.stringify(cloudData);
+
+            if (localData !== cloudDataStr) {
+                // 如果資料不同，顯示確認對話框
+                if (confirm("發現雲端檔案有更新，是否要同步？\n注意：同步後本地資料將被雲端資料覆蓋。")) {
+                    // 用戶確認同步
+                    markUpdating();
+                    // 更新本地資料為雲端資料
+                    classes = cloudData;
+                    saveClassesLocal();
+                    renderClassDropdown();
+                    renderStudents();
+                    markSynced();
+                }
+            }
+        } catch (err) {
+            console.error("檢查雲端檔案失敗:", err);
+            if (err.message.includes("401") || err.message.includes("unauthorized")) {
+                alert("登入已過期，請重新登入");
+                handleLogout();
+            }
+        }
+    }
+
+    // 新增：監聽用戶活動
+    function setupActivityListeners() {
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        events.forEach(event => {
+            document.addEventListener(event, resetInactivityTimer);
+        });
+    }
+
     // 性別->圖片
     const imageMap = {
         "男1":"https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000",
@@ -789,6 +845,8 @@
             showMainButtons();
             markSynced();
             loadClassesFromDrive();
+            setupActivityListeners(); // 設置活動監聽器
+            resetInactivityTimer(); // 開始不活動計時器
         } else {
             showLoginChoice();
         }
@@ -803,6 +861,8 @@
                 document.getElementById("logout-btn").style.display = "inline-block";
                 markSynced();
                 loadClassesFromDrive();
+                setupActivityListeners(); // 設置活動監聽器
+                resetInactivityTimer(); // 開始不活動計時器
             },
             (err)=>{
                 // onFailure
@@ -907,6 +967,9 @@
             return;
         }
         stopAutoSyncTimer(); // 停止自動同步計時器
+        if (inactivityTimer) {
+            clearTimeout(inactivityTimer); // 清除不活動計時器
+        }
         googleAuth.signOut(()=>{
             console.log("已登出");
             hideMainButtons();
