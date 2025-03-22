@@ -563,6 +563,180 @@
         .student-card:hover .delete-btn {
             opacity: 1;
         }
+
+        /* 使用說明視窗樣式 */
+        .help-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .help-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+            z-index: 1001;
+        }
+
+        /* 切換按鈕樣式 */
+        .help-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background: #f5f5f5;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .tab-btn.active {
+            background: #2196f3;
+            color: white;
+        }
+
+        /* 內容區塊樣式 */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .help-overlay.show,
+        .help-popup.show {
+            display: block;
+        }
+
+        .help-content {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .help-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .help-section h4 {
+            margin: 0 0 10px 0;
+            color: #2196f3;
+            font-size: 16px;
+        }
+
+        .help-section ul {
+            margin: 0;
+            padding-left: 20px;
+            list-style-type: none;
+        }
+
+        .help-section li {
+            margin: 5px 0;
+            color: #666;
+            line-height: 1.4;
+            position: relative;
+            padding-left: 15px;
+        }
+
+        .help-section li:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            background: #2196f3;
+            border-radius: 50%;
+        }
+
+        .help-section.version-history {
+            background: #e8f5e9;
+        }
+
+        .version-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .version-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .version-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            color: #1b5e20;
+            font-weight: bold;
+        }
+
+        .version-date {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .version-changes {
+            margin: 0;
+            padding-left: 20px;
+            list-style-type: none;
+        }
+
+        .version-changes li {
+            color: #444;
+            margin: 3px 0;
+            position: relative;
+            padding-left: 15px;
+        }
+
+        .version-changes li:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 6px;
+            height: 6px;
+            background: #4caf50;
+            border-radius: 50%;
+        }
+
+        @media (max-width: 768px) {
+            .help-popup {
+                width: 95%;
+                max-height: 90vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -593,6 +767,9 @@
     <!-- 功能群組 -->
     <div class="menu-group">
         <div class="menu-group-title">功能選單</div>
+        <a class="menu-item" id="btnHelp">
+            <i>❓</i><span>使用說明</span>
+        </a>
         <a class="menu-item" id="btnScoreSettings">
             <i>⚙️</i><span>分數按鈕設定</span>
         </a>
@@ -708,6 +885,110 @@
         <h4>已選學生</h4>
         <div id="selectedList"></div>
     </div>
+</div>
+
+<!-- 使用說明視窗 -->
+<div class="help-overlay" id="helpOverlay"></div>
+<div class="help-popup" id="helpPopup">
+    <h3>使用說明</h3>
+    <div class="help-tabs">
+        <button class="tab-btn active" data-tab="usage">使用說明</button>
+        <button class="tab-btn" data-tab="version">版本歷程</button>
+    </div>
+    <div class="help-content">
+        <div class="tab-content active" id="usageContent">
+            <div class="help-section">
+                <h4>基本操作</h4>
+                <ul>
+                    <li>點擊「新增學生」可以新增學生資料</li>
+                    <li>點擊學生卡片上的圖片可以編輯學生資料</li>
+                    <li>點擊學生卡片右上角的 × 可以刪除學生</li>
+                    <li>可以拖曳學生卡片調整順序</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>分數管理</h4>
+                <ul>
+                    <li>使用四個分數按鈕快速加減分</li>
+                    <li>使用「自訂分數」輸入框手動調整分數</li>
+                    <li>點擊「分數按鈕設定」可以自訂四個按鈕的分數值</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>圖片管理</h4>
+                <ul>
+                    <li>可以選擇預設的學生頭像</li>
+                    <li>可以上傳自訂圖片（需要登入 Google）</li>
+                    <li>可以管理所有已上傳的圖片</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>班級管理</h4>
+                <ul>
+                    <li>可以新增、修改、刪除班級</li>
+                    <li>使用下拉選單切換不同班級</li>
+                    <li>可以匯出/匯入 CSV 檔案</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>輪轉盤功能</h4>
+                <ul>
+                    <li>可以隨機選擇學生</li>
+                    <li>可以設定是否重複選擇</li>
+                    <li>可以查看已選學生名單</li>
+                </ul>
+            </div>
+            <div class="help-section">
+                <h4>資料同步</h4>
+                <ul>
+                    <li>登入 Google 後可以同步資料</li>
+                    <li>狀態列顯示同步狀態</li>
+                    <li>可以手動點擊同步</li>
+                </ul>
+            </div>
+        </div>
+        <div class="tab-content" id="versionContent">
+            <div class="help-section version-history">
+                <div class="version-item">
+                    <div class="version-header">
+                        <span>版本 1.2.0</span>
+                        <span class="version-date">2025-03-22</span>
+                    </div>
+                    <ul class="version-changes">
+                        <li>新增使用說明功能</li>
+                        <li>修正 ESC 按鍵關閉視窗功能</li>
+                        <li>優化使用者介面樣式</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <div class="version-header">
+                        <span>版本 1.1.0</span>
+                        <span class="version-date">2025-03-22</span>
+                    </div>
+                    <ul class="version-changes">
+                        <li>新增輪轉盤功能</li>
+                        <li>新增自訂圖片上傳功能</li>
+                        <li>新增圖片管理功能</li>
+                        <li>優化同步機制</li>
+                    </ul>
+                </div>
+                <div class="version-item">
+                    <div class="version-header">
+                        <span>版本 1.0.0</span>
+                        <span class="version-date">2025-03-22</span>
+                    </div>
+                    <ul class="version-changes">
+                        <li>基本學生管理功能</li>
+                        <li>分數加減功能</li>
+                        <li>班級管理功能</li>
+                        <li>Google 帳號整合</li>
+                        <li>資料同步功能</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button onclick="closeHelpPopup()" style="background:#757575;">關閉</button>
 </div>
 
 <!-- 一切邏輯集中到一個 <script type="module"> -->
@@ -1391,9 +1672,14 @@
                     closeScoreButtonsSettings();
                 } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
                     closeWheelPopup();
+                } else if (document.getElementById("helpOverlay").classList.contains("show")) {
+                    closeHelpPopup();
                 }
             }
         });
+
+        // 使用說明
+        document.getElementById("btnHelp").addEventListener("click", showHelpPopup);
     }
 
     // 登出
@@ -2441,6 +2727,42 @@
         updateSelectedList();
         renderWheel();
     }
+
+    // 使用說明相關函數
+    function showHelpPopup() {
+        if(checkIfUpdating()) return;
+        document.getElementById("helpOverlay").classList.add("show");
+        document.getElementById("helpPopup").classList.add("show");
+    }
+
+    function closeHelpPopup() {
+        document.getElementById("helpOverlay").classList.remove("show");
+        document.getElementById("helpPopup").classList.remove("show");
+    }
+
+    // 將新函數加入 window 物件
+    window.closeHelpPopup = closeHelpPopup;
+
+    window.addEventListener("load", ()=>{
+        // 幫助視窗的標籤切換功能
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 移除所有按鈕的 active 類別
+                tabBtns.forEach(b => b.classList.remove('active'));
+                // 為當前按鈕添加 active 類別
+                btn.classList.add('active');
+                
+                // 隱藏所有內容
+                const contents = document.querySelectorAll('.tab-content');
+                contents.forEach(content => content.classList.remove('active'));
+                
+                // 顯示對應的內容
+                const targetId = btn.dataset.tab === 'usage' ? 'usageContent' : 'versionContent';
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+    });
 </script>
 </body>
 </html>
