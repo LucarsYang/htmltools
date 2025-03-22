@@ -400,6 +400,121 @@
         .dropbtn:hover {
             opacity: 0.9;
         }
+
+        /* 輪轉盤樣式 */
+        .wheel-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .wheel-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 400px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+            z-index: 1001;
+        }
+
+        .wheel-overlay.show,
+        .wheel-popup.show {
+            display: block;
+        }
+
+        .wheel-controls {
+            margin: 15px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+        }
+
+        #wheelCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #ff4d4d;
+            z-index: 2;
+        }
+
+        .wheel-buttons {
+            margin: 20px 0;
+        }
+
+        .selected-students {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .selected-students h4 {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+
+        #selectedList {
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        #selectedList li {
+            list-style: none;
+            padding: 5px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #selectedList li button {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #selectedList li button:hover {
+            background: #ff3333;
+        }
     </style>
 </head>
 <body>
@@ -444,6 +559,9 @@
         </a>
         <a class="menu-item" id="btnImportCSV">
             <i>📥</i><span>匯入 CSV</span>
+        </a>
+        <a class="menu-item" id="btnWheel">
+            <i>🎡</i><span>輪轉盤</span>
         </a>
     </div>
 
@@ -517,6 +635,31 @@
 <div class="sync-overlay" id="syncOverlay"></div>
 <div class="sync-popup" id="syncPopup">
     <h3>資料同步中，請稍後...</h3>
+</div>
+
+<!-- 輪轉盤視窗 -->
+<div class="wheel-overlay" id="wheelOverlay"></div>
+<div class="wheel-popup" id="wheelPopup">
+    <h3>學生輪轉盤</h3>
+    <div class="wheel-controls">
+        <label>
+            <input type="checkbox" id="noRepeat" checked>
+            不重複選擇
+        </label>
+        <button id="btnResetWheel" style="background:#ff9800;">重置已選名單</button>
+    </div>
+    <div class="wheel-container">
+        <canvas id="wheelCanvas"></canvas>
+        <div class="wheel-pointer"></div>
+    </div>
+    <div class="wheel-buttons">
+        <button id="btnSpinWheel" style="background:#4caf50;">開始轉動</button>
+        <button id="btnCloseWheel" style="background:#757575;">關閉</button>
+    </div>
+    <div class="selected-students">
+        <h4>已選學生</h4>
+        <div id="selectedList"></div>
+    </div>
 </div>
 
 <!-- 一切邏輯集中到一個 <script type="module"> -->
@@ -1184,6 +1327,9 @@
         document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
         document.getElementById("btnImportCSV").addEventListener("click", () => {
             document.getElementById("importCSV").click();
+        });
+        document.getElementById("btnWheel").addEventListener("click", () => {
+            showWheelPopup();
         });
     }
 
@@ -1963,6 +2109,208 @@
     window.showScoreButtonsSettings = showScoreButtonsSettings;
     window.closeScoreButtonsSettings = closeScoreButtonsSettings;
     window.saveScoreButtonsSettings = saveScoreButtonsSettings;
+
+    // 輪轉盤相關變數
+    let wheelCanvas = null;
+    let wheelCtx = null;
+    let wheelRotation = 0;
+    let isSpinning = false;
+    let selectedStudents = new Set();
+    let wheelAnimation = null;
+
+    // 輪轉盤視窗
+    function showWheelPopup() {
+        if(checkIfUpdating()) return;
+        
+        document.getElementById("wheelOverlay").classList.add("show");
+        document.getElementById("wheelPopup").classList.add("show");
+        
+        // 初始化畫布
+        wheelCanvas = document.getElementById("wheelCanvas");
+        wheelCtx = wheelCanvas.getContext("2d");
+        wheelCanvas.width = 300;
+        wheelCanvas.height = 300;
+        
+        // 初始化事件監聽器
+        document.getElementById("btnSpinWheel").addEventListener("click", startSpinning);
+        document.getElementById("btnCloseWheel").addEventListener("click", closeWheelPopup);
+        document.getElementById("btnResetWheel").addEventListener("click", resetSelectedStudents);
+        
+        // 點擊輪轉盤時停止轉動
+        wheelCanvas.addEventListener("click", () => {
+            if (isSpinning) {
+                isSpinning = false;
+                if (wheelAnimation) {
+                    cancelAnimationFrame(wheelAnimation);
+                }
+            }
+        });
+        
+        // 渲染輪轉盤
+        renderWheel();
+        
+        // 更新已選學生列表
+        updateSelectedList();
+    }
+
+    function closeWheelPopup() {
+        document.getElementById("wheelOverlay").classList.remove("show");
+        document.getElementById("wheelPopup").classList.remove("show");
+        if (wheelAnimation) {
+            cancelAnimationFrame(wheelAnimation);
+        }
+    }
+
+    // 渲染輪轉盤
+    function renderWheel() {
+        const students = getStudents();
+        const noRepeat = document.getElementById("noRepeat").checked;
+        const availableStudents = noRepeat ? 
+            students.filter(s => !selectedStudents.has(s.name)) : 
+            students;
+        
+        if (availableStudents.length === 0) {
+            wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+            wheelCtx.fillStyle = "#f5f5f5";
+            wheelCtx.beginPath();
+            wheelCtx.arc(wheelCanvas.width/2, wheelCanvas.height/2, wheelCanvas.width/2 - 10, 0, Math.PI * 2);
+            wheelCtx.fill();
+            
+            wheelCtx.fillStyle = "#666";
+            wheelCtx.font = "20px Arial";
+            wheelCtx.textAlign = "center";
+            wheelCtx.textBaseline = "middle";
+            wheelCtx.fillText("所有學生都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
+            return;
+        }
+
+        const centerX = wheelCanvas.width / 2;
+        const centerY = wheelCanvas.height / 2;
+        const radius = Math.min(centerX, centerY) - 10;
+        const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF", "#33FFF3", "#FF3333"];
+
+        wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+        
+        // 繪製扇形
+        const angleStep = (Math.PI * 2) / availableStudents.length;
+        availableStudents.forEach((student, index) => {
+            const startAngle = index * angleStep + wheelRotation;
+            const endAngle = (index + 1) * angleStep + wheelRotation;
+
+            wheelCtx.beginPath();
+            wheelCtx.moveTo(centerX, centerY);
+            wheelCtx.arc(centerX, centerY, radius, startAngle, endAngle);
+            wheelCtx.closePath();
+            wheelCtx.fillStyle = colors[index % colors.length];
+            wheelCtx.fill();
+            wheelCtx.strokeStyle = "#fff";
+            wheelCtx.lineWidth = 2;
+            wheelCtx.stroke();
+
+            // 繪製文字
+            wheelCtx.save();
+            wheelCtx.translate(centerX, centerY);
+            wheelCtx.rotate(startAngle + angleStep / 2);
+            wheelCtx.textAlign = "right";
+            wheelCtx.fillStyle = "#fff";
+            wheelCtx.font = "14px Arial";
+            wheelCtx.fillText(student.name, radius - 20, 5);
+            wheelCtx.restore();
+        });
+    }
+
+    // 更新已選學生列表
+    function updateSelectedList() {
+        const selectedList = document.getElementById("selectedList");
+        selectedList.innerHTML = "";
+        
+        selectedStudents.forEach(name => {
+            const li = document.createElement("li");
+            li.innerHTML = `
+                ${name}
+                <button onclick="removeSelectedStudent('${name}')">×</button>
+            `;
+            selectedList.appendChild(li);
+        });
+    }
+
+    // 移除已選學生
+    window.removeSelectedStudent = function(name) {
+        selectedStudents.delete(name);
+        updateSelectedList();
+        renderWheel();
+    };
+
+    // 開始轉動
+    function startSpinning() {
+        if (isSpinning) return;
+        
+        const students = getStudents();
+        const noRepeat = document.getElementById("noRepeat").checked;
+        const availableStudents = noRepeat ? 
+            students.filter(s => !selectedStudents.has(s.name)) : 
+            students;
+        
+        if (availableStudents.length === 0) {
+            alert("所有學生都已選過！");
+            return;
+        }
+
+        isSpinning = true;
+        const spinDuration = 3000; // 3秒
+        const startTime = Date.now();
+        const startRotation = wheelRotation;
+        const totalRotation = Math.PI * 8 + Math.random() * Math.PI * 2; // 至少轉4圈
+
+        function animate() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / spinDuration, 1);
+            
+            // 使用緩動函數
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            wheelRotation = startRotation + totalRotation * easeOut;
+            
+            renderWheel();
+            
+            if (progress < 1) {
+                wheelAnimation = requestAnimationFrame(animate);
+            } else {
+                isSpinning = false;
+                // 計算選中的學生
+                const angleStep = (Math.PI * 2) / availableStudents.length;
+                // 調整角度計算，考慮指針在頂部（270度）的位置
+                const pointerAngle = Math.PI * 1.5; // 270度
+                let finalAngle = (-wheelRotation + pointerAngle) % (Math.PI * 2);
+                if (finalAngle < 0) {
+                    finalAngle += Math.PI * 2;
+                }
+                const selectedIndex = Math.floor(finalAngle / angleStep);
+                const selectedStudent = availableStudents[selectedIndex];
+                
+                if (selectedStudent) {
+                    // 只有在勾選不重複時，才將學生加入已選名單
+                    if (noRepeat) {
+                        selectedStudents.add(selectedStudent.name);
+                        updateSelectedList();
+                    }
+                    alert(`選中：${selectedStudent.name}`);
+                    // 如果不是不重複模式，每次選完都重新渲染輪盤
+                    if (!noRepeat) {
+                        renderWheel();
+                    }
+                }
+            }
+        }
+
+        animate();
+    }
+
+    // 重置已選名單
+    function resetSelectedStudents() {
+        selectedStudents.clear();
+        updateSelectedList();
+        renderWheel();
+    }
 </script>
 </body>
 </html>
