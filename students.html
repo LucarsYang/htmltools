@@ -16,9 +16,28 @@
         }
         h2 { margin-top:20px; margin-bottom:10px; }
 
+        /* 工具列群組樣式 */
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        .toolbar-group.auth {
+            background: #e8f5e9;  /* 淺綠色背景 */
+        }
+
         .toolbar {
-            display: flex; flex-wrap: wrap; justify-content: center; gap:10px;
-            margin-bottom:10px; align-items:center;
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 10px;
+            margin-bottom: 10px; 
+            align-items: center;
         }
         button {
             margin:5px; padding:8px; cursor:pointer; border:none; border-radius:5px;
@@ -278,44 +297,48 @@
 <h2>班級學員分數管理</h2>
 
 <div class="toolbar">
-    <button id="login-btn"  style="display:none;">登入 Google</button>
-    <button id="logout-btn" style="display:none;">登出</button>
-    <select id="classSelect" style="display:none;"></select>
-    
-    <!-- 設定選單 -->
-    <div class="dropdown">
-        <button class="dropbtn">設定</button>
-        <div class="dropdown-content">
-            <a id="btnScoreSettings">分數按鈕設定</a>
+    <!-- 登入/班級管理群組 -->
+    <div class="toolbar-group auth">
+        <button id="login-btn" style="display:none;">登入 Google</button>
+        <button id="logout-btn" style="display:none;">登出</button>
+        <select id="classSelect" style="display:none;"></select>
+        <div id="syncStatusBar">
+            <span id="statusDirty" class="grey">有異動</span>
+            <span id="statusUpdating" class="grey">更新中</span>
+            <span id="statusSynced" class="grey">已同步</span>
         </div>
     </div>
 
-    <!-- 管理選單 -->
-    <div class="dropdown">
-        <button class="dropbtn">管理</button>
-        <div class="dropdown-content">
-            <a id="btnClassManage">班級管理</a>
-            <a id="btnAddStudent">新增學生</a>
+    <!-- 功能群組 -->
+    <div class="toolbar-group">
+        <!-- 設定選單 -->
+        <div class="dropdown">
+            <button class="dropbtn">設定</button>
+            <div class="dropdown-content">
+                <a id="btnScoreSettings">分數按鈕設定</a>
+            </div>
         </div>
-    </div>
 
-    <!-- 功能選單 -->
-    <div class="dropdown">
-        <button class="dropbtn">功能</button>
-        <div class="dropdown-content">
-            <a id="btnExportCSV">匯出 CSV</a>
-            <a id="btnImportCSV">匯入 CSV</a>
+        <!-- 管理選單 -->
+        <div class="dropdown">
+            <button class="dropbtn">管理</button>
+            <div class="dropdown-content">
+                <a id="btnClassManage">班級管理</a>
+                <a id="btnAddStudent">新增學生</a>
+            </div>
+        </div>
+
+        <!-- 功能選單 -->
+        <div class="dropdown">
+            <button class="dropbtn">功能</button>
+            <div class="dropdown-content">
+                <a id="btnExportCSV">匯出 CSV</a>
+                <a id="btnImportCSV">匯入 CSV</a>
+            </div>
         </div>
     </div>
 
     <input type="file" id="importCSV" accept=".csv" style="display:none;" />
-
-    <!-- 三個狀態指示 -->
-    <div id="syncStatusBar">
-        <span id="statusDirty"    class="grey">有異動</span>
-        <span id="statusUpdating" class="grey">更新中</span>
-        <span id="statusSynced"   class="grey">已同步</span>
-    </div>
 </div>
 
 <!-- 登入 or 離線 遮罩 & 彈窗 -->
