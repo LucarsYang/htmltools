@@ -237,6 +237,13 @@
         let isGoogleSignedIn = !!accessToken;
         let tokenClient = null;
 
+        // 測試用：模擬 token 過期
+        function simulateTokenExpired() {
+            accessToken = "test_expired_token";
+            isGoogleSignedIn = true;
+            localStorage.setItem("googleAccessToken", accessToken);
+        }
+
         function initGoogleAuth(onSuccess, onFailure){
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id:"310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com",
@@ -274,9 +281,13 @@
         function getIsSignedIn(){ return isGoogleSignedIn; }
 
         return {
-            initGoogleAuth, signIn, signOut, getAccessToken, getIsSignedIn
+            initGoogleAuth, signIn, signOut, getAccessToken, getIsSignedIn,
+            simulateTokenExpired  // 加入測試用方法
         };
     })();
+
+    // 將 googleAuth 暴露到全局範圍
+    window.googleAuth = googleAuth;
 
     // ======== [2] GoogleDrive - 單檔: 讀/寫 Drive ========
     const googleDrive = (function(){
@@ -354,6 +365,11 @@
             if (!googleAuth.getIsSignedIn()) throw new Error("尚未登入Google");
             let token = googleAuth.getAccessToken();
             await ensureAppFolder();
+
+            // 測試用：模擬 token 過期
+            if (token === "test_expired_token") {
+                throw new Error("401 Unauthorized");
+            }
 
             // 在應用程式目錄中搜尋檔案
             let listRes = await fetch(
@@ -592,7 +608,18 @@
             .catch(err => {
                 console.error("儲存失敗:", err);
                 markDirty();
-                alert("同步失敗，請稍後再試");
+                
+                // 檢查是否為 token 過期
+                if (err.message.includes("401") || err.message.includes("unauthorized")) {
+                    alert("登入已過期，請重新登入");
+                    // 清除 token
+                    localStorage.removeItem("googleAccessToken");
+                    // 回到登入畫面
+                    hideMainButtons();
+                    backToLoginChoice();
+                } else {
+                    alert("同步失敗，請稍後再試");
+                }
             });
     }
 
