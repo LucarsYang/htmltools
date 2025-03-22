@@ -135,6 +135,22 @@
         }
         .btn-rename { background:#ff9800; }
         .btn-delete-class { background:#f44336; }
+
+        .custom-image-upload {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .custom-image-preview {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .custom-image-preview img {
+            max-width: 100px;
+            max-height: 100px;
+            border-radius: 5px;
+            border: 2px solid #2196f3;
+        }
     </style>
 </head>
 <body>
@@ -185,6 +201,11 @@
         <option value="女">女生</option>
     </select>
     <div class="image-preview" id="imageSelection"></div>
+    <div class="custom-image-upload">
+        <input type="file" id="customImageUpload" accept="image/*" style="display:none;">
+        <button id="btnUploadImage" style="background:#2196f3;">上傳自訂圖片</button>
+        <div id="customImagePreview" class="custom-image-preview"></div>
+    </div>
     <br />
     <button id="btnSaveStudent" style="background:#4caf50;">儲存</button>
     <button id="btnClosePopup" style="background:#757575;">取消</button>
@@ -259,62 +280,183 @@
 
     // ======== [2] GoogleDrive - 單檔: 讀/寫 Drive ========
     const googleDrive = (function(){
-        async function loadDriveFile(fileName){
-            if(!googleAuth.getIsSignedIn()) return null;
-            let token=googleAuth.getAccessToken();
+        let appFolderId = null; // 儲存應用程式目錄的 ID
 
-            let listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}'&spaces=drive&fields=files(id,name)`,{
-                headers:{"Authorization":`Bearer ${token}`}
-            });
-            if(!listRes.ok) throw new Error("List Error "+listRes.status);
-            let listData=await listRes.json();
-            if(!listData.files || listData.files.length===0){
-                // not found
+        // 初始化：確保應用程式目錄存在
+        async function ensureAppFolder() {
+            if (!googleAuth.getIsSignedIn()) return null;
+            let token = googleAuth.getAccessToken();
+
+            // 先搜尋是否已存在目錄
+            let searchRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files?q=name='htmltools' and mimeType='application/vnd.google-apps.folder' and trashed=false&spaces=drive&fields=files(id,name)`,
+                { headers: { "Authorization": `Bearer ${token}` } }
+            );
+            if (!searchRes.ok) throw new Error("Search Error " + searchRes.status);
+            let searchData = await searchRes.json();
+
+            if (searchData.files && searchData.files.length > 0) {
+                // 目錄已存在
+                appFolderId = searchData.files[0].id;
+                return appFolderId;
+            }
+
+            // 建立新目錄
+            let folderMetadata = {
+                name: "htmltools",
+                mimeType: "application/vnd.google-apps.folder"
+            };
+
+            let createRes = await fetch(
+                "https://www.googleapis.com/drive/v3/files?fields=id",
+                {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(folderMetadata)
+                }
+            );
+            if (!createRes.ok) throw new Error("Create Folder Error " + createRes.status);
+            let createData = await createRes.json();
+            appFolderId = createData.id;
+            return appFolderId;
+        }
+
+        async function loadDriveFile(fileName) {
+            if (!googleAuth.getIsSignedIn()) return null;
+            let token = googleAuth.getAccessToken();
+            await ensureAppFolder();
+
+            // 在應用程式目錄中搜尋檔案
+            let listRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files?q='${appFolderId}' in parents and name='${fileName}' and trashed=false&spaces=drive&fields=files(id,name)`,
+                { headers: { "Authorization": `Bearer ${token}` } }
+            );
+            if (!listRes.ok) throw new Error("List Error " + listRes.status);
+            let listData = await listRes.json();
+            if (!listData.files || listData.files.length === 0) {
                 return null;
             }
-            let fileId=listData.files[0].id;
+            let fileId = listData.files[0].id;
 
-            let getRes=await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
-                headers:{"Authorization":`Bearer ${token}`}
-            });
-            if(!getRes.ok) throw new Error("Get Error "+getRes.status);
-            let content=await getRes.text();
+            let getRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+                { headers: { "Authorization": `Bearer ${token}` } }
+            );
+            if (!getRes.ok) throw new Error("Get Error " + getRes.status);
+            let content = await getRes.text();
             return JSON.parse(content);
         }
 
-        async function saveDriveFile(fileName, dataObj){
-            if(!googleAuth.getIsSignedIn()) throw new Error("尚未登入Google");
-            let token=googleAuth.getAccessToken();
+        async function saveDriveFile(fileName, dataObj) {
+            if (!googleAuth.getIsSignedIn()) throw new Error("尚未登入Google");
+            let token = googleAuth.getAccessToken();
+            await ensureAppFolder();
 
-            let listRes=await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${fileName}'&spaces=drive&fields=files(id,name)`,{
-                headers:{"Authorization":`Bearer ${token}`}
-            });
-            if(!listRes.ok) throw new Error("List Error "+listRes.status);
-            let listData=await listRes.json();
-            let fileId=(listData.files && listData.files.length>0)? listData.files[0].id:null;
+            // 在應用程式目錄中搜尋檔案
+            let listRes = await fetch(
+                `https://www.googleapis.com/drive/v3/files?q='${appFolderId}' in parents and name='${fileName}' and trashed=false&spaces=drive&fields=files(id,name)`,
+                { headers: { "Authorization": `Bearer ${token}` } }
+            );
+            if (!listRes.ok) throw new Error("List Error " + listRes.status);
+            let listData = await listRes.json();
+            let fileId = (listData.files && listData.files.length > 0) ? listData.files[0].id : null;
 
-            let fileMetadata={ name:fileName, mimeType:"application/json" };
-            let fileContent=new Blob([JSON.stringify(dataObj)],{ type:"application/json" });
-            let form=new FormData();
-            form.append("metadata", new Blob([JSON.stringify(fileMetadata)],{ type:"application/json"}));
+            if (fileId) {
+                // 如果檔案存在，先刪除它
+                await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+                    method: 'DELETE',
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+            }
+
+            // 建立新檔案
+            let fileMetadata = {
+                name: fileName,
+                mimeType: "application/json",
+                parents: [appFolderId]
+            };
+            let fileContent = new Blob([JSON.stringify(dataObj)], { type: "application/json" });
+            let form = new FormData();
+            form.append("metadata", new Blob([JSON.stringify(fileMetadata)], { type: "application/json" }));
             form.append("file", fileContent);
 
-            let url=fileId
-                ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-                : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
-            let method=fileId?"PATCH":"POST";
+            let uploadRes = await fetch(
+                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+                {
+                    method: "POST",
+                    headers: { 
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: form
+                }
+            );
 
-            let uploadRes=await fetch(url,{
-                method,
-                headers:{"Authorization":`Bearer ${token}`},
-                body:form
-            });
-            if(!uploadRes.ok) throw new Error("Upload Error "+uploadRes.status);
+            if (!uploadRes.ok) throw new Error("Upload Error " + uploadRes.status);
             await uploadRes.json();
         }
 
+        // 上傳圖片到應用程式目錄
+        async function uploadImageToDrive(file) {
+            const token = googleAuth.getAccessToken();
+            await ensureAppFolder();
+
+            const metadata = {
+                name: `student_${Date.now()}_${file.name}`,
+                mimeType: file.type,
+                parents: [appFolderId]
+            };
+
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', file);
+
+            const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: form
+            });
+
+            if (!uploadRes.ok) throw new Error('上傳失敗');
+            const uploadData = await uploadRes.json();
+
+            // 設定檔案權限為「任何人都可以查看」
+            const permissionRes = await fetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}/permissions`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    role: 'reader',
+                    type: 'anyone'
+                })
+            });
+
+            if (!permissionRes.ok) {
+                // 如果設定權限失敗，刪除已上傳的檔案
+                await fetch(`https://www.googleapis.com/drive/v3/files/${uploadData.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                throw new Error('設定權限失敗');
+            }
+
+            return uploadData.id;
+        }
+
+        // 從 Google Drive 取得圖片的檢視連結
+        async function getImageUrlFromDrive(fileId) {
+            // 直接回傳固定格式的 URL
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w200-h200`;
+        }
+
         return {
-            loadDriveFile, saveDriveFile
+            loadDriveFile, saveDriveFile, uploadImageToDrive, getImageUrlFromDrive
         };
     })();
 
@@ -327,6 +469,8 @@
     let updatingState = false; // true表示「更新中(黃)」階段 => 阻擋操作
     let editIndex = -1;
     let selectedImage = "";
+    let customImageData = null; // 新增：儲存自訂圖片的 base64 資料
+    let customImageFileId = null; // 新增：儲存 Google Drive 上的圖片 ID
 
     // 新增自動同步相關變數
     let autoSyncTimer = null;
@@ -574,6 +718,10 @@
         // 學生popup
         document.getElementById("btnSaveStudent").addEventListener("click",saveStudent);
         document.getElementById("btnClosePopup").addEventListener("click",closePopup);
+        document.getElementById("btnUploadImage").addEventListener("click",()=>{
+            document.getElementById("customImageUpload").click();
+        });
+        document.getElementById("customImageUpload").addEventListener("change",handleCustomImageUpload);
         window.addEventListener("keydown",(evt)=>{
             if(evt.key==="Escape") closePopup();
         });
@@ -709,7 +857,7 @@
         arr.forEach((st,idx)=>{
             let card=document.createElement("div");
             card.classList.add("student-card");
-            let imgSrc=imageMap[st.imageLabel]||"";
+            let imgSrc = st.customImage || imageMap[st.imageLabel] || "";
             card.innerHTML=`
       <img src="${imgSrc}" alt="${st.gender}" onclick="editStudent(${idx})">
       <p>${st.name}</p>
@@ -770,6 +918,55 @@
         markDirty();
     };
 
+    // 處理自訂圖片上傳
+    async function handleCustomImageUpload(evt) {
+        const file = evt.target.files[0];
+        if (!file) return;
+
+        // 檢查檔案類型
+        if (!file.type.startsWith('image/')) {
+            alert('請上傳圖片檔案');
+            return;
+        }
+
+        // 檢查檔案大小（限制為 5MB）
+        if (file.size > 5 * 1024 * 1024) {
+            alert('圖片大小不能超過 5MB');
+            return;
+        }
+
+        // 檢查是否已登入 Google
+        if (!googleAuth.getIsSignedIn()) {
+            alert('請先登入 Google 帳號才能上傳圖片');
+            return;
+        }
+
+        try {
+            // 顯示上傳中的提示
+            const preview = document.getElementById('customImagePreview');
+            preview.innerHTML = '<p>圖片上傳中...</p>';
+
+            // 上傳到 Google Drive
+            const fileId = await googleDrive.uploadImageToDrive(file);
+            customImageFileId = fileId;
+            
+            // 取得圖片的公開連結
+            const imageUrl = await googleDrive.getImageUrlFromDrive(fileId);
+            customImageData = imageUrl;
+            
+            // 更新預覽
+            preview.innerHTML = `<img src="${imageUrl}" alt="自訂圖片">`;
+            
+            // 取消選擇預設圖片
+            document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
+            selectedImage = "";
+        } catch (err) {
+            console.error('圖片上傳失敗:', err);
+            alert('圖片上傳失敗，請稍後再試');
+            preview.innerHTML = '';
+        }
+    }
+
     // 新增/編輯 學生
     function showPopup(idx=-1){
         editIndex = idx;
@@ -779,6 +976,12 @@
         // 取得性別選擇元素並添加事件監聽
         let genderSelect = document.getElementById("studentGender");
         genderSelect.addEventListener("change", updateImagePreview);
+        
+        // 重置自訂圖片
+        customImageData = null;
+        customImageFileId = null;
+        document.getElementById("customImagePreview").innerHTML = "";
+        document.getElementById("customImageUpload").value = "";
         
         if(idx === -1){
             document.getElementById("popupTitle").textContent = "新增學生";
@@ -794,6 +997,14 @@
             document.getElementById("studentScore").value = st.score;
             genderSelect.value = st.gender;
             selectedImage = st.imageLabel;
+            
+            // 如果有自訂圖片，顯示它
+            if (st.customImage) {
+                customImageData = st.customImage;
+                customImageFileId = st.customImageFileId;
+                document.getElementById("customImagePreview").innerHTML = 
+                    `<img src="${st.customImage}" alt="自訂圖片">`;
+            }
         }
         updateImagePreview();
     }
@@ -839,19 +1050,42 @@
         let name=document.getElementById("studentName").value.trim();
         let score=parseInt(document.getElementById("studentScore").value)||0;
         let gender=document.getElementById("studentGender").value;
-        if(!selectedImage){
+        
+        // 處理圖片選擇
+        let imageData = null;
+        let imageFileId = null;
+        if (customImageData) {
+            imageData = customImageData;
+            imageFileId = customImageFileId;
+        } else if (!selectedImage) {
             let labs=genderImageLabels[gender];
             selectedImage=labs[0];
         }
+        
         if(!name){
             alert("請輸入學生姓名");
             return;
         }
+        
         let arr=getStudents();
         if(editIndex===-1){
-            arr.push({ name,score,gender,imageLabel:selectedImage });
+            arr.push({ 
+                name,
+                score,
+                gender,
+                imageLabel: selectedImage,
+                customImage: imageData,
+                customImageFileId: imageFileId
+            });
         }else{
-            arr[editIndex]={ name,score,gender,imageLabel:selectedImage };
+            arr[editIndex]={
+                name,
+                score,
+                gender,
+                imageLabel: selectedImage,
+                customImage: imageData,
+                customImageFileId: imageFileId
+            };
         }
         saveClassesLocal();
         closePopup();
