@@ -737,6 +737,66 @@
                 max-height: 90vh;
             }
         }
+
+        .wheel-type-switch {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .wheel-type-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #f0f0f0;
+            transition: all 0.3s ease;
+        }
+
+        .wheel-type-btn.active {
+            background: #4caf50;
+            color: white;
+        }
+
+        .reward-input {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .reward-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .reward-list {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .reward-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #f5f5f5;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        .reward-item button {
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -865,7 +925,11 @@
 <!-- 輪轉盤視窗 -->
 <div class="wheel-overlay" id="wheelOverlay"></div>
 <div class="wheel-popup" id="wheelPopup">
-    <h3>學生輪轉盤</h3>
+    <div class="wheel-type-switch">
+        <button id="btnStudentWheel" class="wheel-type-btn active">學生輪轉盤</button>
+        <button id="btnRewardWheel" class="wheel-type-btn">獎懲輪轉盤</button>
+    </div>
+    <h3 id="wheelTitle">學生輪轉盤</h3>
     <div class="wheel-controls">
         <label>
             <input type="checkbox" id="noRepeat" checked>
@@ -882,8 +946,15 @@
         <button id="btnCloseWheel" style="background:#757575;">關閉</button>
     </div>
     <div class="selected-students">
-        <h4>已選學生</h4>
+        <h4>已選項目</h4>
         <div id="selectedList"></div>
+    </div>
+    <div id="rewardControls" style="display:none;">
+        <div class="reward-input">
+            <input type="text" id="newReward" placeholder="輸入獎懲項目">
+            <button id="btnAddReward" style="background:#4caf50;">新增</button>
+        </div>
+        <div id="rewardList" class="reward-list"></div>
     </div>
 </div>
 
@@ -1302,9 +1373,10 @@
     // 全域狀態
     let classes = JSON.parse(localStorage.getItem("classes")) || { 
         "501": [],
-        "scoreButtons": [-5, -1, 1, 5]  // 預設值
+        "scoreButtons": [-5, -1, 1, 5],  // 預設值
+        "rewards": ["獎勵", "懲罰"]  // 新增：預設獎懲項目
     };
-    let currentClass = Object.keys(classes)[0] || "一班";
+    let currentClass = Object.keys(classes).find(key => !['scoreButtons', 'rewards'].includes(key)) || "一班";
 
     let updatingState = false; // true表示「更新中(黃)」階段 => 阻擋操作
     let editIndex = -1;
@@ -2220,8 +2292,8 @@
     function renderClassList(){
         let listEl=document.getElementById("classList");
         listEl.innerHTML="";
-        // 過濾掉 scoreButtons
-        let cNames=Object.keys(classes).filter(key => key !== 'scoreButtons');
+        // 過濾掉特殊屬性：scoreButtons 和 rewards
+        let cNames = Object.keys(classes).filter(key => !['scoreButtons', 'rewards'].includes(key));
         cNames.forEach(cName=>{
             let div=document.createElement("div");
             div.classList.add("class-item");
@@ -2520,6 +2592,8 @@
     let isSpinning = false;
     let selectedStudents = new Set();
     let wheelAnimation = null;
+    let isRewardWheel = false; // 新增：是否為獎懲輪轉盤
+    let rewards = classes.rewards || ["獎勵", "懲罰"]; // 從 classes 中讀取獎懲項目
 
     // 輪轉盤視窗
     function showWheelPopup() {
@@ -2538,6 +2612,9 @@
         document.getElementById("btnSpinWheel").addEventListener("click", startSpinning);
         document.getElementById("btnCloseWheel").addEventListener("click", closeWheelPopup);
         document.getElementById("btnResetWheel").addEventListener("click", resetSelectedStudents);
+        document.getElementById("btnStudentWheel").addEventListener("click", () => switchWheelType(false));
+        document.getElementById("btnRewardWheel").addEventListener("click", () => switchWheelType(true));
+        document.getElementById("btnAddReward").addEventListener("click", addNewReward);
         
         // 點擊輪轉盤時停止轉動
         wheelCanvas.addEventListener("click", () => {
@@ -2552,27 +2629,80 @@
         // 渲染輪轉盤
         renderWheel();
         
-        // 更新已選學生列表
+        // 更新已選列表
         updateSelectedList();
+        
+        // 更新獎懲列表
+        updateRewardList();
     }
 
-    function closeWheelPopup() {
-        document.getElementById("wheelOverlay").classList.remove("show");
-        document.getElementById("wheelPopup").classList.remove("show");
-        if (wheelAnimation) {
-            cancelAnimationFrame(wheelAnimation);
+    // 切換輪轉盤類型
+    function switchWheelType(isReward) {
+        isRewardWheel = isReward;
+        document.getElementById("btnStudentWheel").classList.toggle("active", !isReward);
+        document.getElementById("btnRewardWheel").classList.toggle("active", isReward);
+        document.getElementById("wheelTitle").textContent = isReward ? "獎懲輪轉盤" : "學生輪轉盤";
+        document.getElementById("rewardControls").style.display = isReward ? "block" : "none";
+        selectedStudents.clear();
+        updateSelectedList();
+        renderWheel();
+    }
+
+    // 新增獎懲項目
+    function addNewReward() {
+        const input = document.getElementById("newReward");
+        const newReward = input.value.trim();
+        
+        if (newReward && !rewards.includes(newReward)) {
+            rewards.unshift(newReward);
+            classes.rewards = rewards; // 保存到 classes 物件
+            saveClassesLocal(); // 保存到 localStorage
+            updateRewardList();
+            renderWheel();
+            input.value = "";
+            markDirty(); // 標記需要同步
         }
+    }
+
+    // 刪除獎懲項目
+    window.deleteReward = function(index) {
+        if (rewards.length <= 2) {
+            alert("至少需要保留兩個獎懲項目！");
+            return;
+        }
+        rewards.splice(index, 1);
+        classes.rewards = rewards; // 保存到 classes 物件
+        saveClassesLocal(); // 保存到 localStorage
+        updateRewardList();
+        renderWheel();
+        markDirty(); // 標記需要同步
+    };
+
+    // 更新獎懲列表
+    function updateRewardList() {
+        const rewardList = document.getElementById("rewardList");
+        rewardList.innerHTML = "";
+        
+        rewards.forEach((reward, index) => {
+            const div = document.createElement("div");
+            div.className = "reward-item";
+            div.innerHTML = `
+                ${reward}
+                <button onclick="deleteReward(${index})">×</button>
+            `;
+            rewardList.appendChild(div);
+        });
     }
 
     // 渲染輪轉盤
     function renderWheel() {
-        const students = getStudents();
+        const items = isRewardWheel ? rewards : getStudents();
         const noRepeat = document.getElementById("noRepeat").checked;
-        const availableStudents = noRepeat ? 
-            students.filter(s => !selectedStudents.has(s.name)) : 
-            students;
+        const availableItems = noRepeat ? 
+            (isRewardWheel ? items.filter(item => !selectedStudents.has(item)) : items.filter(s => !selectedStudents.has(s.name))) : 
+            items;
         
-        if (availableStudents.length === 0) {
+        if (availableItems.length === 0) {
             wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
             wheelCtx.fillStyle = "#f5f5f5";
             wheelCtx.beginPath();
@@ -2583,7 +2713,7 @@
             wheelCtx.font = "20px Arial";
             wheelCtx.textAlign = "center";
             wheelCtx.textBaseline = "middle";
-            wheelCtx.fillText("所有學生都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
+            wheelCtx.fillText("所有項目都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
             return;
         }
 
@@ -2595,8 +2725,8 @@
         wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
         
         // 繪製扇形
-        const angleStep = (Math.PI * 2) / availableStudents.length;
-        availableStudents.forEach((student, index) => {
+        const angleStep = (Math.PI * 2) / availableItems.length;
+        availableItems.forEach((item, index) => {
             const startAngle = index * angleStep + wheelRotation;
             const endAngle = (index + 1) * angleStep + wheelRotation;
 
@@ -2617,58 +2747,58 @@
             wheelCtx.textAlign = "right";
             wheelCtx.fillStyle = "#fff";
             wheelCtx.font = "14px Arial";
-            wheelCtx.fillText(student.name, radius - 20, 5);
+            wheelCtx.fillText(isRewardWheel ? item : item.name, radius - 20, 5);
             wheelCtx.restore();
         });
     }
 
-    // 更新已選學生列表
+    // 更新已選列表
     function updateSelectedList() {
         const selectedList = document.getElementById("selectedList");
         selectedList.innerHTML = "";
-        const students = getStudents();
         
         // 將 Set 轉換為陣列並反轉順序，這樣最新的會在最前面
         const selectedArray = Array.from(selectedStudents).reverse();
         
-        selectedArray.forEach((name, index) => {
-            // 找到對應的學生資料
-            const student = students.find(s => s.name === name);
-            if (student) {
-                const imgSrc = student.customImage || imageMap[student.imageLabel] || "";
-                const li = document.createElement("li");
+        selectedArray.forEach((item, index) => {
+            const li = document.createElement("li");
+            if (isRewardWheel) {
                 li.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="min-width: 25px; color: #666;">${selectedArray.length - index}.</span>
-                        <img src="${imgSrc}" alt="${student.gender}" style="width: 30px; height: 30px; border-radius: 50%;">
-                        ${name}
+                        ${item}
                     </div>
-                    <button onclick="removeSelectedStudent('${name}')">×</button>
+                    <button onclick="removeSelectedStudent('${item}')">×</button>
                 `;
-                selectedList.appendChild(li);
+            } else {
+                const student = getStudents().find(s => s.name === item);
+                if (student) {
+                    const imgSrc = student.customImage || imageMap[student.imageLabel] || "";
+                    li.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="min-width: 25px; color: #666;">${selectedArray.length - index}.</span>
+                            <img src="${imgSrc}" alt="${student.gender}" style="width: 30px; height: 30px; border-radius: 50%;">
+                            ${item}
+                        </div>
+                        <button onclick="removeSelectedStudent('${item}')">×</button>
+                    `;
+                }
             }
+            selectedList.appendChild(li);
         });
     }
-
-    // 移除已選學生
-    window.removeSelectedStudent = function(name) {
-        selectedStudents.delete(name);
-        updateSelectedList();
-        renderWheel();
-    };
 
     // 開始轉動
     function startSpinning() {
         if (isSpinning) return;
         
-        const students = getStudents();
+        const items = isRewardWheel ? rewards : getStudents();
         const noRepeat = document.getElementById("noRepeat").checked;
-        const availableStudents = noRepeat ? 
-            students.filter(s => !selectedStudents.has(s.name)) : 
-            students;
+        const availableItems = noRepeat ? 
+            (isRewardWheel ? items.filter(item => !selectedStudents.has(item)) : items.filter(s => !selectedStudents.has(s.name))) : 
+            items;
         
-        if (availableStudents.length === 0) {
-            alert("所有學生都已選過！");
+        if (availableItems.length === 0) {
+            alert("所有項目都已選過！");
             return;
         }
 
@@ -2692,8 +2822,8 @@
                 wheelAnimation = requestAnimationFrame(animate);
             } else {
                 isSpinning = false;
-                // 計算選中的學生
-                const angleStep = (Math.PI * 2) / availableStudents.length;
+                // 計算選中的項目
+                const angleStep = (Math.PI * 2) / availableItems.length;
                 // 調整角度計算，考慮指針在頂部（270度）的位置
                 const pointerAngle = Math.PI * 1.5; // 270度
                 let finalAngle = (-wheelRotation + pointerAngle) % (Math.PI * 2);
@@ -2701,15 +2831,15 @@
                     finalAngle += Math.PI * 2;
                 }
                 const selectedIndex = Math.floor(finalAngle / angleStep);
-                const selectedStudent = availableStudents[selectedIndex];
+                const selectedItem = availableItems[selectedIndex];
                 
-                if (selectedStudent) {
-                    // 只有在勾選不重複時，才將學生加入已選名單
+                if (selectedItem) {
+                    // 只有在勾選不重複時，才將項目加入已選名單
                     if (noRepeat) {
-                        selectedStudents.add(selectedStudent.name);
+                        selectedStudents.add(isRewardWheel ? selectedItem : selectedItem.name);
                         updateSelectedList();
                     }
-                    alert(`選中：${selectedStudent.name}`);
+                    alert(`選中：${isRewardWheel ? selectedItem : selectedItem.name}`);
                     // 如果不是不重複模式，每次選完都重新渲染輪盤
                     if (!noRepeat) {
                         renderWheel();
@@ -2763,6 +2893,27 @@
             });
         });
     });
+
+    // 輪轉盤相關函數
+    function closeWheelPopup() {
+        document.getElementById("wheelOverlay").classList.remove("show");
+        document.getElementById("wheelPopup").classList.remove("show");
+        if (wheelAnimation) {
+            cancelAnimationFrame(wheelAnimation);
+        }
+    }
+
+    // 移除已選學生
+    window.removeSelectedStudent = function(name) {
+        selectedStudents.delete(name);
+        updateSelectedList();
+        renderWheel();
+    };
+
+    // 將輪轉盤相關函數加入 window 物件
+    window.closeWheelPopup = closeWheelPopup;
+    window.switchWheelType = switchWheelType;
+    window.addNewReward = addNewReward;
 </script>
 </body>
 </html>
