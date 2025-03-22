@@ -151,6 +151,78 @@
             border-radius: 5px;
             border: 2px solid #2196f3;
         }
+        .uploaded-images-section {
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .uploaded-images-section h4 {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        .uploaded-images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .uploaded-images-grid img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .uploaded-images-grid img:hover {
+            transform: scale(1.05);
+        }
+        .uploaded-images-grid img.selected {
+            border-color: #2196f3;
+        }
+        .image-container {
+            position: relative;
+            width: 70px;
+            margin: 5px;
+            text-align: center;
+        }
+        .image-delete-btn {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            padding: 0;
+            line-height: 1;
+        }
+        .image-container:hover .image-delete-btn {
+            display: block;
+        }
+        .image-name {
+            font-size: 10px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-top: 2px;
+            color: #666;
+        }
+        .uploaded-images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
     </style>
 </head>
 <body>
@@ -471,8 +543,59 @@
             return `https://drive.google.com/thumbnail?id=${fileId}&sz=w200-h200`;
         }
 
+        // 新增：從 Google Drive 取得所有圖片
+        async function getAllImages() {
+            if (!googleAuth.getIsSignedIn()) return [];
+            const token = googleAuth.getAccessToken();
+            await ensureAppFolder();
+
+            try {
+                // 搜尋應用程式目錄中的所有圖片檔案
+                const searchRes = await fetch(
+                    `https://www.googleapis.com/drive/v3/files?q='${appFolderId}' in parents and mimeType contains 'image/' and trashed=false&fields=files(id,name,mimeType)`,
+                    { headers: { "Authorization": `Bearer ${token}` } }
+                );
+
+                if (!searchRes.ok) throw new Error("搜尋圖片失敗");
+                const searchData = await searchRes.json();
+
+                // 為每個圖片取得縮圖 URL
+                return searchData.files.map(file => ({
+                    id: file.id,
+                    url: `https://drive.google.com/thumbnail?id=${file.id}&sz=w200-h200`,
+                    name: file.name
+                }));
+            } catch(err) {
+                console.error("取得圖片列表失敗:", err);
+                return [];
+            }
+        }
+
+        // 新增：從 Google Drive 刪除檔案
+        async function deleteFile(fileId) {
+            if (!googleAuth.getIsSignedIn()) return;
+            const token = googleAuth.getAccessToken();
+            
+            try {
+                const response = await fetch(
+                    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+                    {
+                        method: 'DELETE',
+                        headers: { "Authorization": `Bearer ${token}` }
+                    }
+                );
+                
+                if (!response.ok) throw new Error("刪除失敗");
+                return true;
+            } catch(err) {
+                console.error("刪除檔案失敗:", err);
+                throw err;
+            }
+        }
+
         return {
-            loadDriveFile, saveDriveFile, uploadImageToDrive, getImageUrlFromDrive
+            loadDriveFile, saveDriveFile, uploadImageToDrive, getImageUrlFromDrive,
+            getAllImages, deleteFile  // 匯出新函數
         };
     })();
 
@@ -487,6 +610,7 @@
     let selectedImage = "";
     let customImageData = null; // 新增：儲存自訂圖片的 base64 資料
     let customImageFileId = null; // 新增：儲存 Google Drive 上的圖片 ID
+    let uploadedImages = new Set(); // 儲存所有已上傳的圖片資訊
 
     // 新增自動同步相關變數
     let autoSyncTimer = null;
@@ -982,11 +1106,23 @@
             customImageData = imageUrl;
             
             // 更新預覽
-            preview.innerHTML = `<img src="${imageUrl}" alt="自訂圖片">`;
+            preview.innerHTML = `
+                <img src="${imageUrl}" alt="自訂圖片">
+                <button onclick="clearCustomImage()" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+            `;
             
             // 取消選擇預設圖片
             document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
             selectedImage = "";
+
+            // 更新已上傳圖片集合
+            uploadedImages.add(JSON.stringify({
+                url: imageUrl,
+                id: fileId
+            }));
+            
+            // 更新已上傳圖片區域
+            updateUploadedImagesSection();
         } catch (err) {
             console.error('圖片上傳失敗:', err);
             alert('圖片上傳失敗，請稍後再試');
@@ -994,21 +1130,42 @@
         }
     }
 
-    // 新增/編輯 學生
-    function showPopup(idx=-1){
-        editIndex = idx;
-        document.getElementById("overlay").classList.add("show");
-        document.getElementById("studentPopup").classList.add("show");
-        
-        // 取得性別選擇元素並添加事件監聽
-        let genderSelect = document.getElementById("studentGender");
-        genderSelect.addEventListener("change", updateImagePreview);
-        
-        // 重置自訂圖片
+    // 新增：清除自訂圖片的函數
+    window.clearCustomImage = function() {
         customImageData = null;
         customImageFileId = null;
         document.getElementById("customImagePreview").innerHTML = "";
         document.getElementById("customImageUpload").value = "";
+        
+        // 清除已上傳圖片的選中狀態
+        document.querySelectorAll('.uploaded-images-grid img').forEach(img => {
+            img.classList.remove('selected');
+        });
+        
+        // 選擇第一個預設圖片
+        let gender = document.getElementById("studentGender").value;
+        let labels = genderImageLabels[gender];
+        selectedImage = labels[0];
+        updateImagePreview();
+    };
+
+    // 新增/編輯 學生
+    async function showPopup(idx=-1){
+        editIndex = idx;
+        document.getElementById("overlay").classList.add("show");
+        document.getElementById("studentPopup").classList.add("show");
+        
+        let genderSelect = document.getElementById("studentGender");
+        genderSelect.addEventListener("change", updateImagePreview);
+        
+        customImageData = null;
+        customImageFileId = null;
+        document.getElementById("customImagePreview").innerHTML = "";
+        document.getElementById("customImageUpload").value = "";
+        
+        // 改為非同步收集圖片
+        await collectUploadedImages();
+        updateUploadedImagesSection();
         
         if(idx === -1){
             document.getElementById("popupTitle").textContent = "新增學生";
@@ -1030,7 +1187,8 @@
                 customImageData = st.customImage;
                 customImageFileId = st.customImageFileId;
                 document.getElementById("customImagePreview").innerHTML = 
-                    `<img src="${st.customImage}" alt="自訂圖片">`;
+                    `<img src="${st.customImage}" alt="自訂圖片">
+                     <button onclick="clearCustomImage()" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>`;
             }
         }
         updateImagePreview();
@@ -1061,10 +1219,15 @@
                 document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
                 img.classList.add("selected");
                 selectedImage = lbl;
+                // 清除自訂圖片
+                customImageData = null;
+                customImageFileId = null;
+                document.getElementById("customImagePreview").innerHTML = "";
+                document.getElementById("customImageUpload").value = "";
             };
             
-            // 選中圖片的邏輯
-            if((idx === 0 && !selectedImage) || selectedImage === lbl){
+            // 選中圖片的邏輯：如果沒有自訂圖片時才套用
+            if(!customImageData && ((idx === 0 && !selectedImage) || selectedImage === lbl)){
                 img.classList.add("selected");
                 selectedImage = lbl;
             }
@@ -1081,12 +1244,14 @@
         // 處理圖片選擇
         let imageData = null;
         let imageFileId = null;
+        let imageLabel = "";
+        
         if (customImageData) {
             imageData = customImageData;
             imageFileId = customImageFileId;
-        } else if (!selectedImage) {
-            let labs=genderImageLabels[gender];
-            selectedImage=labs[0];
+            imageLabel = "";  // 使用自訂圖片時，清空 imageLabel
+        } else {
+            imageLabel = selectedImage || genderImageLabels[gender][0];
         }
         
         if(!name){
@@ -1100,7 +1265,7 @@
                 name,
                 score,
                 gender,
-                imageLabel: selectedImage,
+                imageLabel,
                 customImage: imageData,
                 customImageFileId: imageFileId
             });
@@ -1109,7 +1274,7 @@
                 name,
                 score,
                 gender,
-                imageLabel: selectedImage,
+                imageLabel,
                 customImage: imageData,
                 customImageFileId: imageFileId
             };
@@ -1123,32 +1288,68 @@
     // CSV
     function exportCSV(){
         let arr=getStudents();
-        let csv="姓名,分數,性別,圖片\n"+
-            arr.map(s=>`${s.name},${s.score},${s.gender},${s.imageLabel}`).join("\n");
+        let csv="姓名,分數,性別,預設圖片,自訂圖片ID\n"+
+            arr.map(s=>`${s.name},${s.score},${s.gender},${s.imageLabel || ''},${s.customImageFileId || ''}`).join("\n");
         let blob=new Blob([csv],{type:"text/csv"});
         let a=document.createElement("a");
         a.href=URL.createObjectURL(blob);
         a.download=`${currentClass}-students.csv`;
         a.click();
     }
-    function importCSV(evt){
+
+    async function importCSV(evt){
         let file=evt.target.files[0];
         if(!file)return;
+
+        // 檢查是否已登入 Google
+        if (!googleAuth.getIsSignedIn()) {
+            alert('請先登入 Google 帳號才能匯入包含自訂圖片的資料');
+            return;
+        }
+
         let reader=new FileReader();
-        reader.onload=(e)=>{
+        reader.onload=async (e)=>{
             let lines=e.target.result.split("\n").map(x=>x.trim()).filter(x=>x);
-            lines.shift();
-            let newArr=[];
-            lines.forEach(line=>{
-                let[name,score,gender,imageLabel]=line.split(",");
-                score=parseInt(score)||0;
+            let headers = lines.shift().split(',');
+            let hasCustomImage = headers.includes('自訂圖片ID');
+
+            let newArr = [];
+            for(let line of lines) {
+                let [name, score, gender, imageLabel, customImageFileId=''] = line.split(",");
+                score = parseInt(score) || 0;
+                
+                // 處理預設圖片
                 if(!imageLabel){
-                    let labs=genderImageLabels[gender]||["男1"];
-                    imageLabel=labs[0];
+                    let labs = genderImageLabels[gender] || ["男1"];
+                    imageLabel = labs[0];
                 }
-                newArr.push({ name,score,gender,imageLabel });
-            });
-            classes[currentClass]=newArr;
+
+                // 建立學生資料物件
+                let student = { 
+                    name, 
+                    score, 
+                    gender, 
+                    imageLabel
+                };
+
+                // 如果有自訂圖片ID，嘗試取得圖片URL
+                if(hasCustomImage && customImageFileId) {
+                    try {
+                        const imageUrl = await googleDrive.getImageUrlFromDrive(customImageFileId);
+                        student.customImage = imageUrl;
+                        student.customImageFileId = customImageFileId;
+                    } catch(err) {
+                        console.warn(`無法取得圖片 ${customImageFileId} 的URL:`, err);
+                        // 如果取得圖片失敗，使用預設圖片
+                        student.customImage = null;
+                        student.customImageFileId = null;
+                    }
+                }
+
+                newArr.push(student);
+            }
+            
+            classes[currentClass] = newArr;
             saveClassesLocal();
             renderStudents();
             markDirty();
@@ -1248,6 +1449,140 @@
         renderStudents();
         renderClassList();
         markDirty();
+    }
+
+    // 修改收集已上傳圖片的函數
+    async function collectUploadedImages() {
+        uploadedImages.clear();
+
+        // 1. 先加入當前頁面上的圖片
+        Object.values(classes).forEach(students => {
+            students.forEach(student => {
+                if (student.customImage && student.customImageFileId) {
+                    uploadedImages.add(JSON.stringify({
+                        url: student.customImage,
+                        id: student.customImageFileId,
+                        name: '使用中的圖片'
+                    }));
+                }
+            });
+        });
+
+        try {
+            // 2. 從 Google Drive 取得所有圖片
+            const driveImages = await googleDrive.getAllImages();
+            driveImages.forEach(img => {
+                uploadedImages.add(JSON.stringify({
+                    url: img.url,
+                    id: img.id,
+                    name: img.name
+                }));
+            });
+        } catch(err) {
+            console.error('取得 Google Drive 圖片失敗:', err);
+        }
+    }
+
+    // 修改顯示已上傳圖片的函數
+    function updateUploadedImagesSection() {
+        const customImageUpload = document.querySelector('.custom-image-upload');
+        
+        // 移除舊的已上傳圖片區域
+        const oldSection = document.querySelector('.uploaded-images-section');
+        if (oldSection) {
+            oldSection.remove();
+        }
+
+        // 如果有已上傳的圖片，建立新的區域
+        if (uploadedImages.size > 0) {
+            const section = document.createElement('div');
+            section.className = 'uploaded-images-section';
+            section.innerHTML = `
+                <h4>選擇已上傳的圖片</h4>
+                <div class="uploaded-images-grid"></div>
+            `;
+
+            const grid = section.querySelector('.uploaded-images-grid');
+            [...uploadedImages].forEach(imageInfo => {
+                const { url, id, name } = JSON.parse(imageInfo);
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'image-container';
+                imgContainer.innerHTML = `
+                    <img src="${url}" alt="${name}" title="${name}">
+                    <button class="image-delete-btn" title="刪除圖片">×</button>
+                    <div class="image-name">${name}</div>
+                `;
+                
+                const img = imgContainer.querySelector('img');
+                if (customImageData === url) {
+                    img.classList.add('selected');
+                }
+                
+                // 圖片點擊事件
+                img.onclick = () => {
+                    document.querySelectorAll('.uploaded-images-grid img').forEach(img => {
+                        img.classList.remove('selected');
+                    });
+                    document.querySelectorAll('.image-preview img').forEach(img => {
+                        img.classList.remove('selected');
+                    });
+                    img.classList.add('selected');
+                    
+                    customImageData = url;
+                    customImageFileId = id;
+                    selectedImage = "";
+                    
+                    document.getElementById('customImagePreview').innerHTML = `
+                        <img src="${url}" alt="${name}">
+                        <button onclick="clearCustomImage()" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+                    `;
+                };
+
+                // 刪除按鈕點擊事件
+                const deleteBtn = imgContainer.querySelector('.image-delete-btn');
+                deleteBtn.onclick = async (e) => {
+                    e.stopPropagation();  // 防止觸發圖片的點擊事件
+                    
+                    // 檢查圖片是否正在使用中
+                    let isInUse = false;
+                    Object.values(classes).forEach(students => {
+                        students.forEach(student => {
+                            if (student.customImageFileId === id) {
+                                isInUse = true;
+                            }
+                        });
+                    });
+
+                    if (isInUse) {
+                        alert('此圖片正在使用中，無法刪除');
+                        return;
+                    }
+
+                    if (!confirm('確定要刪除這張圖片嗎？')) return;
+
+                    try {
+                        await googleDrive.deleteFile(id);
+                        
+                        // 如果刪除的是目前選中的圖片，清除預覽
+                        if (customImageFileId === id) {
+                            clearCustomImage();
+                        }
+                        
+                        // 從集合中移除
+                        uploadedImages.delete(imageInfo);
+                        
+                        // 重新渲染圖片區域
+                        updateUploadedImagesSection();
+                    } catch (err) {
+                        alert('刪除失敗，請稍後再試');
+                    }
+                };
+                
+                grid.appendChild(imgContainer);
+            });
+
+            customImageUpload.appendChild(section);
+        }
     }
 </script>
 </body>
