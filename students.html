@@ -198,6 +198,7 @@
             cursor: move; /* 添加移動游標 */
             user-select: none; /* 防止拖拉時選中文字 */
             transition: transform 0.2s, box-shadow 0.2s; /* 添加過渡效果 */
+            position: relative; /* 添加相對定位 */
         }
         .student-card.dragging {
             opacity: 0.5;
@@ -526,6 +527,28 @@
 
         #selectedList li button:hover {
             background: #ff3333;
+        }
+
+        .student-card .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .student-card:hover .delete-btn {
+            opacity: 1;
         }
     </style>
 </head>
@@ -1305,9 +1328,6 @@
             document.getElementById("customImageUpload").click();
         });
         document.getElementById("customImageUpload").addEventListener("change",handleCustomImageUpload);
-        window.addEventListener("keydown",(evt)=>{
-            if(evt.key==="Escape") closePopup();
-        });
 
         // 登入/離線popup
         document.getElementById("btnLoginNow").addEventListener("click",()=>{
@@ -1342,6 +1362,24 @@
         });
         document.getElementById("btnWheel").addEventListener("click", () => {
             showWheelPopup();
+        });
+
+        // 添加 ESC 鍵關閉視窗功能
+        window.addEventListener("keydown", (evt) => {
+            if (evt.key === "Escape") {
+                // 檢查各個視窗是否開啟
+                if (document.getElementById("overlay").classList.contains("show")) {
+                    closePopup();
+                } else if (document.getElementById("loginOverlay").classList.contains("show")) {
+                    closeLoginChoice();
+                } else if (document.getElementById("classOverlay").classList.contains("show")) {
+                    closeClassPopup();
+                } else if (document.getElementById("settingsOverlay")?.classList.contains("show")) {
+                    closeScoreButtonsSettings();
+                } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
+                    closeWheelPopup();
+                }
+            }
         });
     }
 
@@ -1477,6 +1515,7 @@
             card.addEventListener('drop', handleDrop);
             
             card.innerHTML=`
+      <button class="delete-btn" onclick="deleteStudent(${idx})">×</button>
       <img src="${imgSrc}" alt="${st.gender}" onclick="editStudent(${idx})">
       <p>${st.name}</p>
       <p id="score-${idx}">${st.score} 分</p>
@@ -1492,8 +1531,6 @@
         <input type="number" id="custom-${idx}" placeholder="自訂分數" style="width:60px;">
         <button onclick="customAdjust(${idx})">確定</button>
       </div>
-      <button class="btn-edit"   onclick="editStudent(${idx})">編輯</button>
-      <button class="btn-delete" onclick="deleteStudent(${idx})">刪除</button>
     `;
             container.appendChild(card);
         });
