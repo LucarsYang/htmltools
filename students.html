@@ -2223,14 +2223,27 @@
     function updateSelectedList() {
         const selectedList = document.getElementById("selectedList");
         selectedList.innerHTML = "";
+        const students = getStudents();
         
-        selectedStudents.forEach(name => {
-            const li = document.createElement("li");
-            li.innerHTML = `
-                ${name}
-                <button onclick="removeSelectedStudent('${name}')">×</button>
-            `;
-            selectedList.appendChild(li);
+        // 將 Set 轉換為陣列並反轉順序，這樣最新的會在最前面
+        const selectedArray = Array.from(selectedStudents).reverse();
+        
+        selectedArray.forEach((name, index) => {
+            // 找到對應的學生資料
+            const student = students.find(s => s.name === name);
+            if (student) {
+                const imgSrc = student.customImage || imageMap[student.imageLabel] || "";
+                const li = document.createElement("li");
+                li.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="min-width: 25px; color: #666;">${selectedArray.length - index}.</span>
+                        <img src="${imgSrc}" alt="${student.gender}" style="width: 30px; height: 30px; border-radius: 50%;">
+                        ${name}
+                    </div>
+                    <button onclick="removeSelectedStudent('${name}')">×</button>
+                `;
+                selectedList.appendChild(li);
+            }
         });
     }
 
