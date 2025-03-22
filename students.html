@@ -26,7 +26,7 @@
             background: #2c3e50;
             color: white;
             transition: all 0.3s ease;
-            z-index: 1000;
+            z-index: 100;  /* 降低側邊欄的 z-index */
             padding-top: 60px;
         }
 
@@ -198,6 +198,7 @@
             cursor: move; /* 添加移動游標 */
             user-select: none; /* 防止拖拉時選中文字 */
             transition: transform 0.2s, box-shadow 0.2s; /* 添加過渡效果 */
+            position: relative; /* 添加相對定位 */
         }
         .student-card.dragging {
             opacity: 0.5;
@@ -210,7 +211,20 @@
         }
         .student-card img { width:80px; height:80px; cursor:pointer; }
         .btn-score {
-            background:#8bc34a; color:#fff; border-radius:3px; margin:2px;
+            color:#fff; border-radius:3px; margin:2px;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-score:hover {
+            opacity: 0.9;
+        }
+        .btn-score.positive {
+            background: #4caf50;  /* 綠色 */
+        }
+        .btn-score.negative {
+            background: #f44336;  /* 紅色 */
         }
         .btn-edit {
             background:#ffa500; color:white; margin:5px 2px;
@@ -228,7 +242,7 @@
             position:fixed; top:0; left:0;
             width:100%; height:100%;
             background:rgba(0,0,0,0.5);
-            z-index:10;
+            z-index:1000;  /* 提高遮罩的 z-index */
         }
         .login-overlay.show, .overlay.show, .class-overlay.show,
         .login-processing-overlay.show, .sync-overlay.show {
@@ -239,7 +253,7 @@
             position:fixed; top:50%; left:50%;
             transform:translate(-50%,-50%);
             background:white; padding:20px; border-radius:10px; text-align:center; width:320px;
-            box-shadow:2px 2px 10px rgba(0,0,0,0.3); z-index:20; opacity:0; transition:opacity 0.3s;
+            box-shadow:2px 2px 10px rgba(0,0,0,0.3); z-index:1001; opacity:0; transition:opacity 0.3s;  /* 提高彈窗的 z-index */
         }
         .login-popup.show, .popup.show, .class-popup.show,
         .login-processing-popup.show, .sync-popup.show {
@@ -422,7 +436,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.5);
-            z-index: 1000;
+            z-index: 1000;  /* 統一遮罩的 z-index */
         }
 
         .wheel-popup {
@@ -437,7 +451,7 @@
             text-align: center;
             width: 400px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-            z-index: 1001;
+            z-index: 1001;  /* 統一彈窗的 z-index */
         }
 
         .wheel-overlay.show,
@@ -527,6 +541,28 @@
         #selectedList li button:hover {
             background: #ff3333;
         }
+
+        .student-card .delete-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff4d4d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .student-card:hover .delete-btn {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -566,14 +602,14 @@
         <a class="menu-item" id="btnAddStudent">
             <i>➕</i><span>新增學生</span>
         </a>
+        <a class="menu-item" id="btnWheel">
+            <i>🎡</i><span>輪轉盤</span>
+        </a>
         <a class="menu-item" id="btnExportCSV">
             <i>📤</i><span>匯出 CSV</span>
         </a>
         <a class="menu-item" id="btnImportCSV">
             <i>📥</i><span>匯入 CSV</span>
-        </a>
-        <a class="menu-item" id="btnWheel">
-            <i>🎡</i><span>輪轉盤</span>
         </a>
     </div>
 
@@ -1305,9 +1341,6 @@
             document.getElementById("customImageUpload").click();
         });
         document.getElementById("customImageUpload").addEventListener("change",handleCustomImageUpload);
-        window.addEventListener("keydown",(evt)=>{
-            if(evt.key==="Escape") closePopup();
-        });
 
         // 登入/離線popup
         document.getElementById("btnLoginNow").addEventListener("click",()=>{
@@ -1342,6 +1375,24 @@
         });
         document.getElementById("btnWheel").addEventListener("click", () => {
             showWheelPopup();
+        });
+
+        // 添加 ESC 鍵關閉視窗功能
+        window.addEventListener("keydown", (evt) => {
+            if (evt.key === "Escape") {
+                // 檢查各個視窗是否開啟
+                if (document.getElementById("overlay").classList.contains("show")) {
+                    closePopup();
+                } else if (document.getElementById("loginOverlay").classList.contains("show")) {
+                    closeLoginChoice();
+                } else if (document.getElementById("classOverlay").classList.contains("show")) {
+                    closeClassPopup();
+                } else if (document.getElementById("settingsOverlay")?.classList.contains("show")) {
+                    closeScoreButtonsSettings();
+                } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
+                    closeWheelPopup();
+                }
+            }
         });
     }
 
@@ -1476,14 +1527,20 @@
             card.addEventListener('dragover', handleDragOver);
             card.addEventListener('drop', handleDrop);
             
+            // 根據分數正負決定按鈕類別
+            const getButtonClass = (score) => {
+                return score >= 0 ? 'positive' : 'negative';
+            };
+            
             card.innerHTML=`
+      <button class="delete-btn" onclick="deleteStudent(${idx})">×</button>
       <img src="${imgSrc}" alt="${st.gender}" onclick="editStudent(${idx})">
       <p>${st.name}</p>
       <p id="score-${idx}">${st.score} 分</p>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[0]})">${classes.scoreButtons[0] >= 0 ? '+' : ''}${classes.scoreButtons[0]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[1]})">${classes.scoreButtons[1] >= 0 ? '+' : ''}${classes.scoreButtons[1]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
-      <button class="btn-score" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[0])}" onclick="updateScore(${idx}, ${classes.scoreButtons[0]})">${classes.scoreButtons[0] >= 0 ? '+' : ''}${classes.scoreButtons[0]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[1])}" onclick="updateScore(${idx}, ${classes.scoreButtons[1]})">${classes.scoreButtons[1] >= 0 ? '+' : ''}${classes.scoreButtons[1]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[2])}" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
+      <button class="btn-score ${getButtonClass(classes.scoreButtons[3])}" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
       <div class="quickAdjust">
         <select id="sign-${idx}">
           <option value="+">+</option>
@@ -1492,8 +1549,6 @@
         <input type="number" id="custom-${idx}" placeholder="自訂分數" style="width:60px;">
         <button onclick="customAdjust(${idx})">確定</button>
       </div>
-      <button class="btn-edit"   onclick="editStudent(${idx})">編輯</button>
-      <button class="btn-delete" onclick="deleteStudent(${idx})">刪除</button>
     `;
             container.appendChild(card);
         });
