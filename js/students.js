@@ -224,8 +224,8 @@ export function renderStudents() {
                         <option value="+">+</option>
                         <option value="-">-</option>
                     </select>
-                    <input type="number" id="custom-${idx}" placeholder="自訂分數" min="0">
-                    <button class="custom-adjust-btn">確定</button>
+                    <input type="number" id="custom-${idx}" placeholder="分數" min="0">
+                    <button class="custom-adjust-btn">OK</button>
                 </div>
             </div>
         `;

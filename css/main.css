@@ -34,7 +34,7 @@ h2 {
 
 /* 學生卡片樣式 */
 .student-card {
-    width: 180px; 
+    width: 200px; 
     border: 1px solid var(--border-color); 
     background: var(--bg-card);
     padding: var(--spacing-md); 
@@ -90,11 +90,12 @@ button:hover {
 .btn-score {
     color: var(--text-light);
     border-radius: var(--radius-sm); 
-    margin: 2px;
+    margin: 3px;
     border: none;
-    padding: 5px 10px;
+    padding: 5px 12px;
     cursor: pointer;
     transition: background-color var(--transition-fast);
+    min-width: 40px;
 }
 
 .btn-score:hover {
@@ -182,23 +183,28 @@ button:hover {
     border-radius: var(--radius-sm);
     padding: var(--spacing-xs);
     box-shadow: var(--shadow-small);
+    width: 100%;
 }
 
 .custom-score-group select {
-    width: 40px;
+    width: 60px;
     text-align: center;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-    height: 30px;
+    height: 35px;
+    font-size: 16px;
+    font-weight: bold;
+    padding-left: 15px;
 }
 
 .custom-score-group input {
-    width: 80px;
+    width: 60px;
     border: 1px solid var(--border-color);
     border-left: none;
     border-right: none;
-    height: 30px;
+    height: 35px;
     text-align: center;
+    font-size: 15px;
 }
 
 .custom-score-group .custom-adjust-btn {
@@ -206,8 +212,10 @@ button:hover {
     border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     background-color: var(--primary-color);
     color: var(--text-light);
-    height: 30px;
-    padding: 0 10px;
+    height: 35px;
+    padding: 0 8px;
+    min-width: 45px;
+    font-size: 14px;
 }
 
 .custom-score-group .custom-adjust-btn:hover {
@@ -597,4 +605,22 @@ select.error:focus {
 
 .delete-class-btn:hover {
     background-color: #ff3333;
+}
+
+/* 調整學生卡片內的段落間距和字體大小 */
+.student-card p {
+    margin: 8px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.student-card p:nth-child(3) {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.student-card p:nth-child(4) {
+    font-size: 16px;
+    margin-bottom: 10px;
 } 
