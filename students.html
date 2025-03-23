@@ -999,7 +999,6 @@
             <button id="btnResetWheel" style="background:#ff9800;">重置已選名單</button>
         </div>
         <div class="wheel-right-controls">
-            <button id="btnEnlargeWheel">放大輪盤</button>
             <button id="btnSpinWheel" style="background:#4caf50;">開始轉動</button>
             <button id="btnCloseWheel" style="background:#757575;">關閉</button>
         </div>
@@ -1982,7 +1981,7 @@
       <button class="btn-score ${getButtonClass(classes.scoreButtons[2])}" onclick="updateScore(${idx}, ${classes.scoreButtons[2]})">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
       <button class="btn-score ${getButtonClass(classes.scoreButtons[3])}" onclick="updateScore(${idx}, ${classes.scoreButtons[3]})">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
       <div class="quickAdjust">
-        <select id="sign-${idx}">
+        <select id="sign-${idx}"">
           <option value="+">+</option>
           <option value="-">-</option>
         </select>
@@ -2676,21 +2675,23 @@
     let wheelAnimation = null;
     let isRewardWheel = false; // 新增：是否為獎懲輪轉盤
     let rewards = classes.rewards || ["獎勵", "懲罰"]; // 從 classes 中讀取獎懲項目
-    let isWheelEnlarged = false; // 新增：記錄輪轉盤是否放大
 
     // 輪轉盤視窗
     function showWheelPopup() {
         if(checkIfUpdating()) return;
         
         document.getElementById("wheelOverlay").classList.add("show");
-        document.getElementById("wheelPopup").classList.add("show");
+        const wheelPopup = document.getElementById("wheelPopup");
+        wheelPopup.classList.add("show");
+        wheelPopup.classList.add("enlarged");
         
         // 初始化畫布
         wheelCanvas = document.getElementById("wheelCanvas");
         wheelCtx = wheelCanvas.getContext("2d");
         
-        // 根據是否放大設置畫布大小
-        updateCanvasSize();
+        // 設置畫布大小
+        wheelCanvas.width = 600;
+        wheelCanvas.height = 600;
         
         // 初始化事件監聽器
         document.getElementById("btnSpinWheel").addEventListener("click", startSpinning);
@@ -2699,7 +2700,6 @@
         document.getElementById("btnStudentWheel").addEventListener("click", () => switchWheelType(false));
         document.getElementById("btnRewardWheel").addEventListener("click", () => switchWheelType(true));
         document.getElementById("btnAddReward").addEventListener("click", addNewReward);
-        document.getElementById("btnEnlargeWheel").addEventListener("click", toggleWheelSize);
         
         // 點擊輪轉盤時停止轉動
         wheelCanvas.addEventListener("click", () => {
@@ -2721,32 +2721,6 @@
         updateRewardList();
     }
 
-    // 新增：更新畫布大小
-    function updateCanvasSize() {
-        const size = isWheelEnlarged ? 600 : 300;
-        wheelCanvas.width = size;
-        wheelCanvas.height = size;
-    }
-
-    // 新增：切換輪轉盤大小
-    function toggleWheelSize() {
-        const wheelPopup = document.getElementById("wheelPopup");
-        isWheelEnlarged = !isWheelEnlarged;
-        
-        // 切換放大的類別
-        wheelPopup.classList.toggle("enlarged", isWheelEnlarged);
-        
-        // 更新按鈕文字
-        const btnEnlarge = document.getElementById("btnEnlargeWheel");
-        btnEnlarge.textContent = isWheelEnlarged ? "縮小輪盤" : "放大輪盤";
-        
-        // 更新畫布大小
-        updateCanvasSize();
-        
-        // 重新渲染輪轉盤
-        renderWheel();
-    }
-
     // 修改：渲染輪轉盤函數
     function renderWheel() {
         const items = isRewardWheel ? rewards : getStudents();
@@ -2763,7 +2737,7 @@
             wheelCtx.fill();
             
             wheelCtx.fillStyle = "#666";
-            wheelCtx.font = isWheelEnlarged ? "24px Arial" : "20px Arial";
+            wheelCtx.font = "24px Arial";
             wheelCtx.textAlign = "center";
             wheelCtx.textBaseline = "middle";
             wheelCtx.fillText("所有項目都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
@@ -2790,7 +2764,7 @@
             wheelCtx.fillStyle = colors[index % colors.length];
             wheelCtx.fill();
             wheelCtx.strokeStyle = "#fff";
-            wheelCtx.lineWidth = isWheelEnlarged ? 3 : 2;
+            wheelCtx.lineWidth = 3;
             wheelCtx.stroke();
 
             // 繪製文字
@@ -2799,22 +2773,20 @@
             wheelCtx.rotate(startAngle + angleStep / 2);
             wheelCtx.textAlign = "right";
             wheelCtx.fillStyle = "#fff";
-            wheelCtx.font = isWheelEnlarged ? "18px Arial" : "14px Arial";
-            wheelCtx.fillText(isRewardWheel ? item : item.name, radius - (isWheelEnlarged ? 30 : 20), 5);
+            wheelCtx.font = "18px Arial";
+            wheelCtx.fillText(isRewardWheel ? item : item.name, radius - 30, 5);
             wheelCtx.restore();
         });
     }
 
-    // 修改：關閉輪轉盤時重置放大狀態
+    // 修改：關閉輪轉盤
     function closeWheelPopup() {
+        const wheelPopup = document.getElementById("wheelPopup");
         document.getElementById("wheelOverlay").classList.remove("show");
-        document.getElementById("wheelPopup").classList.remove("show");
+        wheelPopup.classList.remove("show");
+        wheelPopup.classList.remove("enlarged");
         if (wheelAnimation) {
             cancelAnimationFrame(wheelAnimation);
-        }
-        // 重置放大狀態
-        if (isWheelEnlarged) {
-            toggleWheelSize();
         }
     }
 
