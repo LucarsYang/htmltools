@@ -2,6 +2,7 @@
 import { initGoogleAuth, getIsSignedIn } from './googleAuth.js';
 import { initStudents } from './students.js';
 import { attachSidebarToggle, setupESCKeyHandler } from './utils.js';
+import { initWheelSpinner, setResultCallback } from './wheelSpinner.js';
 
 // 當頁面載入完成後執行
 window.addEventListener('DOMContentLoaded', () => {
@@ -19,11 +20,17 @@ window.addEventListener('DOMContentLoaded', () => {
     // 初始化新的側邊欄功能
     initSidebarFunctions();
     
+    // 初始化輪轉盤功能
+    initWheelSpinner();
+    
     // 設置 ESC 鍵關閉視窗
     setupESCKeyHandler();
     
     // 確保登入按鈕狀態正確更新
     updateLoginButtonsState();
+    
+    // 設置輪轉盤結果回調函數
+    setupWheelResultCallback();
 });
 
 // 確保登入按鈕狀態正確更新
@@ -111,6 +118,26 @@ function initSidebarFunctions() {
             document.getElementById('importCSV').click();
         });
     }
+}
+
+// 設置輪轉盤結果回調函數
+function setupWheelResultCallback() {
+    setResultCallback((result) => {
+        console.log('輪轉盤結果回調:', result);
+        
+        // 顯示結果通知
+        const messageType = result.isReward === true ? 'success' : 
+                        (result.isReward === false ? 'warning' : 'info');
+        const messagePrefix = result.isReward === true ? '獎勵' : 
+                           (result.isReward === false ? '懲罰' : '');
+        
+        // 如果有選中的學生，顯示更具體的訊息
+        const selectedStudent = document.querySelector('.student-card.selected');
+        if (selectedStudent) {
+            const studentName = selectedStudent.querySelector('.student-name').textContent;
+            showToast(`${studentName} ${messagePrefix}: ${result.text}`, messageType);
+        }
+    });
 }
 
 // 顯示幫助彈窗並選擇對應標籤

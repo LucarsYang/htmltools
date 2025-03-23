@@ -256,7 +256,8 @@ function initSubmenus() {
     const submenuMapping = {
         'btnManage': 'manageSubmenu',
         'btnHelpMenu': 'helpSubmenu',
-        'btnDataManage': 'dataSubmenu'
+        'btnDataManage': 'dataSubmenu',
+        'btnGameZone': 'gameSubmenu'
     };
     
     menuItems.forEach(item => {
@@ -463,6 +464,14 @@ export function setupESCKeyHandler() {
             } else if (document.getElementById("helpOverlay").classList.contains("show")) {
                 document.getElementById("helpOverlay").classList.remove("show");
                 document.getElementById("helpPopup").classList.remove("show");
+            } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
+                document.getElementById("wheelOverlay").classList.remove("show");
+                document.getElementById("wheelPopup").classList.remove("show");
+            } else if (document.getElementById("wheelSettingsOverlay").classList.contains("show")) {
+                document.getElementById("wheelSettingsOverlay").classList.remove("show");
+                document.getElementById("wheelSettingsPopup").classList.remove("show");
+            } else if (document.getElementById("wheelResultContainer").classList.contains("show")) {
+                document.getElementById("wheelResultContainer").classList.remove("show");
             }
         }
     });

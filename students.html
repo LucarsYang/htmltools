@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/popup.css">
     <link rel="stylesheet" href="css/help.css">
+    <link rel="stylesheet" href="css/wheel.css">
 
     <!-- JavaScript 模組 -->
     <script type="module" src="js/main.js"></script>
@@ -60,6 +61,16 @@
             </a>
             <a class="menu-item" id="btnAddStudent">
                 <i>➕</i><span>新增學生</span>
+            </a>
+        </div>
+        
+        <!-- 遊戲區子選單 - 新增 -->
+        <a class="menu-item has-submenu" id="btnGameZone">
+            <i>🎮</i><span>遊戲區</span>
+        </a>
+        <div class="submenu" id="gameSubmenu">
+            <a class="menu-item" id="btnOpenWheel">
+                <i>🎯</i><span>獎懲輪轉盤</span>
             </a>
         </div>
         
@@ -241,6 +252,17 @@
                 </div>
                 
                 <div class="help-section">
+                    <h3>獎懲輪轉盤</h3>
+                    <ul>
+                        <li>從「遊戲區」選單中點擊「獎懲輪轉盤」開啟功能</li>
+                        <li>點擊「旋轉」按鈕開始轉動輪盤</li>
+                        <li>轉盤停止時，12點鐘方向的項目為結果</li>
+                        <li>點擊「設定」按鈕可自訂輪盤項目</li>
+                        <li>輪盤結果可以作為給學生的獎勵或提醒</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
                     <h3>資料同步</h3>
                     <ul>
                         <li>資料會自動儲存至本地瀏覽器</li>
@@ -255,6 +277,31 @@
         <div class="tab-content" id="versionContent" style="display: none;">
             <div class="help-content">
                 <div class="help-section version-history">
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.1</h3>
+                            <span class="version-date">2023年4月2日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>隱藏輪轉盤指標，讓界面更簡潔</li>
+                            <li>優化輪轉盤結果顯示效果</li>
+                            <li>移除與分數相關的功能</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.0</h3>
+                            <span class="version-date">2023年4月1日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>新增遊戲區功能</li>
+                            <li>重新設計獎懲輪轉盤功能</li>
+                            <li>優化轉盤視覺效果和動畫</li>
+                            <li>修正指針位置與結果不一致的問題</li>
+                        </ul>
+                    </div>
+                    
                     <div class="version-item">
                         <div class="version-header">
                             <h3>版本 1.4.0</h3>
@@ -323,6 +370,53 @@
         </div>
     </div>
 </div>
+
+<!-- 獎懲輪轉盤相關元素 -->
+<div class="wheel-overlay" id="wheelOverlay"></div>
+<div class="wheel-popup" id="wheelPopup">
+    <div class="popup-header">
+        <h3>獎懲輪轉盤</h3>
+        <button class="close-btn" id="btnCloseWheel">&times;</button>
+    </div>
+    <div class="popup-body">
+        <div class="wheel-container">
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        </div>
+        <button id="btnSpinWheel" class="primary-btn">旋轉</button>
+        <button id="btnWheelSettings" class="secondary-btn">設定</button>
+    </div>
+</div>
+
+<!-- 輪轉盤結果顯示 -->
+<div class="wheel-result-container" id="wheelResultContainer">
+    <div class="wheel-result-icon" id="wheelResultIcon">🎉</div>
+    <div class="wheel-result" id="wheelResult">優秀表現</div>
+</div>
+
+<!-- 輪轉盤設定 -->
+<div class="wheel-settings-overlay" id="wheelSettingsOverlay"></div>
+<div class="wheel-settings-popup" id="wheelSettingsPopup">
+    <div class="popup-header">
+        <h3>輪轉盤設定</h3>
+        <button class="close-btn" id="btnCloseWheelSettings">&times;</button>
+    </div>
+    <div class="popup-body">
+        <h4>編輯輪轉盤項目</h4>
+        <div id="wheelItemsList" class="wheel-items-list"></div>
+        <button id="btnAddWheelItem" class="primary-btn">新增項目</button>
+    </div>
+    <div class="popup-footer">
+        <button id="btnSaveWheelSettings" class="primary-btn">儲存設定</button>
+    </div>
+</div>
+
+<!-- 輪轉盤音效 -->
+<audio id="wheelSpinSound" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-slot-machine-spin-1466.mp3" type="audio/mpeg">
+</audio>
+<audio id="wheelResultSound" preload="auto">
+    <source src="https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3" type="audio/mpeg">
+</audio>
 
 <!-- 初始化 Google API -->
 <script>
