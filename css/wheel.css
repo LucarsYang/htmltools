@@ -1,0 +1,361 @@
+/* wheel.css - 獎懲輪轉盤相關樣式 */
+
+/* 基本遊戲區樣式 */
+.game-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+/* 輪轉盤遮罩 */
+.wheel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    display: none;
+}
+
+.wheel-overlay.show {
+    display: block;
+}
+
+/* 輪轉盤彈窗 */
+.wheel-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--bg-popup);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-large);
+    z-index: 1001;
+    width: 90%;
+    max-width: 800px;
+    display: none;
+    overflow: hidden;
+}
+
+.wheel-popup.show {
+    display: block;
+}
+
+.wheel-popup .popup-header {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    padding: var(--spacing-md) var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wheel-popup .popup-header h3 {
+    margin: 0;
+    font-weight: 500;
+}
+
+.wheel-popup .popup-body {
+    padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.wheel-popup .popup-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 輪轉盤容器 */
+.wheel-container {
+    position: relative;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* 12點鐘方向標記 */
+.wheel-marker {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 15px solid var(--danger-color);
+    z-index: 10;
+}
+
+/* 標記脈動動畫 */
+.wheel-marker.pulse-animation {
+    animation: pulse 1s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: translateX(-50%) scale(1); opacity: 1; }
+    50% { transform: translateX(-50%) scale(1.2); opacity: 0.8; }
+    100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* Canvas 樣式 */
+#wheelCanvas {
+    display: block;
+    margin: 0 auto;
+    background: var(--bg-card);
+    box-shadow: var(--shadow-small);
+    border-radius: 50%;
+}
+
+/* 旋轉按鈕 */
+#btnSpinWheel {
+    margin: var(--spacing-lg) auto;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background-color var(--transition-normal);
+    display: block;
+}
+
+#btnSpinWheel:hover {
+    background-color: var(--primary-hover);
+}
+
+#btnSpinWheel:disabled {
+    background-color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* 結果容器 */
+.wheel-result-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--bg-popup);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-large);
+    z-index: 1002;
+    width: 90%;
+    max-width: 400px;
+    padding: var(--spacing-xl);
+    text-align: center;
+    display: none;
+    animation: result-appear 0.5s ease-out;
+}
+
+.wheel-result-container.show {
+    display: block;
+}
+
+/* 結果遮罩層 */
+.wheel-result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1001;
+    display: none;
+}
+
+.wheel-result-overlay.show {
+    display: block;
+}
+
+/* 關閉按鈕 */
+.wheel-result-close {
+    position: absolute;
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    width: 30px;
+    height: 30px;
+    font-size: 24px;
+    line-height: 30px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.1);
+    transition: background-color var(--transition-fast);
+}
+
+.wheel-result-close:hover {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+@keyframes result-appear {
+    from { 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+    to { 
+        opacity: 1; 
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.wheel-result-icon {
+    font-size: 72px;
+    margin-bottom: var(--spacing-lg);
+}
+
+.wheel-result {
+    font-size: 32px;
+    font-weight: bold;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* 設定相關樣式 */
+.wheel-settings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1003;
+    display: none;
+}
+
+.wheel-settings-overlay.show {
+    display: block;
+}
+
+.wheel-settings-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--bg-popup);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-large);
+    z-index: 1004;
+    width: 90%;
+    max-width: 700px;
+    display: none;
+    overflow: hidden;
+}
+
+.wheel-settings-popup.show {
+    display: block;
+}
+
+.wheel-settings-popup .popup-header {
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    padding: var(--spacing-md) var(--spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.wheel-settings-popup .popup-header h3 {
+    margin: 0;
+    font-weight: 500;
+}
+
+.wheel-settings-popup .popup-body {
+    padding: var(--spacing-lg);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.wheel-settings-popup .popup-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: right;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 輪轉盤項目列表 */
+.wheel-items-list {
+    width: 100%;
+    margin-bottom: var(--spacing-lg);
+}
+
+.wheel-item-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 100px auto;
+    gap: var(--spacing-md);
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background-color: var(--bg-card);
+    border-radius: var(--radius-sm);
+}
+
+.wheel-item-text {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+}
+
+.wheel-item-color {
+    width: 40px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+    margin: 0 auto;
+    display: block;
+}
+
+.wheel-item-type,
+.wheel-item-value {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+}
+
+.wheel-item-delete {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--danger-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+}
+
+.wheel-item-delete:hover {
+    background-color: var(--danger-hover);
+}
+
+/* 添加項目按鈕 */
+#btnAddWheelItem {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--success-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    display: block;
+    margin: var(--spacing-md) 0;
+}
+
+#btnAddWheelItem:hover {
+    background-color: var(--success-hover);
+}
+
+/* 保存設定按鈕 */
+#btnSaveWheelSettings {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+}
+
+#btnSaveWheelSettings:hover {
+    background-color: var(--primary-hover);
+} 

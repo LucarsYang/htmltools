@@ -1,0 +1,626 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: var(--bg-main);
+    margin: 0; 
+    padding: 0;
+    color: var(--text-primary);
+}
+
+h2 { 
+    margin-top: var(--spacing-lg); 
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.main-content {
+    margin-left: 250px;
+    padding: var(--spacing-lg);
+    transition: var(--transition-normal);
+}
+
+.main-content.expanded {
+    margin-left: 60px;
+}
+
+.container {
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg); 
+    padding-bottom: var(--spacing-xl);
+}
+
+/* 學生卡片樣式 */
+.student-card {
+    width: 200px; 
+    border: 1px solid var(--border-color); 
+    background: var(--bg-card);
+    padding: var(--spacing-md); 
+    text-align: center; 
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-small);
+    cursor: move;
+    user-select: none;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    position: relative;
+}
+
+.student-card.dragging {
+    opacity: 0.5;
+    transform: scale(1.05);
+    box-shadow: var(--shadow-medium);
+    z-index: 1000;
+}
+
+.student-card.drag-over {
+    border: 2px dashed var(--secondary-color);
+}
+
+.student-card img { 
+    width: 80px; 
+    height: 80px; 
+    cursor: pointer;
+    border-radius: 50%;
+    object-fit: cover;
+    transition: transform var(--transition-fast);
+}
+
+.student-card img:hover {
+    transform: scale(1.05);
+}
+
+/* 按鈕樣式 */
+button {
+    margin: 5px; 
+    padding: 8px; 
+    cursor: pointer; 
+    border: none; 
+    border-radius: var(--radius-sm);
+    background-color: var(--primary-color); 
+    color: var(--text-light);
+    transition: background-color var(--transition-fast);
+}
+
+button:hover { 
+    background-color: var(--primary-hover);
+}
+
+.btn-score {
+    color: var(--text-light);
+    border-radius: var(--radius-sm); 
+    margin: 3px;
+    border: none;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    min-width: 40px;
+}
+
+.btn-score:hover {
+    opacity: 1;
+}
+
+.btn-score.positive {
+    background: var(--secondary-color);
+}
+
+.btn-score.positive:hover {
+    background: var(--secondary-hover);
+}
+
+.btn-score.negative {
+    background: var(--danger-color);
+}
+
+.btn-score.negative:hover {
+    background: var(--danger-hover);
+}
+
+/* 工具列樣式 */
+.toolbar {
+    padding: var(--spacing-md);
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-small);
+    margin-bottom: var(--spacing-lg);
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: center; 
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--bg-main);
+    border-radius: var(--radius-sm);
+    margin: var(--spacing-xs);
+}
+
+.toolbar-group.auth {
+    background: #e8f5e9;
+}
+
+/* 狀態指示器樣式 */
+#syncStatusBar {
+    background: transparent;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-top: var(--spacing-md);
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+/* 狀態顏色 */
+.red    { color: var(--danger-color);   }
+.yellow { color: var(--warning-color);  }
+.green  { color: var(--secondary-color); }
+.grey   { color: var(--text-muted); }
+
+/* 快速調整分數區域 */
+.quickAdjust { 
+    margin-top: var(--spacing-xs); 
+}
+
+.quickAdjust select, 
+.quickAdjust input { 
+    margin-right: var(--spacing-xs); 
+}
+
+/* 自訂分數輸入組 */
+.custom-score-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: var(--spacing-sm);
+    background-color: var(--bg-main);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-xs);
+    box-shadow: var(--shadow-small);
+    width: 100%;
+}
+
+.custom-score-group select {
+    width: 60px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    height: 35px;
+    font-size: 16px;
+    font-weight: bold;
+    padding-left: 15px;
+}
+
+.custom-score-group input {
+    width: 60px;
+    border: 1px solid var(--border-color);
+    border-left: none;
+    border-right: none;
+    height: 35px;
+    text-align: center;
+    font-size: 15px;
+}
+
+.custom-score-group .custom-adjust-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background-color: var(--primary-color);
+    color: var(--text-light);
+    height: 35px;
+    padding: 0 8px;
+    min-width: 45px;
+    font-size: 14px;
+}
+
+.custom-score-group .custom-adjust-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+/* 刪除按鈕 */
+.delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: var(--danger-color);
+    color: var(--text-light);
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    transition: all var(--transition-fast);
+}
+
+.delete-btn:hover {
+    background: var(--danger-hover);
+    transform: scale(1.1);
+}
+
+/* 添加上傳圖片區域的樣式 */
+.uploaded-images-section {
+    margin-top: 15px;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+}
+
+.uploaded-images-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.uploaded-images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.uploaded-image-item {
+    position: relative;
+    width: 100%;
+    height: 60px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.uploaded-image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.uploaded-image-item img.selected {
+    border: 3px solid #4caf50;
+}
+
+.uploaded-image-item img:hover {
+    transform: scale(1.05);
+}
+
+.delete-image-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.uploaded-image-item:hover .delete-image-btn {
+    opacity: 1;
+}
+
+.loader {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin: 10px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 自定義圖片預覽區域 */
+.custom-image-preview {
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    padding: 5px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.custom-image-preview img {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+.custom-image-upload {
+    margin: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 圖片選擇區域 */
+.image-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    max-height: 100px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.image-preview img {
+    width: 100%;
+    height: 60px;
+    object-fit: cover;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.image-preview img.selected {
+    border: 3px solid #4caf50;
+    transform: scale(1.05);
+}
+
+.image-preview img:hover {
+    opacity: 0.8;
+}
+
+/* Toast 通知系統樣式 */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.toast {
+    margin-bottom: 10px;
+    padding: 12px 20px;
+    border-radius: 4px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    min-width: 250px;
+    max-width: 350px;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    opacity: 0.9;
+    border-left: 4px solid transparent;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast-success {
+    background-color: #e8f5e9;
+    border-left-color: #4caf50;
+    color: #2e7d32;
+}
+
+.toast-error {
+    background-color: #ffebee;
+    border-left-color: #f44336;
+    color: #c62828;
+}
+
+.toast-info {
+    background-color: #e3f2fd;
+    border-left-color: #2196f3;
+    color: #0d47a1;
+}
+
+.toast-icon {
+    margin-right: 12px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.toast-message {
+    flex: 1;
+    font-size: 14px;
+}
+
+/* 圖片上傳進度條樣式 */
+.upload-progress-container {
+    width: 100%;
+    height: 20px;
+    background-color: #f3f3f3;
+    border-radius: 4px;
+    margin: 10px 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background-color: #4caf50;
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.upload-progress-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #333;
+}
+
+/* 拖放上傳區域樣式 */
+.custom-image-preview {
+    border: 2px dashed #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.custom-image-preview.highlight {
+    border-color: #4caf50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.drop-area-hint {
+    color: #999;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.custom-image-preview img {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 輸入框樣式增強 */
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: #4caf50;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+/* 錯誤狀態樣式 */
+input.error,
+select.error {
+    border-color: #f44336;
+    background-color: #ffebee;
+}
+
+input.error:focus,
+select.error:focus {
+    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+/* 班級管理相關樣式 */
+.class-add-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.class-add-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.class-add-form button {
+    white-space: nowrap;
+}
+
+.class-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    padding-right: 5px;
+}
+
+.class-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    background-color: #fff;
+    border-radius: 4px;
+    border: 1px solid #eee;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.class-item-name {
+    font-weight: 500;
+}
+
+.delete-class-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+
+.delete-class-btn:hover {
+    background-color: #ff3333;
+}
+
+/* 調整學生卡片內的段落間距和字體大小 */
+.student-card p {
+    margin: 8px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.student-card p:nth-child(3) {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.student-card p:nth-child(4) {
+    font-size: 16px;
+    margin-bottom: 10px;
+} 

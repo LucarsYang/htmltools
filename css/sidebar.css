@@ -1,0 +1,253 @@
+/* 側邊欄基本樣式 */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 250px;
+    background: var(--bg-sidebar);
+    color: var(--text-light);
+    transition: var(--transition-normal);
+    z-index: 100;
+    padding-top: 60px;
+}
+
+.sidebar.collapsed {
+    width: 60px;
+}
+
+/* 側邊欄切換按鈕 */
+.sidebar-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+/* 選單群組 */
+.menu-group {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.menu-group-title {
+    color: var(--text-light);
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.7;
+}
+
+/* 選單項目 */
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-light);
+    text-decoration: none;
+    transition: var(--transition-fast);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    margin-bottom: 2px;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-item i {
+    margin-right: var(--spacing-md);
+    font-size: 18px;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* 子選單樣式 */
+.submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal), opacity var(--transition-fast);
+    padding-left: var(--spacing-lg);
+    opacity: 0;
+    visibility: hidden;
+}
+
+.submenu.show {
+    max-height: 500px;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 為子選單添加 active 狀態處理 */
+.menu-item.active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 帶有子選單的選單項目 */
+.menu-item.has-submenu {
+    position: relative;
+}
+
+.menu-item.has-submenu:after {
+    content: '▶';
+    position: absolute;
+    right: 15px;
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform var(--transition-normal);
+    pointer-events: none; /* 使箭頭不阻擋點擊事件 */
+}
+
+.menu-item.has-submenu.active:after {
+    transform: rotate(90deg);
+}
+
+.submenu .menu-item {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 14px;
+    position: relative;
+    z-index: 10;
+}
+
+.submenu .menu-item i {
+    font-size: 16px;
+}
+
+/* 為不同子選單設置獨特的視覺樣式 */
+#wheelSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#wheelSubmenu .menu-item:hover {
+    border-left-color: var(--warning-color);
+    background-color: rgba(255, 140, 0, 0.1);
+}
+
+#helpSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#helpSubmenu .menu-item:hover {
+    border-left-color: var(--info-color);
+    background-color: rgba(70, 130, 180, 0.1);
+}
+
+#manageSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#manageSubmenu .menu-item:hover {
+    border-left-color: var(--secondary-color);
+    background-color: rgba(46, 139, 87, 0.1);
+}
+
+#dataSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#dataSubmenu .menu-item:hover {
+    border-left-color: var(--primary-color);
+    background-color: rgba(138, 43, 226, 0.1);
+}
+
+/* 收合時的樣式 */
+.sidebar.collapsed .menu-item i {
+    margin-right: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 20px;
+}
+
+.sidebar.collapsed .menu-item.has-submenu:after {
+    display: none;
+}
+
+.sidebar.collapsed .menu-item span {
+    display: none;
+}
+
+.sidebar.collapsed .menu-group-title {
+    display: none;
+}
+
+/* 收合時的子選單樣式 */
+.sidebar.collapsed .submenu {
+    position: absolute;
+    left: 60px;
+    top: 0;
+    width: 200px;
+    background: var(--bg-sidebar);
+    max-height: none;
+    opacity: 1;
+    margin-left: 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    box-shadow: var(--shadow-small);
+    padding-left: 0;
+    z-index: 200;
+    display: none; /* 默認隱藏 */
+}
+
+/* 處理收合狀態下的子選單顯示 */
+.sidebar.collapsed .submenu.show {
+    display: block; /* 當有 show 類別時顯示 */
+}
+
+/* 側邊欄收合時，懸停在有子選單的項目上 */
+.sidebar.collapsed .menu-item.has-submenu:hover .submenu {
+    display: block;
+}
+
+/* 下拉式選單樣式 */
+.dropdown {
+    position: relative;
+    display: inline-block;
+    margin: var(--spacing-xs);
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--bg-card);
+    min-width: 160px;
+    box-shadow: var(--shadow-medium);
+    z-index: 1;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.dropdown-content a {
+    color: var(--text-primary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-decoration: none;
+    display: block;
+    text-align: left;
+}
+
+.dropdown-content a:hover {
+    background-color: var(--bg-main);
+    cursor: pointer;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.dropbtn {
+    background-color: var(--secondary-color);
+    color: var(--text-light);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    margin: var(--spacing-xs);
+}
+
+.dropbtn:hover {
+    background-color: var(--secondary-hover);
+} 
