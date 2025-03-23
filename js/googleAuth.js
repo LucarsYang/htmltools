@@ -128,18 +128,74 @@ function initGoogleAuthAfterApiLoaded() {
         const btnLoginNow = document.getElementById("btnLoginNow");
         const btnOffline = document.getElementById("btnOffline");
         
+        // 處理登入按鈕點擊
+        const handleLoginClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 防止重複觸發
+            if (loginBtn.dataset.processing === 'true') {
+                console.log('登入處理中，請稍候...');
+                return;
+            }
+            
+            console.log('觸發登入事件');
+            loginBtn.dataset.processing = 'true';
+            showLoginProcessingOverlay();
+            signIn();
+        };
+        
         if (loginBtn) {
-            loginBtn.addEventListener("click", () => {
-                showLoginProcessingOverlay();
-                signIn();
-            }, { passive: true });
-            loginBtn.addEventListener("touchend", (e) => {
+            // 移除舊的事件監聽器
+            loginBtn.removeEventListener("click", handleLoginClick);
+            loginBtn.removeEventListener("touchend", handleLoginClick);
+            loginBtn.removeEventListener("touchstart", handleLoginClick);
+            
+            // 添加新的事件監聽器
+            loginBtn.addEventListener("click", handleLoginClick, { passive: false });
+            loginBtn.addEventListener("touchend", handleLoginClick, { passive: false });
+            loginBtn.addEventListener("touchstart", (e) => {
                 e.preventDefault();
-                showLoginProcessingOverlay();
-                signIn();
-            }, { passive: true });
+                e.stopPropagation();
+            }, { passive: false });
         }
         
+        // 處理登入選擇視窗的登入按鈕
+        const handleLoginNowClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 防止重複觸發
+            if (btnLoginNow.dataset.processing === 'true') {
+                console.log('登入處理中，請稍候...');
+                return;
+            }
+            
+            console.log('觸發登入選擇視窗的登入事件');
+            btnLoginNow.dataset.processing = 'true';
+            closeLoginChoice();
+            showMainButtons();
+            markDirty();
+            showLoginProcessingOverlay();
+            signIn();
+        };
+        
+        if (btnLoginNow) {
+            // 移除舊的事件監聽器
+            btnLoginNow.removeEventListener("click", handleLoginNowClick);
+            btnLoginNow.removeEventListener("touchend", handleLoginNowClick);
+            btnLoginNow.removeEventListener("touchstart", handleLoginNowClick);
+            
+            // 添加新的事件監聽器
+            btnLoginNow.addEventListener("click", handleLoginNowClick, { passive: false });
+            btnLoginNow.addEventListener("touchend", handleLoginNowClick, { passive: false });
+            btnLoginNow.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, { passive: false });
+        }
+        
+        // 處理登出按鈕
         if (logoutBtn) {
             logoutBtn.addEventListener("click", handleLogout, { passive: true });
             logoutBtn.addEventListener("touchend", (e) => {
@@ -148,24 +204,7 @@ function initGoogleAuthAfterApiLoaded() {
             }, { passive: true });
         }
         
-        if (btnLoginNow) {
-            btnLoginNow.addEventListener("click", () => {
-                closeLoginChoice();
-                showMainButtons();
-                markDirty();
-                showLoginProcessingOverlay();
-                signIn();
-            }, { passive: true });
-            btnLoginNow.addEventListener("touchend", (e) => {
-                e.preventDefault();
-                closeLoginChoice();
-                showMainButtons();
-                markDirty();
-                showLoginProcessingOverlay();
-                signIn();
-            }, { passive: true });
-        }
-        
+        // 處理離線模式按鈕
         if (btnOffline) {
             btnOffline.addEventListener("click", () => {
                 closeLoginChoice();
@@ -214,6 +253,13 @@ export function signIn() {
         console.warn("tokenClient未初始化");
         return;
     }
+    
+    // 防止重複登入
+    if (isGoogleSignedIn) {
+        console.log('已經登入，無需重複登入');
+        return;
+    }
+    
     tokenClient.requestAccessToken();
 }
 
