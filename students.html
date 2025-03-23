@@ -452,6 +452,79 @@
             width: 400px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
             z-index: 1001;  /* 統一彈窗的 z-index */
+            transition: all 0.3s ease;
+        }
+
+        .wheel-popup.enlarged {
+            width: 90%;
+            max-width: 800px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            transition: all 0.3s ease;
+        }
+
+        .wheel-popup.enlarged .wheel-container {
+            width: 600px;
+            height: 600px;
+            flex: 1;
+            margin: 10px auto;
+        }
+
+        .wheel-popup.enlarged #wheelCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .wheel-controls-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .wheel-left-controls, .wheel-right-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #btnEnlargeWheel {
+            background: #9c27b0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #btnEnlargeWheel:hover {
+            opacity: 0.9;
+        }
+
+        .wheel-popup.enlarged .selected-students {
+            max-height: 30vh;
+            overflow-y: auto;
+        }
+
+        .wheel-popup.enlarged #selectedList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .wheel-popup.enlarged #selectedList li {
+            margin: 0;
         }
 
         .wheel-overlay.show,
@@ -464,20 +537,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        .wheel-container {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 20px auto;
-        }
-
-        #wheelCanvas {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
 
         .wheel-pointer {
@@ -930,25 +989,32 @@
         <button id="btnRewardWheel" class="wheel-type-btn">獎懲輪轉盤</button>
     </div>
     <h3 id="wheelTitle">學生輪轉盤</h3>
-    <div class="wheel-controls">
-        <label>
-            <input type="checkbox" id="noRepeat" checked>
-            不重複選擇
-        </label>
-        <button id="btnResetWheel" style="background:#ff9800;">重置已選名單</button>
+    
+    <div class="wheel-controls-container">
+        <div class="wheel-left-controls">
+            <label>
+                <input type="checkbox" id="noRepeat" checked>
+                不重複選擇
+            </label>
+            <button id="btnResetWheel" style="background:#ff9800;">重置已選名單</button>
+        </div>
+        <div class="wheel-right-controls">
+            <button id="btnEnlargeWheel">放大輪盤</button>
+            <button id="btnSpinWheel" style="background:#4caf50;">開始轉動</button>
+            <button id="btnCloseWheel" style="background:#757575;">關閉</button>
+        </div>
     </div>
+
     <div class="wheel-container">
         <canvas id="wheelCanvas"></canvas>
         <div class="wheel-pointer"></div>
     </div>
-    <div class="wheel-buttons">
-        <button id="btnSpinWheel" style="background:#4caf50;">開始轉動</button>
-        <button id="btnCloseWheel" style="background:#757575;">關閉</button>
-    </div>
+
     <div class="selected-students">
         <h4>已選項目</h4>
         <div id="selectedList"></div>
     </div>
+
     <div id="rewardControls" style="display:none;">
         <div class="reward-input">
             <input type="text" id="newReward" placeholder="輸入獎懲項目">
@@ -2610,6 +2676,7 @@
     let wheelAnimation = null;
     let isRewardWheel = false; // 新增：是否為獎懲輪轉盤
     let rewards = classes.rewards || ["獎勵", "懲罰"]; // 從 classes 中讀取獎懲項目
+    let isWheelEnlarged = false; // 新增：記錄輪轉盤是否放大
 
     // 輪轉盤視窗
     function showWheelPopup() {
@@ -2621,8 +2688,9 @@
         // 初始化畫布
         wheelCanvas = document.getElementById("wheelCanvas");
         wheelCtx = wheelCanvas.getContext("2d");
-        wheelCanvas.width = 300;
-        wheelCanvas.height = 300;
+        
+        // 根據是否放大設置畫布大小
+        updateCanvasSize();
         
         // 初始化事件監聽器
         document.getElementById("btnSpinWheel").addEventListener("click", startSpinning);
@@ -2631,6 +2699,7 @@
         document.getElementById("btnStudentWheel").addEventListener("click", () => switchWheelType(false));
         document.getElementById("btnRewardWheel").addEventListener("click", () => switchWheelType(true));
         document.getElementById("btnAddReward").addEventListener("click", addNewReward);
+        document.getElementById("btnEnlargeWheel").addEventListener("click", toggleWheelSize);
         
         // 點擊輪轉盤時停止轉動
         wheelCanvas.addEventListener("click", () => {
@@ -2650,6 +2719,103 @@
         
         // 更新獎懲列表
         updateRewardList();
+    }
+
+    // 新增：更新畫布大小
+    function updateCanvasSize() {
+        const size = isWheelEnlarged ? 600 : 300;
+        wheelCanvas.width = size;
+        wheelCanvas.height = size;
+    }
+
+    // 新增：切換輪轉盤大小
+    function toggleWheelSize() {
+        const wheelPopup = document.getElementById("wheelPopup");
+        isWheelEnlarged = !isWheelEnlarged;
+        
+        // 切換放大的類別
+        wheelPopup.classList.toggle("enlarged", isWheelEnlarged);
+        
+        // 更新按鈕文字
+        const btnEnlarge = document.getElementById("btnEnlargeWheel");
+        btnEnlarge.textContent = isWheelEnlarged ? "縮小輪盤" : "放大輪盤";
+        
+        // 更新畫布大小
+        updateCanvasSize();
+        
+        // 重新渲染輪轉盤
+        renderWheel();
+    }
+
+    // 修改：渲染輪轉盤函數
+    function renderWheel() {
+        const items = isRewardWheel ? rewards : getStudents();
+        const noRepeat = document.getElementById("noRepeat").checked;
+        const availableItems = noRepeat ? 
+            (isRewardWheel ? items.filter(item => !selectedStudents.has(item)) : items.filter(s => !selectedStudents.has(s.name))) : 
+            items;
+        
+        if (availableItems.length === 0) {
+            wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+            wheelCtx.fillStyle = "#f5f5f5";
+            wheelCtx.beginPath();
+            wheelCtx.arc(wheelCanvas.width/2, wheelCanvas.height/2, wheelCanvas.width/2 - 10, 0, Math.PI * 2);
+            wheelCtx.fill();
+            
+            wheelCtx.fillStyle = "#666";
+            wheelCtx.font = isWheelEnlarged ? "24px Arial" : "20px Arial";
+            wheelCtx.textAlign = "center";
+            wheelCtx.textBaseline = "middle";
+            wheelCtx.fillText("所有項目都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
+            return;
+        }
+
+        const centerX = wheelCanvas.width / 2;
+        const centerY = wheelCanvas.height / 2;
+        const radius = Math.min(centerX, centerY) - 10;
+        const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF", "#33FFF3", "#FF3333"];
+
+        wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
+        
+        // 繪製扇形
+        const angleStep = (Math.PI * 2) / availableItems.length;
+        availableItems.forEach((item, index) => {
+            const startAngle = index * angleStep + wheelRotation;
+            const endAngle = (index + 1) * angleStep + wheelRotation;
+
+            wheelCtx.beginPath();
+            wheelCtx.moveTo(centerX, centerY);
+            wheelCtx.arc(centerX, centerY, radius, startAngle, endAngle);
+            wheelCtx.closePath();
+            wheelCtx.fillStyle = colors[index % colors.length];
+            wheelCtx.fill();
+            wheelCtx.strokeStyle = "#fff";
+            wheelCtx.lineWidth = isWheelEnlarged ? 3 : 2;
+            wheelCtx.stroke();
+
+            // 繪製文字
+            wheelCtx.save();
+            wheelCtx.translate(centerX, centerY);
+            wheelCtx.rotate(startAngle + angleStep / 2);
+            wheelCtx.textAlign = "right";
+            wheelCtx.fillStyle = "#fff";
+            wheelCtx.font = isWheelEnlarged ? "18px Arial" : "14px Arial";
+            wheelCtx.fillText(isRewardWheel ? item : item.name, radius - (isWheelEnlarged ? 30 : 20), 5);
+            wheelCtx.restore();
+        });
+    }
+
+    // 修改：關閉輪轉盤時重置放大狀態
+    function closeWheelPopup() {
+        document.getElementById("wheelOverlay").classList.remove("show");
+        document.getElementById("wheelPopup").classList.remove("show");
+        if (wheelAnimation) {
+            cancelAnimationFrame(wheelAnimation);
+        }
+        // 重置放大狀態
+        if (isWheelEnlarged) {
+            toggleWheelSize();
+        }
     }
 
     // 切換輪轉盤類型
@@ -2707,64 +2873,6 @@
                 <button onclick="deleteReward(${index})">×</button>
             `;
             rewardList.appendChild(div);
-        });
-    }
-
-    // 渲染輪轉盤
-    function renderWheel() {
-        const items = isRewardWheel ? rewards : getStudents();
-        const noRepeat = document.getElementById("noRepeat").checked;
-        const availableItems = noRepeat ? 
-            (isRewardWheel ? items.filter(item => !selectedStudents.has(item)) : items.filter(s => !selectedStudents.has(s.name))) : 
-            items;
-        
-        if (availableItems.length === 0) {
-            wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-            wheelCtx.fillStyle = "#f5f5f5";
-            wheelCtx.beginPath();
-            wheelCtx.arc(wheelCanvas.width/2, wheelCanvas.height/2, wheelCanvas.width/2 - 10, 0, Math.PI * 2);
-            wheelCtx.fill();
-            
-            wheelCtx.fillStyle = "#666";
-            wheelCtx.font = "20px Arial";
-            wheelCtx.textAlign = "center";
-            wheelCtx.textBaseline = "middle";
-            wheelCtx.fillText("所有項目都已選過", wheelCanvas.width/2, wheelCanvas.height/2);
-            return;
-        }
-
-        const centerX = wheelCanvas.width / 2;
-        const centerY = wheelCanvas.height / 2;
-        const radius = Math.min(centerX, centerY) - 10;
-        const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF", "#33FFF3", "#FF3333"];
-
-        wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
-        
-        // 繪製扇形
-        const angleStep = (Math.PI * 2) / availableItems.length;
-        availableItems.forEach((item, index) => {
-            const startAngle = index * angleStep + wheelRotation;
-            const endAngle = (index + 1) * angleStep + wheelRotation;
-
-            wheelCtx.beginPath();
-            wheelCtx.moveTo(centerX, centerY);
-            wheelCtx.arc(centerX, centerY, radius, startAngle, endAngle);
-            wheelCtx.closePath();
-            wheelCtx.fillStyle = colors[index % colors.length];
-            wheelCtx.fill();
-            wheelCtx.strokeStyle = "#fff";
-            wheelCtx.lineWidth = 2;
-            wheelCtx.stroke();
-
-            // 繪製文字
-            wheelCtx.save();
-            wheelCtx.translate(centerX, centerY);
-            wheelCtx.rotate(startAngle + angleStep / 2);
-            wheelCtx.textAlign = "right";
-            wheelCtx.fillStyle = "#fff";
-            wheelCtx.font = "14px Arial";
-            wheelCtx.fillText(isRewardWheel ? item : item.name, radius - 20, 5);
-            wheelCtx.restore();
         });
     }
 
@@ -2909,15 +3017,6 @@
             });
         });
     });
-
-    // 輪轉盤相關函數
-    function closeWheelPopup() {
-        document.getElementById("wheelOverlay").classList.remove("show");
-        document.getElementById("wheelPopup").classList.remove("show");
-        if (wheelAnimation) {
-            cancelAnimationFrame(wheelAnimation);
-        }
-    }
 
     // 移除已選學生
     window.removeSelectedStudent = function(name) {
