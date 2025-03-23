@@ -33,17 +33,20 @@ export function initGoogleAuth() {
         console.log('Google Identity API 尚未載入，等待載入完成...');
         
         // 設置事件監聽器等待 API 載入完成
-        document.addEventListener('googleApiReady', () => {
+        const apiReadyHandler = () => {
             console.log('收到 Google API 已準備就緒事件，開始初始化身份驗證');
+            document.removeEventListener('googleApiReady', apiReadyHandler);
             initGoogleAuthAfterApiLoaded();
-        }, { once: true }); // 只執行一次
+        };
+        
+        document.addEventListener('googleApiReady', apiReadyHandler);
         
         // 如果超過10秒仍未載入，顯示錯誤提示
         setTimeout(() => {
             if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
                 console.error('Google API 載入超時，請重新整理頁面');
                 showToast("Google API 載入失敗，請重新整理頁面或嘗試離線模式", "error");
-                showLoginChoice(); // 顯示登入選擇，讓用戶可以選擇離線模式
+                showLoginChoice();
             }
         }, 10000);
         
@@ -120,28 +123,64 @@ function initGoogleAuthAfterApiLoaded() {
         });
         
         // 註冊登入和登出按鈕的事件處理
-        document.getElementById("login-btn").addEventListener("click", () => {
-            showLoginProcessingOverlay();
-            signIn();
-        });
+        const loginBtn = document.getElementById("login-btn");
+        const logoutBtn = document.getElementById("logout-btn");
+        const btnLoginNow = document.getElementById("btnLoginNow");
+        const btnOffline = document.getElementById("btnOffline");
         
-        document.getElementById("logout-btn").addEventListener("click", handleLogout);
+        if (loginBtn) {
+            loginBtn.addEventListener("click", () => {
+                showLoginProcessingOverlay();
+                signIn();
+            }, { passive: true });
+            loginBtn.addEventListener("touchend", (e) => {
+                e.preventDefault();
+                showLoginProcessingOverlay();
+                signIn();
+            }, { passive: true });
+        }
         
-        // 登入選擇視窗的按鈕事件
-        document.getElementById("btnLoginNow").addEventListener("click", () => {
-            closeLoginChoice();
-            showMainButtons();
-            markDirty();
-            showLoginProcessingOverlay();
-            signIn();
-        });
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", handleLogout, { passive: true });
+            logoutBtn.addEventListener("touchend", (e) => {
+                e.preventDefault();
+                handleLogout();
+            }, { passive: true });
+        }
         
-        document.getElementById("btnOffline").addEventListener("click", () => {
-            closeLoginChoice();
-            showMainButtons();
-            markDirty();
-            showToast("離線模式啟用，之後登入Google可能覆蓋資料", "info");
-        });
+        if (btnLoginNow) {
+            btnLoginNow.addEventListener("click", () => {
+                closeLoginChoice();
+                showMainButtons();
+                markDirty();
+                showLoginProcessingOverlay();
+                signIn();
+            }, { passive: true });
+            btnLoginNow.addEventListener("touchend", (e) => {
+                e.preventDefault();
+                closeLoginChoice();
+                showMainButtons();
+                markDirty();
+                showLoginProcessingOverlay();
+                signIn();
+            }, { passive: true });
+        }
+        
+        if (btnOffline) {
+            btnOffline.addEventListener("click", () => {
+                closeLoginChoice();
+                showMainButtons();
+                markDirty();
+                showToast("離線模式啟用，之後登入Google可能覆蓋資料", "info");
+            }, { passive: true });
+            btnOffline.addEventListener("touchend", (e) => {
+                e.preventDefault();
+                closeLoginChoice();
+                showMainButtons();
+                markDirty();
+                showToast("離線模式啟用，之後登入Google可能覆蓋資料", "info");
+            }, { passive: true });
+        }
     } catch (error) {
         console.error('初始化 Google 認證客戶端失敗:', error);
         showToast("初始化 Google 認證失敗，您可以選擇離線模式", "error");
@@ -266,9 +305,16 @@ export function getIsSignedIn() {
  * 設置活動監聽器
  */
 export function setupActivityListeners() {
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const events = [
+        'mousedown', 'mousemove', 'keypress', 'scroll', 
+        'touchstart', 'touchend', 'touchmove', 'click'
+    ];
+    
     events.forEach(event => {
-        document.addEventListener(event, resetInactivityTimer);
+        document.addEventListener(event, resetInactivityTimer, {
+            passive: true,
+            capture: true
+        });
     });
 }
 

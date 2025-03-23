@@ -369,12 +369,17 @@ export function showLoginChoice() {
     const loginOverlay = document.getElementById("loginOverlay");
     const loginPopup = document.getElementById("loginPopup");
     
-    // 強制設置樣式以解決iPad上的顯示問題
+    // 強制設置樣式以解決iOS上的顯示問題
     loginOverlay.style.display = "block";
     loginOverlay.style.opacity = "1";
     loginPopup.style.display = "block";
     loginPopup.style.opacity = "1";
     loginPopup.style.transform = "translate(-50%,-50%) scale(1)";
+    loginPopup.style.webkitTransform = "translate(-50%,-50%) scale(1)"; // 支援 Safari
+    
+    // 確保元素可以接收觸控事件
+    loginOverlay.style.pointerEvents = "auto";
+    loginPopup.style.pointerEvents = "auto";
     
     // 然後再添加show類，確保CSS轉換效果正常
     loginOverlay.classList.add("show");
@@ -387,13 +392,19 @@ export function showLoginChoice() {
     if (btnLoginNow) {
         // 移除先前的監聽器，避免重複綁定
         btnLoginNow.removeEventListener("click", handleLoginClick);
-        btnLoginNow.addEventListener("click", handleLoginClick);
+        btnLoginNow.removeEventListener("touchend", handleLoginClick);
+        // 同時綁定點擊和觸控事件
+        btnLoginNow.addEventListener("click", handleLoginClick, { passive: true });
+        btnLoginNow.addEventListener("touchend", handleLoginClick, { passive: true });
     }
     
     if (btnOffline) {
         // 移除先前的監聽器，避免重複綁定
         btnOffline.removeEventListener("click", handleOfflineClick);
-        btnOffline.addEventListener("click", handleOfflineClick);
+        btnOffline.removeEventListener("touchend", handleOfflineClick);
+        // 同時綁定點擊和觸控事件
+        btnOffline.addEventListener("click", handleOfflineClick, { passive: true });
+        btnOffline.addEventListener("touchend", handleOfflineClick, { passive: true });
     }
 }
 

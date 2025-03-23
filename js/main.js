@@ -1,7 +1,12 @@
 // main.js - 主程式入口
 import { initGoogleAuth, getIsSignedIn } from './googleAuth.js';
 import { initStudents } from './students.js';
-import { attachSidebarToggle, setupGlobalKeyboardHandler, showToast } from './utils.js';
+import { 
+    attachSidebarToggle, 
+    setupGlobalKeyboardHandler, 
+    showToast,
+    showLoginChoice 
+} from './utils.js';
 import { initWheelSpinner, setResultCallback } from './wheelSpinner.js';
 
 // 當頁面載入完成後執行
@@ -171,7 +176,16 @@ function initApp() {
         setupWheelResultCallback();
         
         // 添加可見性變更處理，處理平板瀏覽器可能的後台休眠問題
-        document.addEventListener('visibilitychange', handleVisibilityChange);
+        const visibilityHandler = () => {
+            if (!document.hidden) {
+                handleVisibilityChange();
+            }
+        };
+        
+        document.addEventListener('visibilitychange', visibilityHandler, { passive: true });
+        window.addEventListener('focus', visibilityHandler, { passive: true });
+        window.addEventListener('pageshow', visibilityHandler, { passive: true });
+        window.addEventListener('resize', visibilityHandler, { passive: true });
         
         // 專門處理 Google API 初始化
         safeInitGoogleAuth();
@@ -221,8 +235,13 @@ function handleVisibilityChange() {
                 location.reload();
             } else {
                 console.log('頁面重新獲得焦點，Google API 狀態正常');
-                // 可選：更新登入按鈕狀態
+                // 更新登入按鈕狀態
                 updateLoginButtonsState();
+                
+                // 檢查是否需要重新顯示登入選擇
+                if (!getIsSignedIn()) {
+                    showLoginChoice();
+                }
             }
         }, 1000);
     }
