@@ -9,6 +9,7 @@
     
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://apis.google.com/js/platform.js"></script>
     
     <!-- CSS 模組 -->
     <link rel="stylesheet" href="css/variables.css">
@@ -21,6 +22,9 @@
 
     <!-- JavaScript 模組 -->
     <script type="module" src="js/main.js"></script>
+    
+    <!-- 移動端相容性設置 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 </head>
 <body>
 <!-- 側邊欄 -->
@@ -499,24 +503,87 @@
 
 <!-- 初始化 Google API -->
 <script>
+    // Google API 載入狀態
+    window.googleApiLoaded = false;
+    window.googleAuthInitialized = false;
+    
     // 先初始化 Google API
     function initGapi() {
-        gapi.load('client', async () => {
-            await gapi.client.init({
-                apiKey: 'AIzaSyCpO6sP8jmBvwuuM2qRU8XYyaFHD_TP-34',
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        if (typeof gapi === 'undefined') {
+            console.error('Google API (gapi) 尚未載入，請重新整理頁面');
+            setTimeout(checkAndRetryGapiLoad, 2000);
+            return;
+        }
+        
+        try {
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: 'AIzaSyCpO6sP8jmBvwuuM2qRU8XYyaFHD_TP-34',
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                    console.log('Google API 初始化完成');
+                    window.googleApiLoaded = true;
+                    
+                    // 檢查 google identity 是否也準備好了
+                    checkGoogleAuthReady();
+                } catch (error) {
+                    console.error('Google API 初始化失敗:', error);
+                }
             });
-            console.log('Google API 初始化完成');
-        });
+        } catch (error) {
+            console.error('載入 Google API 失敗:', error);
+        }
+    }
+    
+    // 檢查並在需要時重試加載 Google API
+    function checkAndRetryGapiLoad() {
+        if (typeof gapi === 'undefined') {
+            console.log('重新嘗試載入 Google API...');
+            // 重新加載 API 腳本
+            const script = document.createElement('script');
+            script.src = 'https://apis.google.com/js/api.js';
+            script.onload = initGapi;
+            document.head.appendChild(script);
+        } else {
+            initGapi();
+        }
+    }
+    
+    // 檢查 Google Identity 是否已準備好
+    function checkGoogleAuthReady() {
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+            window.googleAuthInitialized = true;
+            console.log('Google Identity API 已準備好');
+            
+            // 通知應用程式 Google API 已完全準備好
+            const event = new CustomEvent('googleApiReady');
+            document.dispatchEvent(event);
+        } else {
+            console.log('等待 Google Identity API 準備...');
+            setTimeout(checkGoogleAuthReady, 500);
+        }
     }
     
     // 當 Google API 腳本載入完成後執行初始化
     function onGapiLoad() {
+        console.log('Google API 腳本已載入，開始初始化');
         initGapi();
     }
     
     // 添加 Google API 載入事件
-    document.querySelector('script[src="https://apis.google.com/js/api.js"]').addEventListener('load', onGapiLoad);
+    try {
+        const apiScript = document.querySelector('script[src="https://apis.google.com/js/api.js"]');
+        if (apiScript) {
+            apiScript.addEventListener('load', onGapiLoad);
+        } else {
+            console.error('找不到 Google API 腳本元素');
+            checkAndRetryGapiLoad();
+        }
+    } catch (error) {
+        console.error('設置 Google API 載入處理失敗:', error);
+        setTimeout(checkAndRetryGapiLoad, 1000);
+    }
 </script>
 </body>
 </html>
