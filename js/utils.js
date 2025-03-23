@@ -190,24 +190,29 @@ let selectedImage = "";
  * @param {string} image 圖片標籤
  */
 export function setSelectedImage(image) {
+    console.log('設置選擇的圖片:', image);
     selectedImage = image;
     
     // 如果在圖片預覽中有對應元素，也更新其選中狀態
     if (typeof image === 'string' && document.querySelector('.image-preview')) {
         document.querySelectorAll('.image-preview img').forEach(img => {
-            img.classList.toggle('selected', img.src === image || img.getAttribute('data-label') === image);
+            const isSelected = 
+                img.src === image || 
+                img.getAttribute('data-label') === image;
+            img.classList.toggle('selected', isSelected);
         });
     }
 }
 
 /**
  * 獲取選擇的圖片
- * @returns {string} 圖片標籤
+ * @returns {string} 圖片標籤或URL
  */
 export function getSelectedImage() {
     // 如果有透過 DOM 選中的圖片，優先返回
     const selectedImgDOM = document.querySelector('.image-preview img.selected');
     if (selectedImgDOM) {
+        // 優先使用 data-label 屬性，如果沒有則使用 src
         return selectedImgDOM.getAttribute('data-label') || selectedImgDOM.src;
     }
     return selectedImage;
@@ -217,6 +222,7 @@ export function getSelectedImage() {
  * 附加側邊欄切換功能
  */
 export function attachSidebarToggle() {
+    console.log('初始化側邊欄切換功能');
     const toggleBtn = document.getElementById('sidebarToggle');
     if (!toggleBtn) return;
     
@@ -224,9 +230,126 @@ export function attachSidebarToggle() {
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('mainContent');
         
+        // 開關側邊欄的折疊狀態
         sidebar.classList.toggle('collapsed');
         mainContent.classList.toggle('expanded');
+        
+        // 如果側邊欄被折疊，關閉所有顯示的子選單
+        if (sidebar.classList.contains('collapsed')) {
+            console.log('側邊欄已折疊，關閉所有子選單');
+            // 隱藏所有已打開的子選單
+            document.querySelectorAll('.submenu.show').forEach(submenu => {
+                submenu.classList.remove('show');
+            });
+            
+            // 移除所有 active 狀態
+            document.querySelectorAll('.menu-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
     });
+    
+    // 初始化子選單點擊事件
+    initSubmenus();
+}
+
+/**
+ * 初始化側邊欄子選單
+ */
+function initSubmenus() {
+    console.log('初始化側邊欄子選單');
+    
+    // 為所有帶有子選單的選單項目添加點擊事件
+    const menuItems = document.querySelectorAll('.menu-item.has-submenu');
+    console.log('找到子選單項目數:', menuItems.length);
+    
+    // 首先確保所有子選單ID正確
+    const submenuMapping = {
+        'btnManage': 'manageSubmenu',
+        'btnWheelMenu': 'wheelSubmenu',
+        'btnHelpMenu': 'helpSubmenu',
+        'btnDataManage': 'dataSubmenu'
+    };
+    
+    menuItems.forEach(item => {
+        const itemId = item.id;
+        console.log('設置選單點擊事件:', itemId);
+        
+        item.addEventListener('click', function(e) {
+            console.log('選單項目被點擊:', this.id);
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // 獲取對應的子選單 - 使用映射表確保ID正確
+            const submenuId = submenuMapping[this.id] || this.id.replace('btn', '') + 'Submenu';
+            const submenu = document.getElementById(submenuId);
+            console.log('點擊選單項:', this.id, '對應子選單:', submenuId, '子選單存在:', !!submenu);
+            
+            if (submenu) {
+                // 檢查側邊欄是否處於折疊狀態
+                const sidebar = document.getElementById('sidebar');
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                
+                // 切換子選單的顯示狀態
+                const wasShown = submenu.classList.contains('show');
+                submenu.classList.toggle('show');
+                this.classList.toggle('active');
+                
+                console.log(`子選單 ${submenuId} 狀態: ${wasShown ? '隱藏' : '顯示'}`);
+                
+                // 計算子選單位置
+                if (isCollapsed) {
+                    const rect = this.getBoundingClientRect();
+                    submenu.style.top = `${rect.top}px`;
+                }
+                
+                // 關閉其他子選單
+                document.querySelectorAll('.submenu').forEach(otherSubmenu => {
+                    if (otherSubmenu.id !== submenuId && otherSubmenu.classList.contains('show')) {
+                        console.log('關閉其他子選單:', otherSubmenu.id);
+                        otherSubmenu.classList.remove('show');
+                        
+                        // 找到對應的選單項並移除 active 狀態
+                        const otherItem = document.querySelector(`[id$="${otherSubmenu.id.replace('Submenu', '')}"]`);
+                        if (otherItem) {
+                            otherItem.classList.remove('active');
+                        }
+                    }
+                });
+                
+                // 確保子選單中的項目能夠點擊
+                const submenuItems = submenu.querySelectorAll('.menu-item');
+                submenuItems.forEach(subItem => {
+                    // 確保子選單項目的點擊不會被父選單攔截
+                    subItem.addEventListener('click', function(evt) {
+                        console.log('子選單項目被點擊:', this.id);
+                        evt.stopPropagation();
+                    });
+                });
+            } else {
+                console.error(`找不到子選單: ${submenuId}，請檢查HTML結構`);
+            }
+        });
+    });
+    
+    // 點擊頁面其他區域時關閉所有子選單
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.menu-item') && !e.target.closest('.submenu')) {
+            console.log('點擊頁面其他區域，關閉所有子選單');
+            document.querySelectorAll('.submenu.show').forEach(submenu => {
+                submenu.classList.remove('show');
+            });
+            
+            document.querySelectorAll('.menu-item.active').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+    });
+    
+    // 確保子選單初始化完成後，第一次點擊能夠正常顯示
+    setTimeout(() => {
+        console.log('子選單初始化完成');
+    }, 500);
 }
 
 /**

@@ -12,6 +12,18 @@ let isRewardWheel = false; // 是否為獎懲輪轉盤
 let rewards = []; // 獎懲項目
 
 /**
+ * 修正事件綁定，確保元素存在時才添加事件監聽器
+ */
+function safeAddEventListener(elementId, eventType, handler) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.addEventListener(eventType, handler);
+    } else {
+        console.warn(`無法找到元素: ${elementId}`);
+    }
+}
+
+/**
  * 初始化輪盤功能
  */
 export function initWheel() {
@@ -59,45 +71,54 @@ export function initWheel() {
     }
     
     // 事件綁定
-    document.getElementById("btnWheel").addEventListener("click", showWheel);
-    document.getElementById("btnCloseWheel").addEventListener("click", closeWheel);
-    document.getElementById("btnCloseWheelBottom").addEventListener("click", closeWheel);
-    document.getElementById("btnSpinWheel").addEventListener("click", startSpin);
-    document.getElementById("btnResetWheel").addEventListener("click", resetSelectedStudents);
+    // 修正: btnWheel 元素已經不存在，改用新的側邊欄結構
+    // document.getElementById("btnWheel").addEventListener("click", showWheel);
+    
+    // 使用安全的事件綁定方法
+    safeAddEventListener("btnCloseWheel", "click", closeWheel);
+    safeAddEventListener("btnCloseWheelBottom", "click", closeWheel);
+    safeAddEventListener("btnSpinWheel", "click", startSpin);
+    safeAddEventListener("btnResetWheel", "click", resetSelectedStudents);
+    
+    // 初始化結果彈窗關閉按鈕事件
+    initResultClose();
     
     // 切換學生/獎懲輪盤
-    document.getElementById("btnStudentWheel").addEventListener("click", () => {
+    safeAddEventListener("btnStudentWheel", "click", () => {
         switchWheelType("student");
     });
     
-    document.getElementById("btnRewardWheel").addEventListener("click", () => {
+    safeAddEventListener("btnRewardWheel", "click", () => {
         switchWheelType("reward");
     });
     
     // 新增獎懲項目
-    document.getElementById("btnAddReward").addEventListener("click", addReward);
+    safeAddEventListener("btnAddReward", "click", addReward);
     
     // 點擊轉盤停止
-    wheelCanvas.addEventListener("click", () => {
-        if (isSpinning) {
-            stopSpin();
-        }
-    });
+    if (wheelCanvas) {
+        wheelCanvas.addEventListener("click", () => {
+            if (isSpinning) {
+                stopSpin();
+            }
+        });
+        
+        // 設置滾輪事件 - 避免在轉盤區域捲動頁面
+        wheelCanvas.addEventListener('wheel', (e) => {
+            if (document.getElementById("wheelPopup")?.classList.contains("show")) {
+                e.preventDefault();
+            }
+        });
+    }
     
     // 響應式設計 - 窗口大小變化時重新渲染轉盤
     window.addEventListener("resize", () => {
-        if (document.getElementById("wheelPopup").classList.contains("show")) {
-            const containerWidth = document.querySelector('.wheel-container').offsetWidth;
+        const wheelPopup = document.getElementById("wheelPopup");
+        if (wheelPopup?.classList.contains("show") && wheelCanvas) {
+            const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
             wheelCanvas.width = containerWidth * 0.9;
             wheelCanvas.height = wheelCanvas.width;
             renderWheel();
-        }
-    });
-    
-    // 設置滾輪事件 - 避免在轉盤區域捲動頁面
-    wheelCanvas.addEventListener('wheel', (e) => {
-        if (document.getElementById("wheelPopup").classList.contains("show")) {
-            e.preventDefault();
         }
     });
     
@@ -122,9 +143,18 @@ export function showWheel() {
         return;
     }
     
+    // 獲取輪盤相關元素
+    const wheelOverlay = document.getElementById("wheelOverlay");
+    const wheelPopup = document.getElementById("wheelPopup");
+    
+    if (!wheelOverlay || !wheelPopup) {
+        console.error("找不到輪盤彈窗元素");
+        return;
+    }
+    
     // 顯示轉盤
-    document.getElementById("wheelOverlay").classList.add("show");
-    document.getElementById("wheelPopup").classList.add("show");
+    wheelOverlay.classList.add("show");
+    wheelPopup.classList.add("show");
     
     // 重置轉盤
     isSpinning = false;
@@ -133,20 +163,27 @@ export function showWheel() {
     // 確保畫布已正確初始化
     if (!wheelCanvas || !wheelCtx) {
         wheelCanvas = document.getElementById("wheelCanvas");
-        wheelCtx = wheelCanvas.getContext("2d");
+        if (wheelCanvas) {
+            wheelCtx = wheelCanvas.getContext("2d");
+        } else {
+            console.error("找不到輪盤畫布元素");
+            return;
+        }
     }
     
     // 重設轉盤尺寸
     setTimeout(() => {
         const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
-        wheelCanvas.width = containerWidth * 0.9;
-        wheelCanvas.height = wheelCanvas.width;
-        
-        // 預設使用學生轉盤
-        switchWheelType("student");
-        
-        // 更新已選名單
-        updateSelectedList();
+        if (wheelCanvas) {
+            wheelCanvas.width = containerWidth * 0.9;
+            wheelCanvas.height = wheelCanvas.width;
+            
+            // 預設使用學生轉盤
+            switchWheelType("student");
+            
+            // 更新已選名單
+            updateSelectedList();
+        }
     }, 50); // 輕微延遲以確保 DOM 已完全更新
 }
 
@@ -154,8 +191,11 @@ export function showWheel() {
  * 關閉輪盤彈窗
  */
 export function closeWheel() {
-    document.getElementById("wheelOverlay").classList.remove("show");
-    document.getElementById("wheelPopup").classList.remove("show");
+    const wheelOverlay = document.getElementById("wheelOverlay");
+    const wheelPopup = document.getElementById("wheelPopup");
+    
+    if (wheelOverlay) wheelOverlay.classList.remove("show");
+    if (wheelPopup) wheelPopup.classList.remove("show");
     
     // 停止轉盤
     if (isSpinning) {
@@ -173,15 +213,20 @@ function renderWheel() {
         return;
     }
     
-    const noRepeat = document.getElementById("noRepeat")?.checked;
+    const noRepeatCheckbox = document.getElementById("noRepeat");
+    const noRepeat = noRepeatCheckbox ? noRepeatCheckbox.checked : false;
+    
     const availableItems = noRepeat ? 
         (isRewardWheel ? items.filter(item => !selectedStudents.includes(item)) : items.filter(s => !selectedStudents.includes(s.name))) : 
         items;
     
     if (!wheelCanvas || !wheelCtx) {
         wheelCanvas = document.getElementById("wheelCanvas");
-        wheelCtx = wheelCanvas.getContext("2d");
-        if (!wheelCanvas || !wheelCtx) return;
+        wheelCtx = wheelCanvas?.getContext("2d");
+        if (!wheelCanvas || !wheelCtx) {
+            console.warn('無法獲取輪盤畫布或繪圖上下文');
+            return;
+        }
     }
 
     // 確保畫布有尺寸
@@ -250,25 +295,44 @@ export function switchWheelType(type) {
     isRewardWheel = type === "reward";
     
     // 更新按鈕樣式
-    document.getElementById("btnStudentWheel").classList.toggle("active", !isRewardWheel);
-    document.getElementById("btnRewardWheel").classList.toggle("active", isRewardWheel);
+    const studentWheelBtn = document.getElementById("btnStudentWheel");
+    const rewardWheelBtn = document.getElementById("btnRewardWheel");
+    
+    if (studentWheelBtn) {
+        studentWheelBtn.classList.toggle("active", !isRewardWheel);
+    }
+    
+    if (rewardWheelBtn) {
+        rewardWheelBtn.classList.toggle("active", isRewardWheel);
+    }
     
     // 更新標題
-    document.getElementById("wheelTitle").textContent = isRewardWheel ? "獎懲輪轉盤" : "學生輪轉盤";
+    const wheelTitle = document.getElementById("wheelTitle");
+    if (wheelTitle) {
+        wheelTitle.textContent = isRewardWheel ? "獎懲輪轉盤" : "學生輪轉盤";
+    }
     
     // 顯示/隱藏獎懲控制區
-    document.getElementById("rewardControls").style.display = isRewardWheel ? "block" : "none";
+    const rewardControls = document.getElementById("rewardControls");
+    if (rewardControls) {
+        rewardControls.style.display = isRewardWheel ? "block" : "none";
+    }
     
     // 顯示/隱藏不重複選擇選項
-    document.querySelector(".wheel-left-controls").style.display = isRewardWheel ? "none" : "flex";
+    const wheelLeftControls = document.querySelector(".wheel-left-controls");
+    if (wheelLeftControls) {
+        wheelLeftControls.style.display = isRewardWheel ? "none" : "flex";
+    }
     
     // 確保畫布尺寸正確
     if (!wheelCanvas || !wheelCtx || wheelCanvas.width <= 20) {
         wheelCanvas = document.getElementById("wheelCanvas");
-        wheelCtx = wheelCanvas.getContext("2d");
-        const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
-        wheelCanvas.width = Math.max(containerWidth * 0.9, 100);
-        wheelCanvas.height = wheelCanvas.width;
+        if (wheelCanvas) {
+            wheelCtx = wheelCanvas.getContext("2d");
+            const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
+            wheelCanvas.width = Math.max(containerWidth * 0.9, 100);
+            wheelCanvas.height = wheelCanvas.width;
+        }
     }
     
     // 更新轉盤渲染
@@ -296,7 +360,9 @@ export function startSpin() {
     }
     
     // 檢查是否已全部選過
-    const noRepeat = document.getElementById("noRepeat").checked;
+    const noRepeatCheckbox = document.getElementById("noRepeat");
+    const noRepeat = noRepeatCheckbox ? noRepeatCheckbox.checked : false;
+    
     if (!isRewardWheel && noRepeat && selectedStudents.length >= items.length) {
         if (confirm("已選擇所有學生，是否重置名單?")) {
             resetSelectedStudents();
@@ -315,9 +381,16 @@ export function startSpin() {
     }
     
     isSpinning = true;
-    document.getElementById("btnSpinWheel").disabled = true;
-    document.getElementById("btnSpinWheel").textContent = "轉動中...";
-    document.getElementById("wheelCanvas").classList.add("spinning");
+    
+    const spinButton = document.getElementById("btnSpinWheel");
+    if (spinButton) {
+        spinButton.disabled = true;
+        spinButton.textContent = "轉動中...";
+    }
+    
+    if (wheelCanvas) {
+        wheelCanvas.classList.add("spinning");
+    }
     
     // 隨機選擇一個項目
     const randomIndex = Math.floor(Math.random() * availableItems.length);
@@ -345,13 +418,15 @@ export function startSpin() {
         wheelRotation = initialVelocity + easing * targetAngle;
         
         // 檢查並確保輪盤大小正確
-        if (wheelCanvas.width <= 0 || wheelCanvas.height <= 0) {
-            const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
-            wheelCanvas.width = containerWidth * 0.9;
-            wheelCanvas.height = wheelCanvas.width;
+        if (wheelCanvas) {
+            if (wheelCanvas.width <= 0 || wheelCanvas.height <= 0) {
+                const containerWidth = document.querySelector('.wheel-container')?.offsetWidth || 300;
+                wheelCanvas.width = containerWidth * 0.9;
+                wheelCanvas.height = wheelCanvas.width;
+            }
+            
+            renderWheel();
         }
-        
-        renderWheel();
         
         if (progress < 1) {
             wheelAnimation = requestAnimationFrame(step);
@@ -377,22 +452,108 @@ function stopSpin(selected) {
     
     // 重置狀態
     isSpinning = false;
-    document.getElementById("btnSpinWheel").disabled = false;
-    document.getElementById("btnSpinWheel").textContent = "開始轉動";
-    document.getElementById("wheelCanvas").classList.remove("spinning");
+    
+    const spinButton = document.getElementById("btnSpinWheel");
+    if (spinButton) {
+        spinButton.disabled = false;
+        spinButton.textContent = "開始轉動";
+    }
+    
+    if (wheelCanvas) {
+        wheelCanvas.classList.remove("spinning");
+    }
     
     // 如果提供了選中項目，則處理選中邏輯
     if (selected) {
-        // 顯示選中結果
+        // 添加指針動畫效果
+        const pointer = document.querySelector('.wheel-pointer');
+        pointer.classList.add('active');
+        
+        // 短暫延遲後顯示結果彈窗
         setTimeout(() => {
-            alert(`選中：${selected}`);
+            // 設置結果值
+            const resultName = document.getElementById('wheelResultName');
+            if (resultName) {
+                resultName.textContent = selected;
+            }
+            
+            // 顯示結果彈窗
+            const resultPopup = document.getElementById('wheelResultPopup');
+            if (resultPopup) {
+                resultPopup.classList.add('show');
+                resultPopup.style.display = 'block';
+                
+                // 生成彩色紙屑效果
+                createConfetti();
+            }
+            
+            // 移除指針動畫
+            if (pointer) {
+                pointer.classList.remove('active');
+            }
             
             // 僅在勾選不重複且是學生輪盤時，將項目加入已選列表
-            if (!isRewardWheel && document.getElementById("noRepeat").checked) {
+            const noRepeatCheckbox = document.getElementById("noRepeat");
+            if (!isRewardWheel && noRepeatCheckbox && noRepeatCheckbox.checked) {
                 selectedStudents.push(selected); // 使用 push 而非 add
                 updateSelectedList();
             }
-        }, 200);
+        }, 500);
+    }
+}
+
+/**
+ * 創建彩色紙屑效果
+ */
+function createConfetti() {
+    const confettiContainer = document.getElementById('confetti');
+    if (!confettiContainer) {
+        console.warn('無法找到紙屑容器元素');
+        return;
+    }
+    
+    confettiContainer.innerHTML = ''; // 清空舊的紙屑
+    
+    // 創建多個紙屑元素
+    const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFC107', '#FF9800', '#FF5722'];
+    
+    for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        confetti.style.cssText = `
+            position: absolute;
+            width: ${Math.random() * 10 + 5}px;
+            height: ${Math.random() * 5 + 3}px;
+            background-color: ${color};
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            opacity: ${Math.random() * 0.5 + 0.5};
+            transform: rotate(${Math.random() * 360}deg);
+            animation: confettiDrop ${Math.random() * 3 + 2}s linear forwards;
+        `;
+        
+        confettiContainer.appendChild(confetti);
+    }
+}
+
+/**
+ * 初始化結果彈窗關閉按鈕
+ */
+function initResultClose() {
+    const closeResultBtn = document.getElementById('btnCloseResult');
+    if (closeResultBtn) {
+        closeResultBtn.addEventListener('click', () => {
+            const resultPopup = document.getElementById('wheelResultPopup');
+            if (resultPopup) {
+                resultPopup.classList.remove('show');
+                setTimeout(() => {
+                    resultPopup.style.display = 'none';
+                }, 500);
+            }
+        });
+    } else {
+        console.warn('無法找到結果彈窗關閉按鈕');
     }
 }
 
@@ -410,6 +571,11 @@ function resetSelectedStudents() {
  */
 export function updateSelectedList() {
     const selectedList = document.getElementById("selectedList");
+    if (!selectedList) {
+        console.warn('無法找到已選列表元素');
+        return;
+    }
+    
     selectedList.innerHTML = "";
     
     if (selectedStudents.length === 0) {
@@ -495,6 +661,11 @@ function deleteReward(index) {
  */
 export function updateRewardList() {
     const rewardList = document.getElementById("rewardList");
+    if (!rewardList) {
+        console.warn('無法找到獎懲列表元素');
+        return;
+    }
+    
     rewardList.innerHTML = "";
     
     if (rewards.length === 0) {

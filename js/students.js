@@ -146,6 +146,18 @@ function initUI() {
             }
         });
     });
+
+    // 監聽自定義的 addStudent 事件，以便從側邊欄觸發
+    document.addEventListener('addStudent', () => {
+        console.log('收到新增學生事件');
+        addStudent();
+    });
+
+    // 監聽自定義的匯出 CSV 事件
+    document.addEventListener('exportCSV', () => {
+        console.log('收到匯出 CSV 事件');
+        exportToCSV();
+    });
 }
 
 /**
@@ -176,7 +188,19 @@ export function renderStudents() {
     arr.forEach((st, idx) => {
         const card = document.createElement("div");
         card.classList.add("student-card");
-        const imgSrc = st.customImage || imageMap[st.imageLabel] || "";
+        
+        // 修正: 確保正確獲取圖片來源
+        // 圖片優先順序: 1. 自訂圖片 2. 圖片標籤對應的圖片 3. 性別對應的默認圖片
+        let imgSrc = "";
+        if (st.customImage) {
+            imgSrc = st.customImage;
+        } else if (st.imageLabel && imageMap[st.imageLabel]) {
+            imgSrc = imageMap[st.imageLabel];
+        } else {
+            // 如果沒有指定標籤或標籤不存在，使用性別的第一個默認圖片
+            const defaultLabels = genderImageLabels[st.gender] || genderImageLabels["男"];
+            imgSrc = imageMap[defaultLabels[0]];
+        }
         
         // 添加拖拉屬性
         card.draggable = true;
@@ -485,38 +509,53 @@ export function clearCustomImage() {
  * 更新圖片預覽
  */
 function updateImagePreview() {
+    // 獲取學生性別和圖片選擇容器
     let gender = document.getElementById("studentGender").value;
-    let imageSelection = document.getElementById("imageSelection");
-    imageSelection.innerHTML = "";
-    let labels = genderImageLabels[gender];
+    let container = document.getElementById("imageSelection");
+    if (!container) return;
     
-    // 如果切換性別後，之前選中的圖片不屬於新性別，則重置選擇
+    // 獲取當前選中的圖片
     const currentSelected = getSelectedImage();
-    if (currentSelected && !labels.includes(currentSelected)) {
-        setSelectedImage("");
-    }
     
-    labels.forEach((lbl, idx) => {
-        let img = document.createElement("img");
-        img.src = imageMap[lbl];
-        img.setAttribute('data-label', lbl);
-        img.onclick = () => {
-            // 選擇此圖片
-            setSelectedImage(lbl);
-            
-            // 清除自訂圖片
+    // 清空容器
+    container.innerHTML = "";
+    
+    // 根據性別獲取可用的圖片標籤
+    let labels = genderImageLabels[gender] || [];
+    if (!labels.length) return;
+    
+    // 為每個標籤創建圖片元素
+    labels.forEach(label => {
+        const imgUrl = imageMap[label];
+        if (!imgUrl) return;
+        
+        const img = document.createElement("img");
+        img.src = imgUrl;
+        img.alt = label;
+        img.setAttribute('data-label', label);
+        
+        // 檢查是否為選中的圖片
+        const isSelected = !customImageData && (currentSelected === label || (!currentSelected && label === labels[0]));
+        if (isSelected) {
+            img.classList.add("selected");
+            setSelectedImage(label);
+        }
+        
+        // 點擊圖片時的處理
+        img.addEventListener("click", () => {
+            // 移除所有圖片的選中狀態
+            document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
+            // 移除自訂圖片
             customImageData = null;
             customImageFileId = null;
             document.getElementById("customImagePreview").innerHTML = "";
-            document.getElementById("customImageUpload").value = "";
-        };
+            // 添加新選中的圖片的選中狀態
+            img.classList.add("selected");
+            // 更新選中的圖片
+            setSelectedImage(label);
+        });
         
-        // 選中圖片的邏輯：如果沒有自訂圖片時才套用
-        if (!customImageData && ((idx === 0 && !currentSelected) || currentSelected === lbl)) {
-            setSelectedImage(lbl);
-        }
-        
-        imageSelection.appendChild(img);
+        container.appendChild(img);
     });
 }
 
@@ -536,68 +575,74 @@ window.updateScore = updateScore;
 window.customAdjust = customAdjust;
 window.clearCustomImage = clearCustomImage;
 
-// 添加新增/編輯學生功能，這些會在另一個檔案中繼續補充
+/**
+ * 顯示新增/編輯學生彈窗
+ * @param {string} mode 模式 'add'或'edit'
+ * @param {object} student 學生對象（僅在edit模式需要）
+ */
 export function showPopup(mode = 'add', student = null) {
     if (checkIfUpdating()) return;
-
+    
+    console.log('mode:', mode, 'student:', student);
+    
     document.getElementById("overlay").classList.add("show");
     document.getElementById("studentPopup").classList.add("show");
     
-    let nameField = document.getElementById("studentName");
-    let genderField = document.getElementById("studentGender");
-    let scoreField = document.getElementById("studentScore");
+    let title = mode === 'add' ? '新增學生' : '編輯學生';
+    document.getElementById("popupTitle").textContent = title;
     
-    // 初始化值
-    editIndex = student ? student.idx : -1;
-    customImageData = student ? student.customImage : null;
-    customImageFileId = student ? student.id : null;
-    document.getElementById("customImagePreview").innerHTML = "";
-    document.getElementById("customImageUpload").value = "";
+    // 重置表單
+    document.getElementById("studentName").value = '';
+    document.getElementById("studentScore").value = '0';
+    document.getElementById("studentGender").value = '男';
+    document.getElementById("customImagePreview").innerHTML = '';
+    document.getElementById("customImageUpload").value = '';
     
-    if (mode === 'add') {
-        // 新增模式
-        document.getElementById("popupTitle").textContent = "新增學生";
-        nameField.value = "";
-        genderField.value = "男";
-        scoreField.value = "0";
-        setSelectedImage("");
-    } else if (mode === 'edit' && student) {
-        // 編輯模式
-        document.getElementById("popupTitle").textContent = "編輯學生";
-        nameField.value = student.name || "";
-        genderField.value = student.gender || "男";
-        scoreField.value = student.score || "0";
+    // 重置全局變數
+    editIndex = mode === 'edit' ? student.idx : -1;
+    customImageData = null;
+    customImageFileId = null;
+    
+    if (mode === 'edit' && student) {
+        document.getElementById("studentName").value = student.name;
+        document.getElementById("studentScore").value = student.score;
+        document.getElementById("studentGender").value = student.gender;
         
-        // 設置自訂圖片或已選圖片
+        // 處理學生使用的自訂圖片
         if (student.customImage) {
             customImageData = student.customImage;
-            document.getElementById("customImagePreview").innerHTML = `
-                <img src="${student.customImage}" alt="自訂圖片">
-                <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
-            `;
-            // 添加移除圖片按鈕事件
-            document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
-        } else {
-            setSelectedImage(student.imageLabel || "");
+            customImageFileId = student.imageFileId || null;
+            const preview = document.getElementById("customImagePreview");
+            if (preview) {
+                preview.innerHTML = `
+                    <img src="${student.customImage}" alt="自訂圖片">
+                    <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+                `;
+                document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
+            }
+        } else if (student.imageLabel) {
+            setSelectedImage(student.imageLabel);
         }
     } else {
-        // 處理無效情況
-        document.getElementById("popupTitle").textContent = "新增學生";
-        nameField.value = "";
-        genderField.value = "男";
-        scoreField.value = "0";
-        setSelectedImage("");
+        // 預設選擇性別對應的第一個圖片
+        const gender = document.getElementById("studentGender").value;
+        const firstLabel = genderImageLabels[gender][0];
+        setSelectedImage(firstLabel);
     }
     
-    // 更新性別對應的圖片預覽
-    genderField.addEventListener("change", updateImagePreview);
+    // 根據性別更新圖片選項
     updateImagePreview();
     
     // 更新已上傳圖片區域
     updateUploadedImagesSection();
     
     // 初始化拖放上傳功能
-    initDragDropUpload();
+    if (typeof initDragDropUpload === 'function') {
+        initDragDropUpload();
+    }
+
+    // 學生性別變更時更新圖片選項
+    document.getElementById("studentGender").addEventListener("change", updateImagePreview);
 }
 
 export function closePopup() {
@@ -606,60 +651,80 @@ export function closePopup() {
     editIndex = -1;
 }
 
-export function saveStudent() {
+/**
+ * 保存學生資料
+ */
+function saveStudent() {
+    if (checkIfUpdating()) return;
+    
     const nameField = document.getElementById("studentName");
     const scoreField = document.getElementById("studentScore");
     const genderField = document.getElementById("studentGender");
     
     // 表單驗證
-    if (!nameField.value.trim()) {
-        nameField.classList.add('error');
+    const name = nameField.value.trim();
+    if (!name) {
         showToast('請輸入學生姓名', 'error');
         nameField.focus();
         return;
-    } else {
-        nameField.classList.remove('error');
     }
     
-    if (!scoreField.value || scoreField.value < 0) {
-        scoreField.classList.add('error');
-        showToast('請輸入有效的分數', 'error');
-        scoreField.focus();
-        return;
+    const score = parseInt(scoreField.value) || 0;
+    const gender = genderField.value;
+    
+    // 獲取或創建學生對象
+    let arr = getStudents();
+    let student;
+    
+    if (editIndex >= 0 && editIndex < arr.length) {
+        // 編輯現有學生
+        student = arr[editIndex];
     } else {
-        scoreField.classList.remove('error');
+        // 創建新學生
+        student = { name: '', gender: '男', score: 0 };
+        arr.push(student);
     }
     
-    // 取得已選擇的圖片
-    let imageSrc = getSelectedImage();
-    let student = {
-        name: nameField.value,
-        score: parseInt(scoreField.value, 10),
-        gender: genderField.value,
-        image: imageSrc,
-        customImage: customImageData,
-        customImageId: customImageFileId
-    };
+    // 更新學生資料
+    student.name = name;
+    student.score = score;
+    student.gender = gender;
     
-    let students = getStudents();
-    
-    if (editIndex === -1) {
-        // 新增模式
-        students.push(student);
-        showToast(`已新增學生：${student.name}`, 'success');
+    // 處理圖片
+    // 如果有自訂圖片，則使用自訂圖片
+    if (customImageData) {
+        student.customImage = customImageData;
+        student.imageFileId = customImageFileId;
+        student.imageLabel = null; // 清除圖片標籤，因為使用自訂圖片
     } else {
-        // 編輯模式
-        students[editIndex] = student;
-        showToast(`已更新學生：${student.name}`, 'success');
+        // 否則使用選擇的圖片標籤
+        const selectedImage = getSelectedImage();
+        student.customImage = null; // 清除自訂圖片
+        student.imageFileId = null; // 清除圖片檔案ID
+        
+        // 確保有選擇圖片，如果沒有則使用性別對應的默認圖片
+        if (selectedImage) {
+            student.imageLabel = selectedImage;
+        } else {
+            // 使用性別對應的第一個圖片
+            student.imageLabel = genderImageLabels[gender][0];
+        }
     }
     
-    localStorage.setItem('students', JSON.stringify(students));
-    
-    // 直接更新班級資料並儲存
+    // 保存班級資料
     saveClassesLocal();
     
-    closePopup();
+    // 重新渲染學生列表
     renderStudents();
+    
+    // 關閉彈窗
+    closePopup();
+    
+    // 顯示成功消息
+    const message = editIndex >= 0 ? '學生資料已更新' : '新學生已添加';
+    showToast(message, 'success');
+    
+    // 標記為有更改
     markDirty();
 }
 
@@ -1136,4 +1201,17 @@ function initDragDropUpload() {
     if (dropArea.childElementCount === 0) {
         dropArea.innerHTML = '<div class="drop-area-hint">拖放圖片至此上傳<br>或點擊「上傳自訂圖片」按鈕</div>';
     }
+}
+
+/**
+ * 新增學生
+ */
+export function addStudent() {
+    console.log('新增學生函數被調用');
+    
+    // 檢查是否正在更新中
+    if (checkIfUpdating()) return;
+    
+    // 打開學生編輯彈窗，設置為新增模式
+    showPopup('add');
 } 

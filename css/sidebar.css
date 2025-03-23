@@ -50,52 +50,110 @@
     padding: 10px;
     color: white;
     text-decoration: none;
+    transition: all 0.2s ease;
     cursor: pointer;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    transition: all 0.2s;
+    border-radius: 4px;
+    margin-bottom: 2px;
 }
 
 .menu-item:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .menu-item i {
     margin-right: 10px;
-    width: 20px;
+    font-size: 18px;
+    min-width: 20px;
     text-align: center;
 }
 
 /* 子選單樣式 */
 .submenu {
-    margin-left: 20px;
-    display: none;
+    max-height: 0;
     overflow: hidden;
-    transition: all 0.3s ease;
+    transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
+    padding-left: 20px;
+    opacity: 0;
+    visibility: hidden;
 }
 
+.submenu.show {
+    max-height: 500px;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 為子選單添加 active 狀態處理 */
+.menu-item.active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 帶有子選單的選單項目 */
 .menu-item.has-submenu {
     position: relative;
 }
 
 .menu-item.has-submenu:after {
-    content: '▼';
+    content: '▶';
     position: absolute;
-    right: 10px;
+    right: 15px;
+    font-size: 10px;
+    color: #888;
     transition: transform 0.3s ease;
+    pointer-events: none; /* 使箭頭不阻擋點擊事件 */
 }
 
 .menu-item.has-submenu.active:after {
-    transform: rotate(180deg);
-}
-
-.menu-item.has-submenu.active + .submenu {
-    display: block;
+    transform: rotate(90deg);
 }
 
 .submenu .menu-item {
-    padding-left: 30px;
-    font-size: 0.95em;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 14px;
+    position: relative;
+    z-index: 10;
+}
+
+.submenu .menu-item i {
+    font-size: 16px;
+}
+
+/* 為不同子選單設置獨特的視覺樣式 */
+#wheelSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#wheelSubmenu .menu-item:hover {
+    border-left-color: #FF8C00;
+    background-color: rgba(255, 140, 0, 0.1);
+}
+
+#helpSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#helpSubmenu .menu-item:hover {
+    border-left-color: #4682B4;
+    background-color: rgba(70, 130, 180, 0.1);
+}
+
+#manageSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#manageSubmenu .menu-item:hover {
+    border-left-color: #2E8B57;
+    background-color: rgba(46, 139, 87, 0.1);
+}
+
+#dataSubmenu .menu-item {
+    border-left: 3px solid transparent;
+}
+
+#dataSubmenu .menu-item:hover {
+    border-left-color: #8A2BE2;
+    background-color: rgba(138, 43, 226, 0.1);
 }
 
 /* 收合時的樣式 */
@@ -121,26 +179,28 @@
 /* 收合時的子選單樣式 */
 .sidebar.collapsed .submenu {
     position: absolute;
-    left: 100%;
+    left: 60px;
     top: 0;
     width: 200px;
     background: #2c3e50;
-    display: none;
+    max-height: none;
+    opacity: 1;
     margin-left: 0;
     border-radius: 0 4px 4px 0;
     box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    padding-left: 0;
+    z-index: 200;
+    display: none; /* 默認隱藏 */
 }
 
-.sidebar.collapsed .menu-item.has-submenu {
-    position: relative;
+/* 處理收合狀態下的子選單顯示 */
+.sidebar.collapsed .submenu.show {
+    display: block; /* 當有 show 類別時顯示 */
 }
 
+/* 側邊欄收合時，懸停在有子選單的項目上 */
 .sidebar.collapsed .menu-item.has-submenu:hover .submenu {
     display: block;
-}
-
-.sidebar.collapsed .submenu .menu-item {
-    padding: 10px 15px;
 }
 
 /* 下拉式選單樣式 */
