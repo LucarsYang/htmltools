@@ -1,7 +1,6 @@
 // main.js - 主程式入口
 import { initGoogleAuth, getIsSignedIn } from './googleAuth.js';
 import { initStudents } from './students.js';
-import { initWheel, showWheel, switchWheelType } from './wheel.js';
 import { attachSidebarToggle, setupESCKeyHandler } from './utils.js';
 
 // 當頁面載入完成後執行
@@ -16,9 +15,6 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // 初始化學生管理模組
     initStudents();
-    
-    // 初始化輪盤模組
-    initWheel();
     
     // 初始化新的側邊欄功能
     initSidebarFunctions();
@@ -75,26 +71,6 @@ function initSidebarFunctions() {
             // 否則可以觸發一個自定義事件
             const addStudentEvent = new CustomEvent('addStudent');
             document.dispatchEvent(addStudentEvent);
-        });
-    }
-    
-    // 學生輪轉盤按鈕事件
-    const btnStudentWheel = document.getElementById('btnStudentWheel');
-    if (btnStudentWheel) {
-        btnStudentWheel.addEventListener('click', () => {
-            console.log('點擊學生輪轉盤');
-            showWheel();
-            setTimeout(() => switchWheelType('student'), 100);
-        });
-    }
-    
-    // 獎懲輪轉盤按鈕事件
-    const btnRewardWheel = document.getElementById('btnRewardWheel');
-    if (btnRewardWheel) {
-        btnRewardWheel.addEventListener('click', () => {
-            console.log('點擊獎懲輪轉盤');
-            showWheel();
-            setTimeout(() => switchWheelType('reward'), 100);
         });
     }
     

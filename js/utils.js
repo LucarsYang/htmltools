@@ -255,7 +255,6 @@ function initSubmenus() {
     // 首先確保所有子選單ID正確
     const submenuMapping = {
         'btnManage': 'manageSubmenu',
-        'btnWheelMenu': 'wheelSubmenu',
         'btnHelpMenu': 'helpSubmenu',
         'btnDataManage': 'dataSubmenu'
     };
@@ -461,9 +460,6 @@ export function setupESCKeyHandler() {
             } else if (document.getElementById("settingsOverlay")?.classList.contains("show")) {
                 document.getElementById("settingsOverlay").classList.remove("show");
                 document.getElementById("settingsPopup").classList.remove("show");
-            } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
-                document.getElementById("wheelOverlay").classList.remove("show");
-                document.getElementById("wheelPopup").classList.remove("show");
             } else if (document.getElementById("helpOverlay").classList.contains("show")) {
                 document.getElementById("helpOverlay").classList.remove("show");
                 document.getElementById("helpPopup").classList.remove("show");

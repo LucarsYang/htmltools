@@ -126,21 +126,14 @@ function initUI() {
             closePopup();
             closeClassPopup();
             // 關閉其他可能的彈窗
-            document.querySelectorAll('.login-overlay, .login-popup, .help-overlay, .help-popup, .wheel-overlay, .wheel-popup').forEach(el => {
+            document.querySelectorAll('.login-overlay, .login-popup, .help-overlay, .help-popup').forEach(el => {
                 el.classList.remove('show');
             });
-            
-            // 同時處理輪盤結果彈窗
-            const resultPopup = document.getElementById('wheelResultPopup');
-            if (resultPopup) {
-                resultPopup.classList.remove('show');
-                resultPopup.style.display = 'none';
-            }
         }
     });
     
     // 添加點擊遮罩關閉彈窗功能
-    document.querySelectorAll('.overlay, .class-overlay, .login-overlay, .help-overlay, .wheel-overlay').forEach(overlay => {
+    document.querySelectorAll('.overlay, .class-overlay, .login-overlay, .help-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
                 e.target.classList.remove('show');

@@ -14,7 +14,6 @@
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/popup.css">
-    <link rel="stylesheet" href="css/wheel.css">
     <link rel="stylesheet" href="css/help.css">
 
     <!-- JavaScript 模組 -->
@@ -61,19 +60,6 @@
             </a>
             <a class="menu-item" id="btnAddStudent">
                 <i>➕</i><span>新增學生</span>
-            </a>
-        </div>
-        
-        <!-- 輪轉盤子選單 -->
-        <a class="menu-item has-submenu" id="btnWheelMenu">
-            <i>🎡</i><span>輪轉盤</span>
-        </a>
-        <div class="submenu" id="wheelSubmenu">
-            <a class="menu-item" id="btnStudentWheel">
-                <i>👨‍🎓</i><span>學生輪轉盤</span>
-            </a>
-            <a class="menu-item" id="btnRewardWheel">
-                <i>🎖️</i><span>獎懲輪轉盤</span>
             </a>
         </div>
         
@@ -222,67 +208,6 @@
     </div>
 </div>
 
-<!-- 輪轉盤彈窗 -->
-<div class="overlay wheel-overlay" id="wheelOverlay"></div>
-<div class="popup wheel-popup" id="wheelPopup">
-    <div class="popup-header">
-        <h3 id="wheelTitle">學生輪轉盤</h3>
-        <button class="close-btn" id="btnCloseWheel">&times;</button>
-    </div>
-    <div class="popup-body">
-        <!-- 輪盤控制項 -->
-        <div class="wheel-controls-container">
-            <!-- 左側控制項 - 學生輪盤時顯示 -->
-            <div class="wheel-left-controls">
-                <label>
-                    <input type="checkbox" id="noRepeat" checked>
-                    不重複選擇
-                </label>
-            </div>
-            
-            <!-- 右側控制項 - 獎勵輪盤時顯示 -->
-            <div class="wheel-right-controls" id="rewardControls" style="display: none;">
-                <div class="reward-input">
-                    <input type="text" id="newReward" placeholder="輸入新獎懲項目">
-                    <button id="btnAddReward">新增</button>
-                </div>
-                <div class="reward-list" id="rewardList"></div>
-            </div>
-        </div>
-        
-        <!-- 輪盤容器 -->
-        <div class="wheel-container">
-            <div class="wheel-pointer"></div>
-            <canvas id="wheelCanvas" width="300" height="300"></canvas>
-        </div>
-        
-        <!-- 輪盤按鈕 -->
-        <div class="button-group">
-            <button id="btnSpinWheel" class="primary-btn">開始轉動</button>
-            <button id="btnResetWheel" class="secondary-btn">重置選擇</button>
-        </div>
-        
-        <!-- 已選項目列表 -->
-        <div class="selected-students">
-            <h4>已選項目:</h4>
-            <div class="selected-list" id="selectedList">
-                <p>尚未有已選項目</p>
-            </div>
-        </div>
-    </div>
-    <div class="popup-footer">
-        <button class="close-btn" id="btnCloseWheelBottom">關閉</button>
-    </div>
-</div>
-
-<!-- 選中結果彈窗 -->
-<div class="wheel-result-popup" id="wheelResultPopup">
-    <div class="wheel-result-confetti" id="confetti"></div>
-    <div class="wheel-result-content">選中結果：</div>
-    <div class="wheel-result-name" id="wheelResultName">--</div>
-    <button class="wheel-result-close" id="btnCloseResult">確定</button>
-</div>
-
 <!-- 使用說明視窗 -->
 <div class="overlay" id="helpOverlay"></div>
 <div class="popup help-popup" id="helpPopup">
@@ -300,7 +225,6 @@
                         <li>使用 Google 帳號登入以存取與同步您的班級資料</li>
                         <li>建立與管理多個班級</li>
                         <li>新增與編輯學生資料</li>
-                        <li>使用轉盤功能隨機選擇學生</li>
                         <li>記錄與管理分數</li>
                         <li>匯出/匯入班級資料</li>
                     </ul>
@@ -313,16 +237,6 @@
                         <li>雙擊學生卡片可編輯學生資訊</li>
                         <li>學生卡片上的按鈕可快速增減分數</li>
                         <li>可透過拖曳重新排列學生順序</li>
-                    </ul>
-                </div>
-                
-                <div class="help-section">
-                    <h3>輪轉盤功能</h3>
-                    <ul>
-                        <li>學生輪轉盤：隨機選取學生</li>
-                        <li>獎懲輪轉盤：隨機選取獎懲項目</li>
-                        <li>可啟用「不重複選擇」選項避免重複選到同一學生</li>
-                        <li>自訂獎懲項目內容</li>
                     </ul>
                 </div>
                 
@@ -341,6 +255,30 @@
         <div class="tab-content" id="versionContent" style="display: none;">
             <div class="help-content">
                 <div class="help-section version-history">
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.4.0</h3>
+                            <span class="version-date">2023年3月25日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>移除輪轉盤功能</li>
+                            <li>簡化界面，專注於學生管理功能</li>
+                            <li>優化系統整體性能</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.3.0</h3>
+                            <span class="version-date">2023年3月24日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>移除學生輪轉盤功能</li>
+                            <li>僅保留獎懲輪轉盤</li>
+                            <li>優化輪轉盤界面</li>
+                        </ul>
+                    </div>
+                    
                     <div class="version-item">
                         <div class="version-header">
                             <h3>版本 1.2.0</h3>

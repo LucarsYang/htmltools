@@ -1,7 +1,6 @@
 /* 遮罩層基本樣式 */
 .login-overlay, .overlay, .class-overlay, .login-processing-overlay,
-.sync-overlay, .help-overlay, .wheel-overlay {
-    display: none;
+.sync-overlay, .help-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -10,13 +9,14 @@
     background: rgba(0,0,0,0.6);
     z-index: 1000;
     backdrop-filter: blur(2px);
+    display: none;
+    opacity: 0;
     transition: all 0.3s ease;
 }
 
 /* 彈出視窗基本樣式 */
 .login-popup, .popup, .class-popup, .login-processing-popup, 
-.sync-popup, .help-popup, .wheel-popup {
-    display: none;
+.sync-popup, .help-popup {
     position: fixed;
     top: 50%;
     left: 50%;
@@ -28,16 +28,13 @@
     max-width: 480px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     z-index: 1001;
+    display: none;
     opacity: 0;
     transition: all 0.3s ease;
     overflow: hidden;
 }
 
 /* 特定視窗的寬度調整 */
-.wheel-popup {
-    max-width: 800px;
-}
-
 .help-popup {
     max-width: 700px;
 }
@@ -45,14 +42,14 @@
 /* 顯示狀態 */
 .login-overlay.show, .overlay.show, .class-overlay.show,
 .login-processing-overlay.show, .sync-overlay.show,
-.help-overlay.show, .wheel-overlay.show {
+.help-overlay.show {
     display: block;
-    animation: fadeIn 0.3s forwards;
+    opacity: 1;
 }
 
 .login-popup.show, .popup.show, .class-popup.show,
 .login-processing-popup.show, .sync-popup.show,
-.help-popup.show, .wheel-popup.show {
+.help-popup.show {
     display: block;
     opacity: 1;
     transform: translate(-50%,-50%) scale(1);
