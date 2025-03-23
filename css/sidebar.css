@@ -5,9 +5,9 @@
     top: 0;
     bottom: 0;
     width: 250px;
-    background: #2c3e50;
-    color: white;
-    transition: all 0.3s ease;
+    background: var(--bg-sidebar);
+    color: var(--text-light);
+    transition: var(--transition-normal);
     z-index: 100;
     padding-top: 60px;
 }
@@ -23,7 +23,7 @@
     right: 10px;
     background: transparent;
     border: none;
-    color: white;
+    color: var(--text-light);
     font-size: 20px;
     cursor: pointer;
     padding: 5px;
@@ -31,15 +31,15 @@
 
 /* 選單群組 */
 .menu-group {
-    padding: 10px;
+    padding: var(--spacing-md);
     border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .menu-group-title {
-    color: #ecf0f1;
+    color: var(--text-light);
     font-size: 12px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-sm);
     opacity: 0.7;
 }
 
@@ -47,12 +47,12 @@
 .menu-item {
     display: flex;
     align-items: center;
-    padding: 10px;
-    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-light);
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: var(--transition-fast);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     margin-bottom: 2px;
 }
 
@@ -61,7 +61,7 @@
 }
 
 .menu-item i {
-    margin-right: 10px;
+    margin-right: var(--spacing-md);
     font-size: 18px;
     min-width: 20px;
     text-align: center;
@@ -71,8 +71,8 @@
 .submenu {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
-    padding-left: 20px;
+    transition: max-height var(--transition-normal), opacity var(--transition-fast);
+    padding-left: var(--spacing-lg);
     opacity: 0;
     visibility: hidden;
 }
@@ -98,8 +98,8 @@
     position: absolute;
     right: 15px;
     font-size: 10px;
-    color: #888;
-    transition: transform 0.3s ease;
+    color: var(--text-muted);
+    transition: transform var(--transition-normal);
     pointer-events: none; /* 使箭頭不阻擋點擊事件 */
 }
 
@@ -125,7 +125,7 @@
 }
 
 #wheelSubmenu .menu-item:hover {
-    border-left-color: #FF8C00;
+    border-left-color: var(--warning-color);
     background-color: rgba(255, 140, 0, 0.1);
 }
 
@@ -134,7 +134,7 @@
 }
 
 #helpSubmenu .menu-item:hover {
-    border-left-color: #4682B4;
+    border-left-color: var(--info-color);
     background-color: rgba(70, 130, 180, 0.1);
 }
 
@@ -143,7 +143,7 @@
 }
 
 #manageSubmenu .menu-item:hover {
-    border-left-color: #2E8B57;
+    border-left-color: var(--secondary-color);
     background-color: rgba(46, 139, 87, 0.1);
 }
 
@@ -152,7 +152,7 @@
 }
 
 #dataSubmenu .menu-item:hover {
-    border-left-color: #8A2BE2;
+    border-left-color: var(--primary-color);
     background-color: rgba(138, 43, 226, 0.1);
 }
 
@@ -182,12 +182,12 @@
     left: 60px;
     top: 0;
     width: 200px;
-    background: #2c3e50;
+    background: var(--bg-sidebar);
     max-height: none;
     opacity: 1;
     margin-left: 0;
-    border-radius: 0 4px 4px 0;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    box-shadow: var(--shadow-small);
     padding-left: 0;
     z-index: 200;
     display: none; /* 默認隱藏 */
@@ -207,30 +207,30 @@
 .dropdown {
     position: relative;
     display: inline-block;
-    margin: 5px;
+    margin: var(--spacing-xs);
 }
 
 .dropdown-content {
     display: none;
     position: absolute;
-    background-color: #f9f9f9;
+    background-color: var(--bg-card);
     min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    box-shadow: var(--shadow-medium);
     z-index: 1;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
 .dropdown-content a {
-    color: black;
-    padding: 12px 16px;
+    color: var(--text-primary);
+    padding: var(--spacing-sm) var(--spacing-md);
     text-decoration: none;
     display: block;
     text-align: left;
 }
 
 .dropdown-content a:hover {
-    background-color: #f1f1f1;
+    background-color: var(--bg-main);
     cursor: pointer;
 }
 
@@ -239,15 +239,15 @@
 }
 
 .dropbtn {
-    background-color: #4caf50;
-    color: white;
-    padding: 8px 16px;
+    background-color: var(--secondary-color);
+    color: var(--text-light);
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    margin: 5px;
+    margin: var(--spacing-xs);
 }
 
 .dropbtn:hover {
-    opacity: 0.9;
+    background-color: var(--secondary-hover);
 } 

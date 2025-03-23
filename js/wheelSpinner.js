@@ -161,35 +161,31 @@ function createOrUpdateMarker() {
  */
 function drawWheel() {
     const canvas = document.getElementById('wheelCanvas');
-    if (!canvas) {
-        console.error('找不到輪轉盤 Canvas 元素');
-        return;
-    }
+    if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(centerX, centerY) - 10;
+    const radius = Math.min(width, height) / 2 - 10;
     
     // 清除畫布
     ctx.clearRect(0, 0, width, height);
     
-    // 繪製輪轉盤背景
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = "#f5f5f5";
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#333";
-    ctx.stroke();
+    if (wheelItems.length === 0) {
+        // 沒有項目時顯示提示
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "#666";
+        ctx.textAlign = "center";
+        ctx.fillText("請新增輪轉盤項目", centerX, centerY);
+        return;
+    }
     
-    // 計算每個項目的角度
     const numItems = wheelItems.length;
     const arcSize = 2 * Math.PI / numItems;
     
-    // 繪製每個項目扇形
+    // 繪製輪盤扇形
     for (let i = 0; i < numItems; i++) {
         const item = wheelItems[i];
         const startAngle = i * arcSize;
@@ -225,6 +221,76 @@ function drawWheel() {
     ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI, false);
     ctx.fillStyle = "#333";
     ctx.fill();
+    
+    // 繪製紅色三角形標記指針
+    drawTriangleMarker(ctx, centerX, centerY, radius);
+}
+
+/**
+ * 繪製紅色三角形標記指針
+ * @param {CanvasRenderingContext2D} ctx - 畫布上下文
+ * @param {number} centerX - 中心點X座標
+ * @param {number} centerY - 中心點Y座標
+ * @param {number} radius - 輪盤半徑
+ */
+function drawTriangleMarker(ctx, centerX, centerY, radius) {
+    // 保存當前畫布狀態
+    ctx.save();
+    
+    // 設定標記位置 (12點鐘方向)
+    const markerX = centerX;
+    const markerY = centerY - radius - 5;
+    
+    // 繪製紅色三角形標記
+    ctx.beginPath();
+    ctx.moveTo(markerX, markerY);
+    ctx.lineTo(markerX - 15, markerY - 25);
+    ctx.lineTo(markerX + 15, markerY - 25);
+    ctx.closePath();
+    
+    // 添加漸變填充
+    const gradient = ctx.createLinearGradient(
+        markerX, markerY,
+        markerX, markerY - 25
+    );
+    gradient.addColorStop(0, '#f44336');  // 使用變數中的危險色
+    gradient.addColorStop(1, '#d32f2f');  // 使用變數中的危險懸停色
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // 添加陰影效果
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
+    // 添加描邊
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+    
+    // 恢復畫布狀態
+    ctx.restore();
+    
+    // 添加脈動動畫效果
+    animateMarker();
+}
+
+/**
+ * 為標記添加脈動動畫效果
+ */
+function animateMarker() {
+    const markerElement = document.querySelector('.wheel-marker');
+    if (!markerElement) return;
+    
+    // 添加CSS動畫類別
+    markerElement.classList.add('pulse-animation');
+    
+    // 動畫結束後移除類別
+    setTimeout(() => {
+        markerElement.classList.remove('pulse-animation');
+    }, 1000);
 }
 
 /**

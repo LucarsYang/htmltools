@@ -11,11 +11,13 @@
     <script src="https://apis.google.com/js/api.js"></script>
     
     <!-- CSS 模組 -->
+    <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/sidebar.css">
     <link rel="stylesheet" href="css/popup.css">
     <link rel="stylesheet" href="css/help.css">
     <link rel="stylesheet" href="css/wheel.css">
+    <link rel="stylesheet" href="css/tooltip.css">
 
     <!-- JavaScript 模組 -->
     <script type="module" src="js/main.js"></script>
@@ -53,14 +55,17 @@
             <i>⚙️</i><span>管理功能</span>
         </a>
         <div class="submenu" id="manageSubmenu">
-            <a class="menu-item" id="btnScoreSettings">
+            <a class="menu-item tooltip" id="btnScoreSettings">
                 <i>📊</i><span>分數按鈕設定</span>
+                <span class="tooltip-text">設定學生卡片上的快速加分/減分按鈕</span>
             </a>
-            <a class="menu-item" id="btnClassManage">
+            <a class="menu-item tooltip" id="btnClassManage">
                 <i>📝</i><span>班級管理</span>
+                <span class="tooltip-text">管理班級，新增或刪除班級</span>
             </a>
-            <a class="menu-item" id="btnAddStudent">
+            <a class="menu-item tooltip" id="btnAddStudent">
                 <i>➕</i><span>新增學生</span>
+                <span class="tooltip-text">在當前班級中新增學生</span>
             </a>
         </div>
         
@@ -69,8 +74,9 @@
             <i>🎮</i><span>遊戲區</span>
         </a>
         <div class="submenu" id="gameSubmenu">
-            <a class="menu-item" id="btnOpenWheel">
+            <a class="menu-item tooltip" id="btnOpenWheel">
                 <i>🎯</i><span>獎懲輪轉盤</span>
+                <span class="tooltip-text">點擊開啟獎懲輪轉盤，可用於班級獎勵或懲罰</span>
             </a>
         </div>
         
@@ -95,11 +101,13 @@
             <i>📁</i><span>CSV 資料</span>
         </a>
         <div class="submenu" id="dataSubmenu">
-            <a class="menu-item" id="btnExportCSV">
+            <a class="menu-item tooltip" id="btnExportCSV">
                 <i>📤</i><span>匯出 CSV</span>
+                <span class="tooltip-text">將當前班級學生資料匯出為CSV檔案</span>
             </a>
-            <a class="menu-item" id="btnImportCSV">
+            <a class="menu-item tooltip" id="btnImportCSV">
                 <i>📥</i><span>匯入 CSV</span>
+                <span class="tooltip-text">從CSV檔案匯入學生資料，可能會覆蓋現有資料</span>
             </a>
         </div>
     </div>

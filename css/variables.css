@@ -1,0 +1,54 @@
+:root {
+    /* 主要顏色 */
+    --primary-color: #4a90e2;
+    --primary-hover: #3a7bc8;
+    --secondary-color: #5cb85c;
+    --secondary-hover: #4cae4c;
+    --danger-color: #f44336;
+    --danger-hover: #d32f2f;
+    --warning-color: #FFC107;
+    --warning-hover: #FFA000;
+    --info-color: #2196F3;
+    --info-hover: #1976D2;
+    --success-color: #2ecc71;
+    --success-hover: #27ae60;
+    
+    /* 背景顏色 */
+    --bg-main: #f4f4f4;
+    --bg-card: #ffffff;
+    --bg-popup: #ffffff;
+    --bg-sidebar: #2c3e50;
+    
+    /* 文字顏色 */
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-light: #ffffff;
+    --text-muted: #aaaaaa;
+    
+    /* 邊框顏色 */
+    --border-color: #dddddd;
+    --border-focus: #4a90e2;
+    
+    /* 陰影 */
+    --shadow-small: 0 2px 5px rgba(0,0,0,0.1);
+    --shadow-medium: 0 5px 15px rgba(0,0,0,0.15);
+    --shadow-large: 0 10px 25px rgba(0,0,0,0.2);
+    
+    /* 間距 */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    
+    /* 圓角 */
+    --radius-xs: 2px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    
+    /* 過渡效果 */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+} 
