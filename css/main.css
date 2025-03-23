@@ -154,6 +154,48 @@ button:hover {
     margin-right: 5px; 
 }
 
+/* 自訂分數輸入組 */
+.custom-score-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 8px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    padding: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.custom-score-group select {
+    width: 40px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    height: 30px;
+}
+
+.custom-score-group input {
+    width: 80px;
+    border: 1px solid #ddd;
+    border-left: none;
+    border-right: none;
+    height: 30px;
+    text-align: center;
+}
+
+.custom-score-group .custom-adjust-btn {
+    border: 1px solid #ddd;
+    border-radius: 0 4px 4px 0;
+    background-color: #4a90e2;
+    color: white;
+    height: 30px;
+    padding: 0 10px;
+}
+
+.custom-score-group .custom-adjust-btn:hover {
+    background-color: #3a7bc8;
+}
+
 /* 刪除按鈕 */
 .delete-btn {
     position: absolute;
@@ -476,4 +518,65 @@ select.error {
 input.error:focus,
 select.error:focus {
     box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+}
+
+/* 班級管理相關樣式 */
+.class-add-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.class-add-form input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.class-add-form button {
+    white-space: nowrap;
+}
+
+.class-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    padding-right: 5px;
+}
+
+.class-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    background-color: #fff;
+    border-radius: 4px;
+    border: 1px solid #eee;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.class-item-name {
+    font-weight: 500;
+}
+
+.delete-class-btn {
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background-color 0.2s;
+}
+
+.delete-class-btn:hover {
+    background-color: #ff3333;
 } 

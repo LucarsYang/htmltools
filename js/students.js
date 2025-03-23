@@ -149,12 +149,6 @@ function initUI() {
         console.log('收到新增學生事件');
         addStudent();
     });
-
-    // 監聽自定義的匯出 CSV 事件
-    document.addEventListener('exportCSV', () => {
-        console.log('收到匯出 CSV 事件');
-        exportCSV();
-    });
 }
 
 /**
@@ -225,12 +219,14 @@ export function renderStudents() {
             <button class="btn-score ${getButtonClass(classes.scoreButtons[2])}">${classes.scoreButtons[2] >= 0 ? '+' : ''}${classes.scoreButtons[2]}</button>
             <button class="btn-score ${getButtonClass(classes.scoreButtons[3])}">${classes.scoreButtons[3] >= 0 ? '+' : ''}${classes.scoreButtons[3]}</button>
             <div class="quickAdjust">
-                <select id="sign-${idx}">
-                    <option value="+">+</option>
-                    <option value="-">-</option>
-                </select>
-                <input type="number" id="custom-${idx}" placeholder="自訂分數" style="width:60px;">
-                <button class="custom-adjust-btn">確定</button>
+                <div class="custom-score-group">
+                    <select id="sign-${idx}">
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                    </select>
+                    <input type="number" id="custom-${idx}" placeholder="自訂分數" min="0">
+                    <button class="custom-adjust-btn">確定</button>
+                </div>
             </div>
         `;
         
@@ -326,42 +322,49 @@ export function editStudent(idx) {
  * @param {number} idx 學生索引
  */
 export function deleteStudent(idx) {
-    if (checkIfUpdating()) return;
+    if (updatingState) return;
     
-    let students = getStudents();
-    if (idx < 0 || idx >= students.length) {
-        showToast('找不到要刪除的學生', 'error');
-        return;
+    let students = classes[currentClass];
+    if (idx >= 0 && idx < students.length) {
+        const studentName = students[idx].name;
+        
+        if (confirm(`確定要刪除學生「${studentName}」嗎？此操作無法復原。`)) {
+            students.splice(idx, 1);
+            
+            // 重新渲染學生列表
+            renderStudents();
+            
+            // 標記為已修改
+            markDirty();
+            saveClassesLocal();
+            
+            showToast(`已刪除學生「${studentName}」`, 'info');
+        }
     }
-    
-    const student = students[idx];
-    if (!confirm(`確定要刪除學生「${student.name}」嗎？此操作無法恢復。`)) {
-        return;
-    }
-    
-    students.splice(idx, 1);
-    
-    // 更新班級資料並儲存
-    saveClassesLocal();
-    
-    localStorage.setItem('students', JSON.stringify(students));
-    renderStudents();
-    showToast(`已刪除學生：${student.name}`, 'success');
-    markDirty();
 }
 
 /**
  * 更新學生分數
- * @param {number} idx 學生索引
- * @param {number} delta 分數變化
+ * @param {number} idx - 學生索引
+ * @param {number} delta - 分數變化量
  */
 export function updateScore(idx, delta) {
-    if (checkIfUpdating()) return;
-    let arr = getStudents();
-    arr[idx].score += delta;
-    saveClassesLocal();
-    document.getElementById(`score-${idx}`).textContent = arr[idx].score + " 分";
-    markDirty();
+    if (updatingState) return;
+    
+    let students = classes[currentClass];
+    if (idx >= 0 && idx < students.length) {
+        students[idx].score += delta;
+        
+        // 更新學生顯示
+        renderStudents();
+        
+        // 標記為已修改
+        markDirty();
+        saveClassesLocal();
+        
+        // 添加 toast 通知
+        showToast(`學生「${students[idx].name}」分數變更：${delta > 0 ? '+' : ''}${delta}`, delta > 0 ? 'success' : 'error');
+    }
 }
 
 /**
@@ -376,11 +379,21 @@ export function customAdjust(idx) {
     let sign = signSel.value;
     let val = parseInt(customIn.value) || 0;
     if (sign === "-") val = -val;
+    
+    // 確保有實際分數變更
+    if (val === 0) {
+        showToast('請輸入非零數值', 'info');
+        return;
+    }
+    
     arr[idx].score += val;
     saveClassesLocal();
     document.getElementById(`score-${idx}`).textContent = arr[idx].score + " 分";
     customIn.value = "";
     markDirty();
+    
+    // 添加toast通知
+    showToast(`學生「${arr[idx].name}」分數${val > 0 ? '增加' : '減少'} ${Math.abs(val)}`, val > 0 ? 'success' : 'error');
 }
 
 /**
@@ -562,7 +575,12 @@ function updateImagePreview() {
  * 儲存班級資料到本地
  */
 export function saveClassesLocal() {
-    localStorage.setItem("classes", JSON.stringify(classes));
+    try {
+        localStorage.setItem("classes", JSON.stringify(classes));
+    } catch (e) {
+        console.error("儲存班級資料失敗:", e);
+        showToast('儲存班級資料失敗', 'error');
+    }
 }
 
 // 將 window 物件暴露的函數定義全局參照
@@ -652,77 +670,73 @@ export function closePopup() {
  * 保存學生資料
  */
 function saveStudent() {
-    if (checkIfUpdating()) return;
+    if (updatingState) return;
     
-    const nameField = document.getElementById("studentName");
-    const scoreField = document.getElementById("studentScore");
-    const genderField = document.getElementById("studentGender");
-    
-    // 表單驗證
-    const name = nameField.value.trim();
-    if (!name) {
-        showToast('請輸入學生姓名', 'error');
-        nameField.focus();
+    const studentForm = document.getElementById('studentForm');
+    if (!studentForm.checkValidity()) {
+        studentForm.reportValidity();
         return;
     }
     
-    const score = parseInt(scoreField.value) || 0;
-    const gender = genderField.value;
+    const nameInput = document.getElementById('studentName');
+    const genderSelect = document.getElementById('studentGender');
+    const scoreInput = document.getElementById('studentScore');
+    const numInput = document.getElementById('studentNum');
     
-    // 獲取或創建學生對象
-    let arr = getStudents();
-    let student;
+    const name = nameInput.value.trim();
+    const gender = genderSelect.value;
+    const score = parseInt(scoreInput.value) || 0;
+    const num = numInput.value.trim();
     
-    if (editIndex >= 0 && editIndex < arr.length) {
-        // 編輯現有學生
-        student = arr[editIndex];
-    } else {
-        // 創建新學生
-        student = { name: '', gender: '男', score: 0 };
-        arr.push(student);
+    // 檢查欄位
+    if (!name) {
+        showToast('姓名不能為空', 'error');
+        return;
     }
     
-    // 更新學生資料
-    student.name = name;
-    student.score = score;
-    student.gender = gender;
+    // 取得目前班級的學生資料
+    let students = classes[currentClass];
     
-    // 處理圖片
-    // 如果有自訂圖片，則使用自訂圖片
+    // 建立新學生資料物件
+    const studentData = {
+        name,
+        gender,
+        score,
+        num,
+        addDate: new Date().toISOString()
+    };
+    
+    // 如果有自訂圖片
     if (customImageData) {
-        student.customImage = customImageData;
-        student.imageFileId = customImageFileId;
-        student.imageLabel = null; // 清除圖片標籤，因為使用自訂圖片
+        studentData.imageData = customImageData;
+        studentData.imageType = 'custom';
     } else {
-        // 否則使用選擇的圖片標籤
-        const selectedImage = getSelectedImage();
-        student.customImage = null; // 清除自訂圖片
-        student.imageFileId = null; // 清除圖片檔案ID
-        
-        // 確保有選擇圖片，如果沒有則使用性別對應的默認圖片
-        if (selectedImage) {
-            student.imageLabel = selectedImage;
-        } else {
-            // 使用性別對應的第一個圖片
-            student.imageLabel = genderImageLabels[gender][0];
-        }
+        const selectedImg = getSelectedImage();
+        studentData.imageType = 'default';
+        studentData.imageIndex = selectedImg.index;
+        studentData.gender = selectedImg.gender;
     }
     
-    // 保存班級資料
-    saveClassesLocal();
+    // 如果是編輯模式，更新現有學生資料
+    if (editIndex >= 0) {
+        const oldName = students[editIndex].name;
+        students[editIndex] = studentData;
+        showToast(`已更新學生「${name}」資料`, 'success');
+    } else {
+        // 新增模式，加入資料到陣列
+        students.push(studentData);
+        showToast(`已新增學生「${name}」`, 'success');
+    }
     
     // 重新渲染學生列表
     renderStudents();
     
+    // 標記已修改
+    markDirty();
+    saveClassesLocal();
+    
     // 關閉彈窗
     closePopup();
-    
-    // 顯示成功消息
-    const message = editIndex >= 0 ? '學生資料已更新' : '新學生已添加';
-    showToast(message, 'success');
-    
-    // 標記為有更改
-    markDirty();
 }
 
 export function renderClassDropdown() {
@@ -748,6 +762,12 @@ export function showClassPopup() {
     document.getElementById("classOverlay").classList.add("show");
     document.getElementById("classPopup").classList.add("show");
     
+    // 清空新增班級輸入欄位
+    const newClassNameInput = document.getElementById('newClassName');
+    if (newClassNameInput) {
+        newClassNameInput.value = '';
+    }
+    
     // 更新班級列表
     let classList = document.getElementById("classList");
     classList.innerHTML = "";
@@ -758,10 +778,8 @@ export function showClassPopup() {
             let li = document.createElement("li");
             li.className = "class-item";
             li.innerHTML = `
-                <span class="class-name">${className} (${classes[className].length} 位學生)</span>
-                <div class="class-item-buttons">
-                    <button class="delete-class-btn danger-btn" data-class="${className}">刪除</button>
-                </div>
+                <span class="class-item-name">${className} (${classes[className].length} 位學生)</span>
+                <button class="delete-class-btn" data-class="${className}">刪除</button>
             `;
             classList.appendChild(li);
         }
@@ -781,30 +799,41 @@ export function closeClassPopup() {
 }
 
 export function addClassPrompt() {
-    const result = prompt("請輸入新班級名稱：");
+    if (updatingState) return;
     
-    // 檢查 result 是否為 null（用戶點擊取消）或空字串
-    if (!result) return;
+    const className = document.getElementById('newClassName').value.trim();
     
-    const newClassName = result.trim();
-    if (!newClassName) {
-        showToast("班級名稱不能為空", "error");
+    if (!className) {
+        showToast('班級名稱不能為空', 'error');
         return;
     }
     
-    if (classes[newClassName]) {
-        showToast("班級已存在", "error");
+    if (classes[className]) {
+        showToast('班級名稱已存在', 'error');
         return;
     }
     
-    classes[newClassName] = [];
-    saveClassesLocal();
-    currentClass = newClassName;
+    // 新增班級
+    classes[className] = [];
+    
+    // 更新班級下拉選單
     renderClassDropdown();
+    
+    // 切換到新班級
+    currentClass = className;
+    document.getElementById('classSelect').value = className;
+    
+    // 重新渲染學生列表
     renderStudents();
-    showClassPopup(); // 重新整理班級列表
+    
+    // 標記為已修改
     markDirty();
-    showToast(`已建立新班級：${newClassName}`, "success");
+    saveClassesLocal();
+    
+    // 關閉班級彈窗
+    closeClassPopup();
+    
+    showToast(`已新增班級「${className}」`, 'success');
 }
 
 // CSV 匯入匯出相關函數
@@ -1120,27 +1149,35 @@ window.renderStudents = renderStudents;
 window.markUpdating = markUpdating;
 
 export function deleteClass(className) {
-    if (Object.keys(classes).filter(c => c !== "scoreButtons" && c !== "rewards").length <= 1) {
-        alert("至少要保留一個班級");
+    if (updatingState) return;
+    
+    // 檢查是否為唯一班級
+    const classKeys = Object.keys(classes).filter(key => !['scoreButtons', 'rewards'].includes(key));
+    if (classKeys.length <= 1) {
+        showToast('至少需要保留一個班級', 'error');
         return;
     }
     
-    if (!confirm(`確定要刪除 ${className} 班嗎？此操作無法復原。`)) {
-        return;
-    }
-    
-    delete classes[className];
-    saveClassesLocal();
-    
-    // 如果刪除的是當前班級，則切換到第一個班級
-    if (className === currentClass) {
-        currentClass = Object.keys(classes).find(c => c !== "scoreButtons" && c !== "rewards");
+    if (confirm(`確定要刪除班級「${className}」嗎？此操作將刪除該班級的所有學生資料，且無法復原。`)) {
+        // 刪除班級
+        delete classes[className];
+        
+        // 更新當前班級
+        currentClass = Object.keys(classes).find(key => !['scoreButtons', 'rewards'].includes(key));
+        
+        // 更新班級下拉選單
         renderClassDropdown();
+        document.getElementById('classSelect').value = currentClass;
+        
+        // 重新渲染學生列表
         renderStudents();
+        
+        // 標記為已修改
+        markDirty();
+        saveClassesLocal();
+        
+        showToast(`已刪除班級「${className}」`, 'info');
     }
-    
-    showClassPopup(); // 重新整理班級列表
-    markDirty();
 }
 
 // 初始化拖放上傳

@@ -91,6 +91,22 @@ function setupWheelEventListeners() {
             saveWheelSettings();
         });
     }
+    
+    // 結果視窗關閉按鈕
+    const wheelResultClose = document.getElementById('wheelResultClose');
+    if (wheelResultClose) {
+        wheelResultClose.addEventListener('click', () => {
+            closeWheelResult();
+        });
+    }
+    
+    // 結果遮罩點擊關閉
+    const wheelResultOverlay = document.getElementById('wheelResultOverlay');
+    if (wheelResultOverlay) {
+        wheelResultOverlay.addEventListener('click', () => {
+            closeWheelResult();
+        });
+    }
 }
 
 /**
@@ -331,17 +347,22 @@ function showWheelResult(result) {
             }
         }
         
+        // 顯示結果遮罩和容器
+        document.getElementById('wheelResultOverlay').classList.add('show');
         document.getElementById('wheelResultContainer').classList.add('show');
-        
-        // 5秒後隱藏結果
-        setTimeout(() => {
-            document.getElementById('wheelResultContainer').classList.remove('show');
-        }, 5000);
     }
     
     // 顯示 Toast 消息
     const messageType = result.isReward === true ? 'success' : (result.isReward === false ? 'error' : 'info');
     showToast(`輪轉盤結果: ${result.text}`, messageType);
+}
+
+/**
+ * 關閉輪轉盤結果
+ */
+function closeWheelResult() {
+    document.getElementById('wheelResultOverlay').classList.remove('show');
+    document.getElementById('wheelResultContainer').classList.remove('show');
 }
 
 /**
@@ -416,6 +437,7 @@ function addWheelItem() {
     
     wheelItems.push(newItem);
     renderWheelItems();
+    showToast('已新增輪轉盤項目', 'success');
 }
 
 /**
@@ -430,6 +452,7 @@ function removeWheelItem(itemId) {
     
     wheelItems = wheelItems.filter(item => item.id !== itemId);
     renderWheelItems();
+    showToast('已移除輪轉盤項目', 'info');
 }
 
 /**

@@ -444,12 +444,23 @@ export function hideSyncOverlay() {
 }
 
 /**
- * 視窗關閉功能
+ * 設置全局鍵盤事件
  */
-export function setupESCKeyHandler() {
+export function setupGlobalKeyboardHandler() {
     window.addEventListener("keydown", (evt) => {
         if (evt.key === "Escape") {
-            // 檢查各個視窗是否開啟
+            // 檢查各個視窗是否開啟，按優先順序處理
+            
+            // 優先處理輪轉盤結果視窗
+            if (document.getElementById("wheelResultContainer").classList.contains("show")) {
+                document.getElementById("wheelResultOverlay").classList.remove("show");
+                document.getElementById("wheelResultContainer").classList.remove("show");
+                // 阻止事件冒泡，確保不會同時關閉其他視窗
+                evt.stopPropagation();
+                return;
+            }
+            
+            // 然後處理其他視窗
             if (document.getElementById("overlay").classList.contains("show")) {
                 document.getElementById("overlay").classList.remove("show");
                 document.getElementById("studentPopup").classList.remove("show");
@@ -464,14 +475,12 @@ export function setupESCKeyHandler() {
             } else if (document.getElementById("helpOverlay").classList.contains("show")) {
                 document.getElementById("helpOverlay").classList.remove("show");
                 document.getElementById("helpPopup").classList.remove("show");
-            } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
-                document.getElementById("wheelOverlay").classList.remove("show");
-                document.getElementById("wheelPopup").classList.remove("show");
             } else if (document.getElementById("wheelSettingsOverlay").classList.contains("show")) {
                 document.getElementById("wheelSettingsOverlay").classList.remove("show");
                 document.getElementById("wheelSettingsPopup").classList.remove("show");
-            } else if (document.getElementById("wheelResultContainer").classList.contains("show")) {
-                document.getElementById("wheelResultContainer").classList.remove("show");
+            } else if (document.getElementById("wheelOverlay").classList.contains("show")) {
+                document.getElementById("wheelOverlay").classList.remove("show");
+                document.getElementById("wheelPopup").classList.remove("show");
             }
         }
     });

@@ -130,10 +130,11 @@
     transform: translate(-50%, -50%);
     background-color: #fff;
     border-radius: 8px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
     z-index: 1002;
-    width: 300px;
-    padding: 20px;
+    width: 90%;
+    max-width: 400px;
+    padding: 30px;
     text-align: center;
     display: none;
     animation: result-appear 0.5s ease-out;
@@ -141,6 +142,42 @@
 
 .wheel-result-container.show {
     display: block;
+}
+
+/* 結果遮罩層 */
+.wheel-result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1001;
+    display: none;
+}
+
+.wheel-result-overlay.show {
+    display: block;
+}
+
+/* 關閉按鈕 */
+.wheel-result-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    font-size: 24px;
+    line-height: 30px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
+}
+
+.wheel-result-close:hover {
+    background-color: rgba(0, 0, 0, 0.2);
 }
 
 @keyframes result-appear {
@@ -155,15 +192,15 @@
 }
 
 .wheel-result-icon {
-    font-size: 48px;
-    margin-bottom: 10px;
+    font-size: 72px;
+    margin-bottom: 20px;
 }
 
 .wheel-result {
-    font-size: 24px;
+    font-size: 32px;
     font-weight: bold;
-    padding: 10px 20px;
-    border-radius: 5px;
+    padding: 15px 25px;
+    border-radius: 8px;
     color: #000;
     margin-bottom: 20px;
 }

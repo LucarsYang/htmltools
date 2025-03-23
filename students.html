@@ -199,7 +199,10 @@
         <button class="close-btn" id="btnCloseClassPopup">×</button>
     </div>
     <div class="popup-content">
-        <button id="btnAddClass" class="primary-btn">新增班級</button>
+        <div class="class-add-form">
+            <input type="text" id="newClassName" placeholder="請輸入班級名稱">
+            <button id="btnAddClass" class="primary-btn">新增班級</button>
+        </div>
         <div class="class-list" id="classList"></div>
     </div>
     <div class="popup-footer">
@@ -277,6 +280,58 @@
         <div class="tab-content" id="versionContent" style="display: none;">
             <div class="help-content">
                 <div class="help-section version-history">
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.6</h3>
+                            <span class="version-date">2023年4月25日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>優化獎懲輪轉盤界面風格，保持與系統其他功能一致</li>
+                            <li>修正CSV匯出功能被重複觸發的問題</li>
+                            <li>改善輪轉盤設定面板佈局</li>
+                            <li>提升整體界面一致性</li>
+                        </ul>
+                    </div>
+                
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.5</h3>
+                            <span class="version-date">2023年4月20日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>修正新增班級功能，解決了無法正常使用的問題</li>
+                            <li>優化班級管理介面，改進視覺設計</li>
+                            <li>增加班級列表的樣式，提高可讀性</li>
+                            <li>新增班級管理輸入表單，使用更加方便</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.4</h3>
+                            <span class="version-date">2023年4月15日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>優化自訂分數輸入界面，調整布局更加緊湊</li>
+                            <li>新增自訂分數變更的通知提示</li>
+                            <li>修正ESC鍵關閉視窗順序，優先關閉輪轉盤結果視窗</li>
+                            <li>改善整體視覺設計與使用者體驗</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="version-item">
+                        <div class="version-header">
+                            <h3>版本 1.5.3</h3>
+                            <span class="version-date">2023年4月10日</span>
+                        </div>
+                        <ul class="version-changes">
+                            <li>優化輪轉盤結果視窗，支援點擊和ESC關閉</li>
+                            <li>放大結果視窗，增強視覺效果</li>
+                            <li>增加班級、學生和分數資料變更的通知提示</li>
+                            <li>調整UI風格，與系統整體更加一致</li>
+                        </ul>
+                    </div>
+                    
                     <div class="version-item">
                         <div class="version-header">
                             <h3>版本 1.5.2</h3>
@@ -390,17 +445,21 @@
         <h3>獎懲輪轉盤</h3>
         <button class="close-btn" id="btnCloseWheel">&times;</button>
     </div>
-    <div class="popup-body">
+    <div class="popup-content">
         <div class="wheel-container">
             <canvas id="wheelCanvas" width="400" height="400"></canvas>
         </div>
+    </div>
+    <div class="popup-footer">
         <button id="btnSpinWheel" class="primary-btn">旋轉</button>
         <button id="btnWheelSettings" class="secondary-btn">設定</button>
     </div>
 </div>
 
 <!-- 輪轉盤結果顯示 -->
+<div class="wheel-result-overlay" id="wheelResultOverlay"></div>
 <div class="wheel-result-container" id="wheelResultContainer">
+    <div class="wheel-result-close" id="wheelResultClose">&times;</div>
     <div class="wheel-result-icon" id="wheelResultIcon">🎉</div>
     <div class="wheel-result" id="wheelResult">優秀表現</div>
 </div>
@@ -412,12 +471,12 @@
         <h3>輪轉盤設定</h3>
         <button class="close-btn" id="btnCloseWheelSettings">&times;</button>
     </div>
-    <div class="popup-body">
+    <div class="popup-content">
         <h4>編輯輪轉盤項目</h4>
         <div id="wheelItemsList" class="wheel-items-list"></div>
-        <button id="btnAddWheelItem" class="primary-btn">新增項目</button>
     </div>
     <div class="popup-footer">
+        <button id="btnAddWheelItem" class="primary-btn">新增項目</button>
         <button id="btnSaveWheelSettings" class="primary-btn">儲存設定</button>
     </div>
 </div>

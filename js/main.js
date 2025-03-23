@@ -1,7 +1,7 @@
 // main.js - 主程式入口
 import { initGoogleAuth, getIsSignedIn } from './googleAuth.js';
 import { initStudents } from './students.js';
-import { attachSidebarToggle, setupESCKeyHandler } from './utils.js';
+import { attachSidebarToggle, setupGlobalKeyboardHandler } from './utils.js';
 import { initWheelSpinner, setResultCallback } from './wheelSpinner.js';
 
 // 當頁面載入完成後執行
@@ -23,8 +23,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 初始化輪轉盤功能
     initWheelSpinner();
     
-    // 設置 ESC 鍵關閉視窗
-    setupESCKeyHandler();
+    // 設置全局鍵盤事件處理
+    setupGlobalKeyboardHandler();
     
     // 確保登入按鈕狀態正確更新
     updateLoginButtonsState();
