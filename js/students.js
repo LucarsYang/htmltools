@@ -93,6 +93,7 @@ function initUI() {
     // 學生 popup
     document.getElementById("btnSaveStudent").addEventListener("click", saveStudent);
     document.getElementById("btnClosePopup").addEventListener("click", closePopup);
+    document.getElementById("btnCancelStudent").addEventListener("click", closePopup);
     document.getElementById("btnUploadImage").addEventListener("click", () => {
         document.getElementById("customImageUpload").click();
     });
@@ -101,6 +102,7 @@ function initUI() {
     // 班級管理
     document.getElementById("btnAddClass").addEventListener("click", addClassPrompt);
     document.getElementById("btnCloseClassPopup").addEventListener("click", closeClassPopup);
+    document.getElementById("btnCloseClassPopupBottom").addEventListener("click", closeClassPopup);
 
     // 設定選單
     document.getElementById("btnScoreSettings").addEventListener("click", showScoreButtonsSettings);
@@ -113,6 +115,36 @@ function initUI() {
     document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
     document.getElementById("btnImportCSV").addEventListener("click", () => {
         document.getElementById("importCSV").click();
+    });
+    
+    // 登入選擇彈窗
+    document.getElementById("closeLoginPopup").addEventListener("click", () => {
+        document.getElementById("loginOverlay").classList.remove("show");
+        document.getElementById("loginPopup").classList.remove("show");
+    });
+    
+    // 設置ESC鍵關閉彈窗
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closePopup();
+            closeClassPopup();
+            // 關閉其他可能的彈窗
+            document.querySelectorAll('.login-overlay, .login-popup, .help-overlay, .help-popup, .wheel-overlay, .wheel-popup').forEach(el => {
+                el.classList.remove('show');
+            });
+        }
+    });
+    
+    // 添加點擊遮罩關閉彈窗功能
+    document.querySelectorAll('.overlay, .class-overlay, .login-overlay, .help-overlay, .wheel-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                e.target.classList.remove('show');
+                // 找到對應的彈窗並關閉
+                const popupId = e.target.id.replace('Overlay', 'Popup');
+                document.getElementById(popupId)?.classList.remove('show');
+            }
+        });
     });
 }
 
@@ -662,9 +694,12 @@ export function showClassPopup() {
         // 排除系統特殊屬性
         if (className !== "scoreButtons" && className !== "rewards") {
             let li = document.createElement("li");
+            li.className = "class-item";
             li.innerHTML = `
-                <span>${className} (${classes[className].length} 位學生)</span>
-                <button class="delete-class-btn" data-class="${className}">×</button>
+                <span class="class-name">${className} (${classes[className].length} 位學生)</span>
+                <div class="class-item-buttons">
+                    <button class="delete-class-btn danger-btn" data-class="${className}">刪除</button>
+                </div>
             `;
             classList.appendChild(li);
         }
@@ -928,7 +963,7 @@ export function updateUploadedImagesSection() {
             customImageUpload.after(uploadedImagesSection);
         } else {
             // 如果找不到自定義圖片上傳區域，則添加到彈窗末尾
-            document.getElementById("studentPopup")?.appendChild(uploadedImagesSection);
+            document.querySelector(".popup-content")?.appendChild(uploadedImagesSection);
         }
     }
     
@@ -936,7 +971,7 @@ export function updateUploadedImagesSection() {
     const grid = document.getElementById("uploadedImagesGrid");
     if (!grid) return; // 如果找不到網格元素，則退出
     
-    grid.innerHTML = '<div class="loader"></div>';
+    grid.innerHTML = '<div class="loading-spinner"></div>';
     
     // 獲取已上傳的所有圖片
     getAllImages().then(images => {
@@ -970,7 +1005,7 @@ export function updateUploadedImagesSection() {
                 // 更新預覽
                 document.getElementById('customImagePreview').innerHTML = `
                     <img src="${customImageData}" alt="自訂圖片">
-                    <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+                    <button id="removeCustomImgBtn" class="danger-btn">移除自訂圖片</button>
                 `;
                 
                 // 添加移除圖片按鈕事件
