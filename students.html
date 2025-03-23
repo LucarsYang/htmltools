@@ -26,12 +26,56 @@
             background: #2c3e50;
             color: white;
             transition: all 0.3s ease;
-            z-index: 100;  /* 降低側邊欄的 z-index */
+            z-index: 100;
             padding-top: 60px;
         }
 
         .sidebar.collapsed {
             width: 60px;
+        }
+
+        .sidebar.collapsed .menu-item i {
+            margin-right: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 20px;
+        }
+
+        .sidebar.collapsed .menu-item.has-submenu:after {
+            display: none;
+        }
+
+        /* 縮合時的子選單樣式 */
+        .sidebar.collapsed .submenu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            width: 200px;
+            background: #2c3e50;
+            display: none;
+            margin-left: 0;
+            border-radius: 0 4px 4px 0;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+        }
+
+        .sidebar.collapsed .menu-item.has-submenu {
+            position: relative;
+        }
+
+        .sidebar.collapsed .menu-item.has-submenu:hover .submenu {
+            display: block;
+        }
+
+        .sidebar.collapsed .submenu .menu-item {
+            padding: 10px 15px;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            display: none;
+        }
+
+        .sidebar.collapsed .menu-group-title {
+            display: none;
         }
 
         .sidebar-toggle {
@@ -81,8 +125,41 @@
             text-align: center;
         }
 
+        /* 新增：子選單樣式 */
+        .submenu {
+            margin-left: 20px;
+            display: none;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item.has-submenu {
+            position: relative;
+        }
+
+        .menu-item.has-submenu:after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            transition: transform 0.3s ease;
+        }
+
+        .menu-item.has-submenu.active:after {
+            transform: rotate(180deg);
+        }
+
+        .menu-item.has-submenu.active + .submenu {
+            display: block;
+        }
+
+        .submenu .menu-item {
+            padding-left: 30px;
+            font-size: 0.95em;
+        }
+
         .sidebar.collapsed .menu-item span,
-        .sidebar.collapsed .menu-group-title {
+        .sidebar.collapsed .menu-group-title,
+        .sidebar.collapsed .submenu {
             display: none;
         }
 
@@ -973,27 +1050,43 @@
     <!-- 功能群組 -->
     <div class="menu-group">
         <div class="menu-group-title">功能選單</div>
-        <a class="menu-item" id="btnScoreSettings">
-            <i>⚙️</i><span>分數按鈕設定</span>
+        <!-- 管理功能子選單 -->
+        <a class="menu-item has-submenu" id="btnManage">
+            <i>⚙️</i><span>管理功能</span>
         </a>
-        <a class="menu-item" id="btnClassManage">
-            <i>📝</i><span>班級管理</span>
-        </a>
-        <a class="menu-item" id="btnAddStudent">
-            <i>➕</i><span>新增學生</span>
-        </a>
+        <div class="submenu" id="manageSubmenu">
+            <a class="menu-item" id="btnScoreSettings">
+                <i>📊</i><span>分數按鈕設定</span>
+            </a>
+            <a class="menu-item" id="btnClassManage">
+                <i>📝</i><span>班級管理</span>
+            </a>
+            <a class="menu-item" id="btnAddStudent">
+                <i>➕</i><span>新增學生</span>
+            </a>
+        </div>
         <a class="menu-item" id="btnWheel">
             <i>🎡</i><span>輪轉盤</span>
-        </a>
-        <a class="menu-item" id="btnExportCSV">
-            <i>📤</i><span>匯出 CSV</span>
-        </a>
-        <a class="menu-item" id="btnImportCSV">
-            <i>📥</i><span>匯入 CSV</span>
         </a>
         <a class="menu-item" id="btnHelp">
             <i>❓</i><span>使用說明</span>
         </a>
+    </div>
+
+    <!-- 資料管理群組 -->
+    <div class="menu-group">
+        <div class="menu-group-title">資料管理</div>
+        <a class="menu-item has-submenu" id="btnDataManage">
+            <i>📁</i><span>CSV 資料</span>
+        </a>
+        <div class="submenu" id="dataSubmenu">
+            <a class="menu-item" id="btnExportCSV">
+                <i>📤</i><span>匯出 CSV</span>
+            </a>
+            <a class="menu-item" id="btnImportCSV">
+                <i>📥</i><span>匯入 CSV</span>
+            </a>
+        </div>
     </div>
 
     <!-- 同步狀態 -->
@@ -1831,6 +1924,16 @@
             if(checkIfUpdating()){ evt.target.value=currentClass; return; }
             currentClass=evt.target.value;
             renderStudents();
+        });
+
+        // 管理功能子選單切換
+        document.getElementById("btnManage").addEventListener("click", function() {
+            this.classList.toggle("active");
+        });
+
+        // 資料管理子選單切換
+        document.getElementById("btnDataManage").addEventListener("click", function() {
+            this.classList.toggle("active");
         });
 
         // CSV 匯入
