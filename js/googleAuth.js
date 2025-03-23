@@ -2,7 +2,8 @@
 import { 
     showMainButtons, hideMainButtons, markSynced, markDirty,
     showLoginChoice, closeLoginChoice, backToLoginChoice,
-    showLoginProcessingOverlay, hideLoginProcessingOverlay
+    showLoginProcessingOverlay, hideLoginProcessingOverlay,
+    showToast
 } from './utils.js';
 import { loadDriveFile } from './googleDrive.js';
 
@@ -29,21 +30,32 @@ export function initGoogleAuth() {
     
     // 從 localStorage 中恢復 token
     accessToken = localStorage.getItem("googleAccessToken") || null;
-    isGoogleSignedIn = !!accessToken;
     
-    // 更新 UI 顯示狀態
-    updateLoginButtonsDisplay();
-    
-    if (isGoogleSignedIn) {
-        console.log('發現已保存的 Google 登入狀態');
-        markSynced();
-        loadClassesFromDrive();
-        setupActivityListeners();
-        resetInactivityTimer();
-    } else {
-        console.log('未發現已保存的 Google 登入狀態，顯示登入選項');
-        showLoginChoice();
-    }
+    // 更嚴謹的登入狀態驗證
+    validateToken().then(isValid => {
+        isGoogleSignedIn = isValid;
+        
+        // 更新 UI 顯示狀態
+        updateLoginButtonsDisplay();
+        
+        if (isGoogleSignedIn) {
+            console.log('發現有效的 Google 登入狀態');
+            showToast("已自動登入 Google 帳號", "success");
+            markSynced();
+            loadClassesFromDrive();
+            setupActivityListeners();
+            resetInactivityTimer();
+        } else if (accessToken) {
+            // Token 存在但無效
+            console.log('發現無效的 Google 登入狀態，刪除本地 Token');
+            localStorage.removeItem("googleAccessToken");
+            accessToken = null;
+            showLoginChoice();
+        } else {
+            console.log('未發現已保存的 Google 登入狀態，顯示登入選項');
+            showLoginChoice();
+        }
+    });
     
     // 初始化 Google 認證客戶端
     tokenClient = google.accounts.oauth2.initTokenClient({
@@ -54,6 +66,7 @@ export function initGoogleAuth() {
                 console.error('Google 認證失敗:', resp.error);
                 hideLoginProcessingOverlay();
                 localStorage.removeItem("googleAccessToken");
+                showToast("Google 登入失敗，請重試", "error");
                 backToLoginChoice();
             } else {
                 // 認證成功
@@ -65,6 +78,7 @@ export function initGoogleAuth() {
                 
                 // 更新 UI 顯示狀態
                 updateLoginButtonsDisplay();
+                showToast("Google 登入成功", "success");
                 markSynced();
                 loadClassesFromDrive();
                 setupActivityListeners();
@@ -149,9 +163,11 @@ export function signOut(callback) {
  */
 export function handleLogout() {
     if (!accessToken) {
-        alert("尚未登入");
+        showToast("您尚未登入", "info");
         return;
     }
+    
+    showToast("正在登出...", "info");
     
     stopAutoSyncTimer();
     if (inactivityTimer) {
@@ -162,6 +178,7 @@ export function handleLogout() {
         console.log("已登出");
         hideMainButtons();
         updateLoginButtonsDisplay();
+        showToast("已成功登出 Google 帳號", "success");
         backToLoginChoice();
     });
 }
@@ -308,6 +325,27 @@ function stopAutoSyncTimer() {
 function markUpdating() {
     if (window.markUpdating) {
         window.markUpdating();
+    }
+}
+
+/**
+ * 驗證 Token 是否有效
+ * @returns {Promise<boolean>} Token 是否有效
+ */
+async function validateToken() {
+    if (!accessToken) return false;
+    
+    try {
+        // 嘗試使用 token 進行簡單的 API 調用
+        const response = await fetch(
+            'https://www.googleapis.com/drive/v3/about?fields=user',
+            { headers: { "Authorization": `Bearer ${accessToken}` } }
+        );
+        
+        return response.ok;
+    } catch (err) {
+        console.error('Token 驗證失敗:', err);
+        return false;
     }
 }
 

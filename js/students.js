@@ -2,7 +2,8 @@ import { getIsSignedIn } from './googleAuth.js';
 import { loadDriveFile, saveDriveFile, uploadImageToDrive, getImageUrlFromDrive, getAllImages, deleteFile } from './googleDrive.js';
 import { imageMap, genderImageLabels, getSelectedImage, setSelectedImage,
     checkIfUpdating, markDirty, markUpdating, markSynced,
-    showSyncOverlay, hideSyncOverlay } from './utils.js';
+    showSyncOverlay, hideSyncOverlay,
+    showToast } from './utils.js';
 
 // 全域狀態
 let classes = JSON.parse(localStorage.getItem("classes")) || { 
@@ -106,7 +107,7 @@ function initUI() {
 
     // 管理選單
     document.getElementById("btnClassManage").addEventListener("click", showClassPopup);
-    document.getElementById("btnAddStudent").addEventListener("click", () => showPopup(-1));
+    document.getElementById("btnAddStudent").addEventListener("click", () => showPopup('add'));
 
     // 功能選單
     document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
@@ -122,6 +123,14 @@ function initUI() {
 export function getStudents() {
     if (!classes[currentClass]) classes[currentClass] = [];
     return classes[currentClass];
+}
+
+/**
+ * 取得當前班級物件
+ * @returns {Object} 班級物件
+ */
+export function getCurrentClass() {
+    return { name: currentClass, students: getStudents() };
 }
 
 /**
@@ -247,7 +256,16 @@ function handleDrop(e) {
  */
 export function editStudent(idx) {
     if (checkIfUpdating()) return;
-    showPopup(idx);
+    
+    // 獲取學生數據
+    const students = getStudents();
+    if (idx < 0 || idx >= students.length) {
+        showToast('找不到要編輯的學生', 'error');
+        return;
+    }
+    
+    // 傳遞正確的模式和學生對象
+    showPopup('edit', {idx: idx, ...students[idx]});
 }
 
 /**
@@ -256,11 +274,26 @@ export function editStudent(idx) {
  */
 export function deleteStudent(idx) {
     if (checkIfUpdating()) return;
-    if (!confirm("確定要刪除這位學生嗎？")) return;
-    let arr = getStudents();
-    arr.splice(idx, 1);
+    
+    let students = getStudents();
+    if (idx < 0 || idx >= students.length) {
+        showToast('找不到要刪除的學生', 'error');
+        return;
+    }
+    
+    const student = students[idx];
+    if (!confirm(`確定要刪除學生「${student.name}」嗎？此操作無法恢復。`)) {
+        return;
+    }
+    
+    students.splice(idx, 1);
+    
+    // 更新班級資料並儲存
     saveClassesLocal();
+    
+    localStorage.setItem('students', JSON.stringify(students));
     renderStudents();
+    showToast(`已刪除學生：${student.name}`, 'success');
     markDirty();
 }
 
@@ -307,26 +340,47 @@ async function handleCustomImageUpload(evt) {
 
     // 檢查檔案類型
     if (!file.type.startsWith('image/')) {
-        alert('請上傳圖片檔案');
+        showToast('請上傳圖片檔案', 'error');
         return;
     }
 
     // 檢查檔案大小（限制為 5MB）
     if (file.size > 5 * 1024 * 1024) {
-        alert('圖片大小不能超過 5MB');
+        showToast('圖片大小不能超過 5MB', 'error');
         return;
     }
 
     // 檢查是否已登入 Google
     if (!getIsSignedIn()) {
-        alert('請先登入 Google 帳號才能上傳圖片');
+        showToast('請先登入 Google 帳號才能上傳圖片', 'error');
         return;
     }
 
     try {
         // 顯示上傳中的提示
         const preview = document.getElementById('customImagePreview');
-        preview.innerHTML = '<p>圖片上傳中...</p>';
+        preview.innerHTML = `
+            <div class="upload-progress-container">
+                <div class="upload-progress-bar" id="uploadProgressBar"></div>
+                <div class="upload-progress-text" id="uploadProgressText">準備上傳...</div>
+            </div>
+        `;
+
+        // 顯示上傳開始通知
+        showToast('圖片上傳中...', 'info');
+        
+        // 模擬上傳進度
+        let progress = 0;
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
+        
+        const progressInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += 5;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `上傳中 ${progress}%`;
+            }
+        }, 200);
 
         // 上傳到 Google Drive
         const fileId = await uploadImageToDrive(file);
@@ -336,31 +390,41 @@ async function handleCustomImageUpload(evt) {
         const imageUrl = getImageUrlFromDrive(fileId);
         customImageData = imageUrl;
         
-        // 更新預覽
-        preview.innerHTML = `
-            <img src="${imageUrl}" alt="自訂圖片">
-            <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
-        `;
+        // 清除進度間隔
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressText.textContent = '上傳完成 100%';
         
-        // 添加移除圖片按鈕事件
-        document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
-        
-        // 取消選擇預設圖片
-        document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
-        setSelectedImage("");
+        // 短暫延遲後更新預覽
+        setTimeout(() => {
+            preview.innerHTML = `
+                <img src="${imageUrl}" alt="自訂圖片">
+                <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
+            `;
+            
+            // 添加移除圖片按鈕事件
+            document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
+            
+            // 取消選擇預設圖片
+            document.querySelectorAll(".image-preview img").forEach(x => x.classList.remove("selected"));
+            setSelectedImage("");
 
-        // 更新已上傳圖片集合
-        uploadedImages.add(JSON.stringify({
-            url: imageUrl,
-            id: fileId
-        }));
-        
-        // 更新已上傳圖片區域
-        updateUploadedImagesSection();
+            // 更新已上傳圖片集合
+            uploadedImages.add(JSON.stringify({
+                url: imageUrl,
+                id: fileId
+            }));
+            
+            // 更新已上傳圖片區域
+            updateUploadedImagesSection();
+            
+            // 顯示成功通知
+            showToast('圖片上傳成功', 'success');
+        }, 500);
     } catch (err) {
         console.error('圖片上傳失敗:', err);
-        alert('圖片上傳失敗，請稍後再試');
-        preview.innerHTML = '';
+        showToast('圖片上傳失敗，請稍後再試', 'error');
+        document.getElementById('customImagePreview').innerHTML = '';
     }
 }
 
@@ -441,7 +505,7 @@ window.customAdjust = customAdjust;
 window.clearCustomImage = clearCustomImage;
 
 // 添加新增/編輯學生功能，這些會在另一個檔案中繼續補充
-export function showPopup(idx = -1) {
+export function showPopup(mode = 'add', student = null) {
     if (checkIfUpdating()) return;
 
     document.getElementById("overlay").classList.add("show");
@@ -451,40 +515,46 @@ export function showPopup(idx = -1) {
     let genderField = document.getElementById("studentGender");
     let scoreField = document.getElementById("studentScore");
     
-    editIndex = idx;
-    customImageData = null;
-    customImageFileId = null;
+    // 初始化值
+    editIndex = student ? student.idx : -1;
+    customImageData = student ? student.customImage : null;
+    customImageFileId = student ? student.id : null;
     document.getElementById("customImagePreview").innerHTML = "";
     document.getElementById("customImageUpload").value = "";
     
-    if (idx === -1) {
+    if (mode === 'add') {
         // 新增模式
         document.getElementById("popupTitle").textContent = "新增學生";
         nameField.value = "";
         genderField.value = "男";
         scoreField.value = "0";
         setSelectedImage("");
-    } else {
+    } else if (mode === 'edit' && student) {
         // 編輯模式
         document.getElementById("popupTitle").textContent = "編輯學生";
-        let arr = getStudents();
-        let st = arr[idx];
-        nameField.value = st.name;
-        genderField.value = st.gender;
-        scoreField.value = st.score;
+        nameField.value = student.name || "";
+        genderField.value = student.gender || "男";
+        scoreField.value = student.score || "0";
         
         // 設置自訂圖片或已選圖片
-        if (st.customImage) {
-            customImageData = st.customImage;
+        if (student.customImage) {
+            customImageData = student.customImage;
             document.getElementById("customImagePreview").innerHTML = `
-                <img src="${st.customImage}" alt="自訂圖片">
+                <img src="${student.customImage}" alt="自訂圖片">
                 <button id="removeCustomImgBtn" style="display:block; margin:5px auto; background:#ff4d4d;">移除自訂圖片</button>
             `;
             // 添加移除圖片按鈕事件
             document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
         } else {
-            setSelectedImage(st.imageLabel);
+            setSelectedImage(student.imageLabel || "");
         }
+    } else {
+        // 處理無效情況
+        document.getElementById("popupTitle").textContent = "新增學生";
+        nameField.value = "";
+        genderField.value = "男";
+        scoreField.value = "0";
+        setSelectedImage("");
     }
     
     // 更新性別對應的圖片預覽
@@ -493,6 +563,9 @@ export function showPopup(idx = -1) {
     
     // 更新已上傳圖片區域
     updateUploadedImagesSection();
+    
+    // 初始化拖放上傳功能
+    initDragDropUpload();
 }
 
 export function closePopup() {
@@ -502,34 +575,57 @@ export function closePopup() {
 }
 
 export function saveStudent() {
-    let name = document.getElementById("studentName").value.trim();
-    let gender = document.getElementById("studentGender").value;
-    let score = parseInt(document.getElementById("studentScore").value) || 0;
+    const nameField = document.getElementById("studentName");
+    const scoreField = document.getElementById("studentScore");
+    const genderField = document.getElementById("studentGender");
     
-    if (!name) {
-        alert("請輸入姓名");
+    // 表單驗證
+    if (!nameField.value.trim()) {
+        nameField.classList.add('error');
+        showToast('請輸入學生姓名', 'error');
+        nameField.focus();
         return;
+    } else {
+        nameField.classList.remove('error');
     }
     
-    const student = {
-        name: name,
-        gender: gender,
-        score: score,
-        imageLabel: getSelectedImage() || genderImageLabels[gender][0],
-        customImage: customImageData
+    if (!scoreField.value || scoreField.value < 0) {
+        scoreField.classList.add('error');
+        showToast('請輸入有效的分數', 'error');
+        scoreField.focus();
+        return;
+    } else {
+        scoreField.classList.remove('error');
+    }
+    
+    // 取得已選擇的圖片
+    let imageSrc = getSelectedImage();
+    let student = {
+        name: nameField.value,
+        score: parseInt(scoreField.value, 10),
+        gender: genderField.value,
+        image: imageSrc,
+        customImage: customImageData,
+        customImageId: customImageFileId
     };
     
-    let arr = getStudents();
+    let students = getStudents();
     
     if (editIndex === -1) {
         // 新增模式
-        arr.push(student);
+        students.push(student);
+        showToast(`已新增學生：${student.name}`, 'success');
     } else {
         // 編輯模式
-        arr[editIndex] = student;
+        students[editIndex] = student;
+        showToast(`已更新學生：${student.name}`, 'success');
     }
     
+    localStorage.setItem('students', JSON.stringify(students));
+    
+    // 直接更新班級資料並儲存
     saveClassesLocal();
+    
     closePopup();
     renderStudents();
     markDirty();
@@ -588,11 +684,19 @@ export function closeClassPopup() {
 }
 
 export function addClassPrompt() {
-    let newClassName = prompt("請輸入新班級名稱：").trim();
-    if (!newClassName) return;
+    const result = prompt("請輸入新班級名稱：");
+    
+    // 檢查 result 是否為 null（用戶點擊取消）或空字串
+    if (!result) return;
+    
+    const newClassName = result.trim();
+    if (!newClassName) {
+        showToast("班級名稱不能為空", "error");
+        return;
+    }
     
     if (classes[newClassName]) {
-        alert("班級已存在");
+        showToast("班級已存在", "error");
         return;
     }
     
@@ -603,6 +707,7 @@ export function addClassPrompt() {
     renderStudents();
     showClassPopup(); // 重新整理班級列表
     markDirty();
+    showToast(`已建立新班級：${newClassName}`, "success");
 }
 
 // CSV 匯入匯出相關函數
@@ -939,4 +1044,61 @@ export function deleteClass(className) {
     
     showClassPopup(); // 重新整理班級列表
     markDirty();
+}
+
+// 初始化拖放上傳
+function initDragDropUpload() {
+    const dropArea = document.getElementById('customImagePreview');
+    if (!dropArea) return;
+    
+    const preventDefaults = e => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+    
+    const highlight = () => {
+        dropArea.classList.add('highlight');
+    };
+    
+    const unhighlight = () => {
+        dropArea.classList.remove('highlight');
+    };
+    
+    const handleDrop = e => {
+        preventDefaults(e);
+        unhighlight();
+        
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files && files.length) {
+            const file = files[0];
+            
+            // 創建一個虛擬的 file input change 事件
+            const mockEvent = {
+                target: { files: [file] }
+            };
+            
+            handleCustomImageUpload(mockEvent);
+        }
+    };
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    // 添加提示文字
+    if (dropArea.childElementCount === 0) {
+        dropArea.innerHTML = '<div class="drop-area-hint">拖放圖片至此上傳<br>或點擊「上傳自訂圖片」按鈕</div>';
+    }
 } 

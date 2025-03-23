@@ -358,4 +358,52 @@ export function setupESCKeyHandler() {
             }
         }
     });
+}
+
+// Toast 通知系統
+/**
+ * 顯示Toast消息
+ * @param {string} message - 顯示的消息
+ * @param {string} type - 消息類型: 'success', 'error', 'info'
+ * @param {number} duration - 顯示時間(毫秒)
+ */
+export function showToast(message, type = 'info', duration = 3000) {
+    // 確保 toast-container 存在
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    // 創建 toast 元素
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    // 添加圖標
+    let icon = '';
+    if (type === 'success') icon = '✓';
+    else if (type === 'error') icon = '✗';
+    else if (type === 'info') icon = 'ℹ';
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-message">${message}</div>
+    `;
+    
+    // 添加到容器
+    container.appendChild(toast);
+    
+    // 動畫效果
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // 自動移除
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.addEventListener('transitionend', () => {
+            toast.remove();
+        });
+    }, duration);
 } 
