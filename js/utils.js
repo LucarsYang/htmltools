@@ -366,13 +366,69 @@ export function showMainButtons() {
  * 登入選擇視窗相關函數
  */
 export function showLoginChoice() {
-    document.getElementById("loginOverlay").classList.add("show");
-    document.getElementById("loginPopup").classList.add("show");
+    const loginOverlay = document.getElementById("loginOverlay");
+    const loginPopup = document.getElementById("loginPopup");
+    
+    // 強制設置樣式以解決iPad上的顯示問題
+    loginOverlay.style.display = "block";
+    loginOverlay.style.opacity = "1";
+    loginPopup.style.display = "block";
+    loginPopup.style.opacity = "1";
+    loginPopup.style.transform = "translate(-50%,-50%) scale(1)";
+    
+    // 然後再添加show類，確保CSS轉換效果正常
+    loginOverlay.classList.add("show");
+    loginPopup.classList.add("show");
+    
+    // 確保登入按鈕可點擊
+    const btnLoginNow = document.getElementById("btnLoginNow");
+    const btnOffline = document.getElementById("btnOffline");
+    
+    if (btnLoginNow) {
+        // 移除先前的監聽器，避免重複綁定
+        btnLoginNow.removeEventListener("click", handleLoginClick);
+        btnLoginNow.addEventListener("click", handleLoginClick);
+    }
+    
+    if (btnOffline) {
+        // 移除先前的監聽器，避免重複綁定
+        btnOffline.removeEventListener("click", handleOfflineClick);
+        btnOffline.addEventListener("click", handleOfflineClick);
+    }
+}
+
+// 新增的處理函數
+function handleLoginClick() {
+    closeLoginChoice();
+    showMainButtons();
+    markDirty();
+    showLoginProcessingOverlay();
+    // 直接導入並調用來解決可能的作用域問題
+    import('./googleAuth.js').then(module => {
+        module.signIn();
+    });
+}
+
+function handleOfflineClick() {
+    closeLoginChoice();
+    showMainButtons();
+    markDirty();
+    alert("離線模式啟用，之後登入Google可能覆蓋資料。");
 }
 
 export function closeLoginChoice() {
-    document.getElementById("loginOverlay").classList.remove("show");
-    document.getElementById("loginPopup").classList.remove("show");
+    const loginOverlay = document.getElementById("loginOverlay");
+    const loginPopup = document.getElementById("loginPopup");
+    
+    // 先移除show類
+    loginOverlay.classList.remove("show");
+    loginPopup.classList.remove("show");
+    
+    // 延遲隱藏元素，確保過渡動畫顯示完全
+    setTimeout(() => {
+        loginOverlay.style.display = "none";
+        loginPopup.style.display = "none";
+    }, 300);
 }
 
 export function backToLoginChoice() {
@@ -384,13 +440,34 @@ export function backToLoginChoice() {
  * 登入處理中視窗相關函數
  */
 export function showLoginProcessingOverlay() {
-    document.getElementById("loginProcessingOverlay").classList.add("show");
-    document.getElementById("loginProcessingPopup").classList.add("show");
+    const overlay = document.getElementById("loginProcessingOverlay");
+    const popup = document.getElementById("loginProcessingPopup");
+    
+    // 強制設置樣式以解決iPad上的顯示問題
+    overlay.style.display = "block";
+    overlay.style.opacity = "1";
+    popup.style.display = "block";
+    popup.style.opacity = "1";
+    popup.style.transform = "translate(-50%,-50%) scale(1)";
+    
+    // 然後再添加show類，確保CSS轉換效果正常
+    overlay.classList.add("show");
+    popup.classList.add("show");
 }
 
 export function hideLoginProcessingOverlay() {
-    document.getElementById("loginProcessingOverlay").classList.remove("show");
-    document.getElementById("loginProcessingPopup").classList.remove("show");
+    const overlay = document.getElementById("loginProcessingOverlay");
+    const popup = document.getElementById("loginProcessingPopup");
+    
+    // 先移除show類
+    overlay.classList.remove("show");
+    popup.classList.remove("show");
+    
+    // 延遲隱藏元素，確保過渡動畫顯示完全
+    setTimeout(() => {
+        overlay.style.display = "none";
+        popup.style.display = "none";
+    }, 300);
 }
 
 /**

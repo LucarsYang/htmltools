@@ -1,36 +1,15 @@
 // main.js - 主程式入口
 import { initGoogleAuth, getIsSignedIn } from './googleAuth.js';
 import { initStudents } from './students.js';
-import { attachSidebarToggle, setupGlobalKeyboardHandler } from './utils.js';
+import { attachSidebarToggle, setupGlobalKeyboardHandler, showToast } from './utils.js';
 import { initWheelSpinner, setResultCallback } from './wheelSpinner.js';
 
 // 當頁面載入完成後執行
 window.addEventListener('DOMContentLoaded', () => {
     console.log('DOM 載入完成，開始初始化應用程式');
     
-    // 初始化側邊欄切換功能
-    attachSidebarToggle();
-    
-    // 初始化 Google 身份驗證功能
-    initGoogleAuth();
-    
-    // 初始化學生管理模組
-    initStudents();
-    
-    // 初始化新的側邊欄功能
-    initSidebarFunctions();
-    
-    // 初始化輪轉盤功能
-    initWheelSpinner();
-    
-    // 設置全局鍵盤事件處理
-    setupGlobalKeyboardHandler();
-    
-    // 確保登入按鈕狀態正確更新
-    updateLoginButtonsState();
-    
-    // 設置輪轉盤結果回調函數
-    setupWheelResultCallback();
+    // 初始化應用程式，增加錯誤處理
+    initApp();
 });
 
 // 確保登入按鈕狀態正確更新
@@ -166,4 +145,85 @@ function showHelpPopup(tabType) {
         document.getElementById('helpOverlay').classList.remove('show');
         document.getElementById('helpPopup').classList.remove('show');
     });
+}
+
+/**
+ * 初始化應用程式，增加錯誤處理和重試機制
+ */
+function initApp() {
+    try {
+        // 初始化側邊欄切換功能
+        attachSidebarToggle();
+        
+        // 初始化學生管理模組
+        initStudents();
+        
+        // 初始化新的側邊欄功能
+        initSidebarFunctions();
+        
+        // 初始化輪轉盤功能
+        initWheelSpinner();
+        
+        // 設置全局鍵盤事件處理
+        setupGlobalKeyboardHandler();
+        
+        // 設置輪轉盤結果回調函數
+        setupWheelResultCallback();
+        
+        // 添加可見性變更處理，處理平板瀏覽器可能的後台休眠問題
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        
+        // 專門處理 Google API 初始化
+        safeInitGoogleAuth();
+    } catch (error) {
+        console.error('應用程式初始化錯誤:', error);
+        showToast('應用程式初始化出現問題，部分功能可能無法使用', 'error');
+    }
+}
+
+/**
+ * 安全地初始化 Google 身份驗證
+ */
+function safeInitGoogleAuth() {
+    try {
+        // 初始化 Google 身份驗證功能
+        initGoogleAuth();
+        
+        // 確保登入按鈕狀態正確更新
+        updateLoginButtonsState();
+    } catch (error) {
+        console.error('Google 身份驗證初始化錯誤:', error);
+        setTimeout(() => {
+            // 嘗試延遲重新初始化
+            console.log('嘗試重新初始化 Google 身份驗證...');
+            try {
+                initGoogleAuth();
+                updateLoginButtonsState();
+            } catch (retryError) {
+                console.error('重新初始化 Google 身份驗證失敗:', retryError);
+            }
+        }, 2000);
+    }
+}
+
+/**
+ * 處理頁面可見性變更
+ */
+function handleVisibilityChange() {
+    if (!document.hidden) {
+        console.log('頁面重新獲得焦點，檢查狀態...');
+        // 延遲執行以確保瀏覽器已完全恢復
+        setTimeout(() => {
+            // 頁面重新獲得焦點時，檢查 Google API 狀態
+            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+                console.log('頁面重新獲得焦點後，發現 Google API 不可用，嘗試重新初始化');
+                // 如果頁面被重新聚焦，且Google API丟失，嘗試重新載入
+                location.reload();
+            } else {
+                console.log('頁面重新獲得焦點，Google API 狀態正常');
+                // 可選：更新登入按鈕狀態
+                updateLoginButtonsState();
+            }
+        }, 1000);
+    }
 } 

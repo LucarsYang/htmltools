@@ -148,6 +148,9 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
+    min-height: 44px;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    -webkit-touch-callout: none;
 }
 
 .primary-btn {
@@ -452,4 +455,32 @@
     display: flex;
     gap: 10px;
     margin-top: 15px;
+}
+
+/* 針對觸控設備的額外樣式 */
+@media (pointer: coarse) {
+    .primary-btn, .secondary-btn, .warning-btn, .danger-btn {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+    
+    .popup-content {
+        padding: 24px;
+    }
+    
+    .close-btn {
+        font-size: 28px;
+        padding: 8px;
+        margin: -8px;
+    }
+    
+    .login-popup.show, .popup.show, .class-popup.show,
+    .login-processing-popup.show, .sync-popup.show,
+    .help-popup.show {
+        -webkit-transform: translate(-50%,-50%) scale(1);
+        transform: translate(-50%,-50%) scale(1);
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: manipulation;
+    }
 } 
