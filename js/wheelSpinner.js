@@ -101,17 +101,42 @@ function showWheelPopup() {
     document.getElementById('wheelPopup').classList.add('show');
     
     // 添加方向標記
-    const wheelContainer = document.querySelector('.wheel-container');
-    if (wheelContainer && !document.getElementById('wheelMarker')) {
-        const marker = document.createElement('div');
-        marker.id = 'wheelMarker';
-        marker.className = 'wheel-marker';
-        wheelContainer.appendChild(marker);
-    }
+    createOrUpdateMarker();
     
     if (!isWheelInitialized) {
         drawWheel();
         isWheelInitialized = true;
+    }
+}
+
+/**
+ * 創建或更新輪轉盤方向標記
+ */
+function createOrUpdateMarker() {
+    const wheelContainer = document.querySelector('.wheel-container');
+    if (!wheelContainer) return;
+    
+    let marker = document.getElementById('wheelMarker');
+    if (!marker) {
+        marker = document.createElement('div');
+        marker.id = 'wheelMarker';
+        marker.className = 'wheel-marker';
+        
+        // 添加脈動動畫效果
+        marker.style.animation = 'pulse 1.5s infinite';
+        
+        // 添加CSS動畫
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0% { opacity: 0.7; transform: translateX(-50%) scale(0.9); }
+                50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+                100% { opacity: 0.7; transform: translateX(-50%) scale(0.9); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        wheelContainer.appendChild(marker);
     }
 }
 
