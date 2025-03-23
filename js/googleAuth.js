@@ -21,6 +21,8 @@ let isGoogleSignedIn = false;
 // 自動檢查相關變數
 let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60; // 60秒
+const MAX_RETRY_ATTEMPTS = 3;
+let retryCount = 0;
 
 /**
  * 初始化 Google 身份驗證
@@ -30,6 +32,13 @@ export function initGoogleAuth() {
     
     // 從 localStorage 中恢復 token
     accessToken = localStorage.getItem("googleAccessToken") || null;
+    
+    // 確保 Google API 已載入
+    if (typeof google === 'undefined') {
+        console.error('Google API 尚未載入');
+        showToast("無法載入 Google 登入服務，請確認網路連線", "error");
+        return;
+    }
     
     // 更嚴謹的登入狀態驗證
     validateToken().then(isValid => {
@@ -58,58 +67,122 @@ export function initGoogleAuth() {
     });
     
     // 初始化 Google 認證客戶端
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (resp) => {
-            if (resp.error) {
-                console.error('Google 認證失敗:', resp.error);
-                hideLoginProcessingOverlay();
-                localStorage.removeItem("googleAccessToken");
-                showToast("Google 登入失敗，請重試", "error");
-                backToLoginChoice();
-            } else {
-                // 認證成功
-                console.log('Google 認證成功');
-                accessToken = resp.access_token;
-                localStorage.setItem("googleAccessToken", accessToken);
-                isGoogleSignedIn = true;
-                hideLoginProcessingOverlay();
-                
-                // 更新 UI 顯示狀態
-                updateLoginButtonsDisplay();
-                showToast("Google 登入成功", "success");
-                markSynced();
-                loadClassesFromDrive();
-                setupActivityListeners();
-                resetInactivityTimer();
-            }
-        }
-    });
+    try {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            prompt: 'consent',  // 總是顯示同意畫面
+            callback: handleAuthResponse
+        });
+    } catch (error) {
+        console.error('初始化 Google 認證客戶端失敗:', error);
+        showToast("Google 登入服務初始化失敗，請重新整理頁面", "error");
+    }
     
     // 註冊登入和登出按鈕的事件處理
-    document.getElementById("login-btn").addEventListener("click", () => {
-        showLoginProcessingOverlay();
-        signIn();
-    });
+    setupLoginButtons();
+}
+
+/**
+ * 處理認證回應
+ */
+function handleAuthResponse(resp) {
+    if (resp.error) {
+        console.error('Google 認證失敗:', resp.error);
+        handleAuthError(resp.error);
+    } else {
+        // 認證成功
+        console.log('Google 認證成功');
+        handleAuthSuccess(resp);
+    }
+}
+
+/**
+ * 處理認證錯誤
+ */
+function handleAuthError(error) {
+    hideLoginProcessingOverlay();
+    localStorage.removeItem("googleAccessToken");
     
-    document.getElementById("logout-btn").addEventListener("click", handleLogout);
+    if (retryCount < MAX_RETRY_ATTEMPTS) {
+        retryCount++;
+        console.log(`嘗試重新認證 (${retryCount}/${MAX_RETRY_ATTEMPTS})`);
+        setTimeout(signIn, 1000);
+        return;
+    }
     
-    // 登入選擇視窗的按鈕事件
-    document.getElementById("btnLoginNow").addEventListener("click", () => {
-        closeLoginChoice();
-        showMainButtons();
-        markDirty();
-        showLoginProcessingOverlay();
-        signIn();
-    });
+    retryCount = 0;
+    let errorMessage = "Google 登入失敗";
     
-    document.getElementById("btnOffline").addEventListener("click", () => {
-        closeLoginChoice();
-        showMainButtons();
-        markDirty();
-        alert("離線模式啟用，之後登入Google可能覆蓋資料。");
-    });
+    if (error.includes("popup_closed_by_user")) {
+        errorMessage = "登入視窗被關閉，請重試";
+    } else if (error.includes("access_denied")) {
+        errorMessage = "您已拒絕授權，請重試";
+    } else if (error.includes("network")) {
+        errorMessage = "網路連線異常，請檢查網路後重試";
+    }
+    
+    showToast(errorMessage, "error");
+    backToLoginChoice();
+}
+
+/**
+ * 處理認證成功
+ */
+function handleAuthSuccess(resp) {
+    accessToken = resp.access_token;
+    localStorage.setItem("googleAccessToken", accessToken);
+    isGoogleSignedIn = true;
+    hideLoginProcessingOverlay();
+    retryCount = 0;
+    
+    // 更新 UI 顯示狀態
+    updateLoginButtonsDisplay();
+    showToast("Google 登入成功", "success");
+    markSynced();
+    loadClassesFromDrive();
+    setupActivityListeners();
+    resetInactivityTimer();
+}
+
+/**
+ * 設置登入按鈕
+ */
+function setupLoginButtons() {
+    const loginBtn = document.getElementById("login-btn");
+    const logoutBtn = document.getElementById("logout-btn");
+    const btnLoginNow = document.getElementById("btnLoginNow");
+    const btnOffline = document.getElementById("btnOffline");
+    
+    if (loginBtn) {
+        loginBtn.addEventListener("click", () => {
+            showLoginProcessingOverlay();
+            signIn();
+        });
+    }
+    
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", handleLogout);
+    }
+    
+    if (btnLoginNow) {
+        btnLoginNow.addEventListener("click", () => {
+            closeLoginChoice();
+            showMainButtons();
+            markDirty();
+            showLoginProcessingOverlay();
+            signIn();
+        });
+    }
+    
+    if (btnOffline) {
+        btnOffline.addEventListener("click", () => {
+            closeLoginChoice();
+            showMainButtons();
+            markDirty();
+            alert("離線模式啟用，之後登入Google可能覆蓋資料。");
+        });
+    }
 }
 
 /**
