@@ -96,6 +96,8 @@ function initGoogleAuthAfterApiLoaded() {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
+            prompt_parent_id: 'loginPopup', // 指定登入視窗的父元素
+            ux_mode: 'popup',  // 使用彈出視窗模式
             callback: (resp) => {
                 if (resp.error) {
                     console.error('Google 認證失敗:', resp.error);
@@ -251,6 +253,9 @@ function updateLoginButtonsDisplay() {
 export function signIn() {
     if (!tokenClient) {
         console.warn("tokenClient未初始化");
+        hideLoginProcessingOverlay();
+        showToast("Google 登入初始化失敗，請重試", "error");
+        backToLoginChoice();
         return;
     }
     
@@ -259,8 +264,27 @@ export function signIn() {
         console.log('已經登入，無需重複登入');
         return;
     }
-    
-    tokenClient.requestAccessToken();
+
+    try {
+        // 檢查是否為移動設備
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // 移動設備使用 prompt 參數
+            tokenClient.requestAccessToken({
+                prompt: 'consent',
+                hint: 'mobile'
+            });
+        } else {
+            // 桌面設備正常請求
+            tokenClient.requestAccessToken();
+        }
+    } catch (error) {
+        console.error('Google 登入請求失敗:', error);
+        hideLoginProcessingOverlay();
+        showToast("Google 登入失敗，請重試", "error");
+        backToLoginChoice();
+    }
 }
 
 /**
