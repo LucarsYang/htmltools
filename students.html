@@ -2790,11 +2790,17 @@
     // 修改：渲染輪轉盤函數
     function renderWheel() {
         const items = isRewardWheel ? rewards : getStudents();
-        const noRepeat = document.getElementById("noRepeat").checked;
+        const noRepeat = document.getElementById("noRepeat")?.checked;
         const availableItems = noRepeat ? 
             (isRewardWheel ? items.filter(item => !selectedStudents.has(item)) : items.filter(s => !selectedStudents.has(s.name))) : 
             items;
         
+        if (!wheelCanvas || !wheelCtx) {
+            wheelCanvas = document.getElementById("wheelCanvas");
+            wheelCtx = wheelCanvas.getContext("2d");
+            if (!wheelCanvas || !wheelCtx) return;
+        }
+
         if (availableItems.length === 0) {
             wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
             wheelCtx.fillStyle = "#f5f5f5";
@@ -2964,6 +2970,20 @@
             return;
         }
 
+        // 隱藏其他元素
+        document.querySelector('.wheel-type-switch').style.display = 'none';
+        document.querySelector('.wheel-controls-container').style.display = 'none';
+        document.querySelector('.selected-students').style.display = 'none';
+        document.getElementById('rewardControls').style.display = 'none';
+        document.getElementById('wheelTitle').style.display = 'none';
+
+        // 調整輪轉盤容器大小
+        const wheelContainer = document.querySelector('.wheel-container');
+        wheelContainer.style.width = '90vh';
+        wheelContainer.style.height = '90vh';
+        wheelCanvas.width = wheelContainer.clientWidth;
+        wheelCanvas.height = wheelContainer.clientHeight;
+
         isSpinning = true;
         const spinDuration = 3000; // 3秒
         const startTime = Date.now();
@@ -3001,11 +3021,28 @@
                         selectedStudents.add(isRewardWheel ? selectedItem : selectedItem.name);
                         updateSelectedList();
                     }
+                    
+                    // 先顯示選中結果
                     alert(`選中：${isRewardWheel ? selectedItem : selectedItem.name}`);
-                    // 如果不是不重複模式，每次選完都重新渲染輪盤
-                    if (!noRepeat) {
+                    
+                    // 恢復其他元素的顯示
+                    document.querySelector('.wheel-type-switch').style.display = 'flex';
+                    document.querySelector('.wheel-controls-container').style.display = 'flex';
+                    document.querySelector('.selected-students').style.display = 'flex';
+                    document.getElementById('rewardControls').style.display = isRewardWheel ? 'block' : 'none';
+                    document.getElementById('wheelTitle').style.display = 'block';
+
+                    // 恢復輪轉盤容器的原始大小
+                    const wheelContainer = document.querySelector('.wheel-container');
+                    wheelContainer.style.width = '600px';
+                    wheelContainer.style.height = '600px';
+                    wheelCanvas.width = 600;
+                    wheelCanvas.height = 600;
+
+                    // 確保重新渲染輪轉盤
+                    setTimeout(() => {
                         renderWheel();
-                    }
+                    }, 0);
                 }
             }
         }
