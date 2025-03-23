@@ -436,7 +436,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0,0,0,0.5);
-            z-index: 1000;  /* 統一遮罩的 z-index */
+            z-index: 1000;
         }
 
         .wheel-popup {
@@ -446,181 +446,268 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 30px;
+            border-radius: 15px;
             text-align: center;
-            width: 400px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-            z-index: 1001;  /* 統一彈窗的 z-index */
-            transition: all 0.3s ease;
-        }
-
-        .wheel-popup.enlarged {
             width: 90%;
             max-width: 800px;
             height: 90vh;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 1001;
+        }
+
+        .wheel-popup.show {
             display: flex;
             flex-direction: column;
+            gap: 20px;
         }
 
-        .wheel-container {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 20px auto;
+        .wheel-overlay.show {
+            display: block;
+        }
+
+        .wheel-type-switch {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .wheel-type-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #f0f0f0;
             transition: all 0.3s ease;
+            font-size: 16px;
+            min-width: 120px;
         }
 
-        .wheel-popup.enlarged .wheel-container {
-            width: 600px;
-            height: 600px;
-            flex: 1;
-            margin: 10px auto;
-        }
-
-        .wheel-popup.enlarged #wheelCanvas {
-            width: 100%;
-            height: 100%;
+        .wheel-type-btn.active {
+            background: #4caf50;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .wheel-controls-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            margin: 10px 0;
+            gap: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 10px;
         }
 
         .wheel-left-controls, .wheel-right-controls {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
         }
 
-        #btnEnlargeWheel {
-            background: #9c27b0;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        #btnEnlargeWheel:hover {
-            opacity: 0.9;
-        }
-
-        .wheel-popup.enlarged .selected-students {
-            max-height: 30vh;
-            overflow-y: auto;
-        }
-
-        .wheel-popup.enlarged #selectedList {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            padding: 10px;
-        }
-
-        .wheel-popup.enlarged #selectedList li {
-            margin: 0;
-        }
-
-        .wheel-overlay.show,
-        .wheel-popup.show {
-            display: block;
-        }
-
-        .wheel-controls {
-            margin: 15px 0;
+        .wheel-left-controls label {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .wheel-left-controls input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin: 0 auto;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #wheelCanvas {
+            max-width: 100%;
+            max-height: 100%;
         }
 
         .wheel-pointer {
             position: absolute;
-            top: -20px;
+            top: -25px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 40px solid #ff4d4d;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 50px solid #ff4d4d;
             z-index: 2;
-        }
-
-        .wheel-buttons {
-            margin: 20px 0;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
         }
 
         .selected-students {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 200px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .selected-students h4 {
-            margin: 0 0 10px 0;
-            color: #666;
+            margin: 0;
+            color: #333;
+            font-size: 18px;
         }
 
         #selectedList {
-            max-height: 150px;
             overflow-y: auto;
-            text-align: left;
             padding: 10px;
-            background: #f5f5f5;
-            border-radius: 5px;
+            background: white;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 150px;
         }
 
         #selectedList li {
             list-style: none;
-            padding: 5px;
-            margin: 5px 0;
-            background: white;
-            border-radius: 3px;
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        #selectedList li:hover {
+            background: #e8e8e8;
         }
 
         #selectedList li button {
             background: #ff4d4d;
             color: white;
             border: none;
-            border-radius: 3px;
-            padding: 2px 8px;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
 
         #selectedList li button:hover {
             background: #ff3333;
+            transform: scale(1.1);
         }
 
-        .student-card .delete-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
+        #rewardControls {
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .reward-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .reward-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .reward-input button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #4caf50;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .reward-input button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .reward-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .reward-item {
+            background: #f0f0f0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .reward-item:hover {
+            background: #e8e8e8;
+        }
+
+        .reward-item button {
             background: #ff4d4d;
             color: white;
             border: none;
-            border-radius: 50%;
+            border-radius: 4px;
             width: 24px;
             height: 24px;
-            font-size: 16px;
             cursor: pointer;
+            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
+            transition: all 0.2s ease;
         }
-        .student-card:hover .delete-btn {
-            opacity: 1;
+
+        .reward-item button:hover {
+            background: #ff3333;
+            transform: scale(1.1);
+        }
+
+        #btnSpinWheel, #btnResetWheel, #btnCloseWheel {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            min-width: 100px;
+        }
+
+        #btnSpinWheel:hover, #btnResetWheel:hover, #btnCloseWheel:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         /* 使用說明視窗樣式 */
@@ -795,27 +882,6 @@
                 width: 95%;
                 max-height: 90vh;
             }
-        }
-
-        .wheel-type-switch {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .wheel-type-btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            background: #f0f0f0;
-            transition: all 0.3s ease;
-        }
-
-        .wheel-type-btn.active {
-            background: #4caf50;
-            color: white;
         }
 
         .reward-input {
