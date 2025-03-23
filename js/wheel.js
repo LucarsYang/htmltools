@@ -193,9 +193,17 @@ export function showWheel() {
 export function closeWheel() {
     const wheelOverlay = document.getElementById("wheelOverlay");
     const wheelPopup = document.getElementById("wheelPopup");
+    const resultPopup = document.getElementById("wheelResultPopup");
     
+    // 隱藏輪盤彈窗
     if (wheelOverlay) wheelOverlay.classList.remove("show");
     if (wheelPopup) wheelPopup.classList.remove("show");
+    
+    // 確保同時隱藏結果彈窗
+    if (resultPopup) {
+        resultPopup.classList.remove("show");
+        resultPopup.style.display = "none";
+    }
     
     // 停止轉盤
     if (isSpinning) {
@@ -207,17 +215,22 @@ export function closeWheel() {
  * 渲染輪盤
  */
 function renderWheel() {
-    const items = isRewardWheel ? rewards : getStudents();
-    if (!items || items.length === 0) {
+    // 獲取原始項目列表
+    const rawItems = isRewardWheel ? rewards : getStudents();
+    if (!rawItems || rawItems.length === 0) {
         console.warn('沒有可用的項目來渲染輪盤');
         return;
     }
     
+    // 將學生轉換為只包含名字的陣列，便於一致處理
+    const items = isRewardWheel ? [...rawItems] : rawItems.map(s => s.name);
+    
     const noRepeatCheckbox = document.getElementById("noRepeat");
     const noRepeat = noRepeatCheckbox ? noRepeatCheckbox.checked : false;
     
+    // 過濾已選項目 - 確保與 startSpin 使用相同的邏輯
     const availableItems = noRepeat ? 
-        (isRewardWheel ? items.filter(item => !selectedStudents.includes(item)) : items.filter(s => !selectedStudents.includes(s.name))) : 
+        items.filter(item => !selectedStudents.includes(item)) : 
         items;
     
     if (!wheelCanvas || !wheelCtx) {
@@ -236,6 +249,7 @@ function renderWheel() {
         wheelCanvas.height = wheelCanvas.width;
     }
 
+    // 無可用項目時顯示提示
     if (availableItems.length === 0) {
         wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
         wheelCtx.fillStyle = "#f5f5f5";
@@ -251,16 +265,18 @@ function renderWheel() {
         return;
     }
 
+    // 繪製輪盤
     const centerX = wheelCanvas.width / 2;
     const centerY = wheelCanvas.height / 2;
-    // 確保半徑至少為10
     const radius = Math.max(Math.min(centerX, centerY) - 10, 10);
     const colors = ["#FF5733", "#33FF57", "#3357FF", "#F333FF", "#33FFF3", "#FF3333"];
 
     wheelCtx.clearRect(0, 0, wheelCanvas.width, wheelCanvas.height);
     
-    // 繪製扇形
+    // 計算角度步長 - 重要：這裡使用可用項目的數量，而非全部項目
     const angleStep = (Math.PI * 2) / availableItems.length;
+    
+    // 繪製扇形
     availableItems.forEach((item, index) => {
         const startAngle = index * angleStep + wheelRotation;
         const endAngle = (index + 1) * angleStep + wheelRotation;
@@ -282,7 +298,7 @@ function renderWheel() {
         wheelCtx.textAlign = "right";
         wheelCtx.fillStyle = "#fff";
         wheelCtx.font = "18px Arial";
-        wheelCtx.fillText(isRewardWheel ? item : item.name, radius - 30, 5);
+        wheelCtx.fillText(item, radius - 30, 5);
         wheelCtx.restore();
     });
 }
@@ -324,6 +340,12 @@ export function switchWheelType(type) {
         wheelLeftControls.style.display = isRewardWheel ? "none" : "flex";
     }
     
+    // 顯示/隱藏已選項目列表（獎懲輪轉盤不需要顯示已選項目）
+    const selectedStudentsSection = document.querySelector(".selected-students");
+    if (selectedStudentsSection) {
+        selectedStudentsSection.style.display = isRewardWheel ? "none" : "block";
+    }
+    
     // 確保畫布尺寸正確
     if (!wheelCanvas || !wheelCtx || wheelCanvas.width <= 20) {
         wheelCanvas = document.getElementById("wheelCanvas");
@@ -353,11 +375,15 @@ export function switchWheelType(type) {
 export function startSpin() {
     if (isSpinning) return;
     
-    const items = isRewardWheel ? rewards : getStudents().map(s => s.name);
-    if (items.length === 0) {
+    // 獲取原始項目列表
+    const rawItems = isRewardWheel ? rewards : getStudents();
+    if (rawItems.length === 0) {
         alert(isRewardWheel ? "請先新增獎懲項目" : "班級中沒有學生");
         return;
     }
+    
+    // 將項目轉換為名稱列表，與渲染輪盤使用完全相同的方式
+    const items = isRewardWheel ? [...rawItems] : rawItems.map(s => s.name);
     
     // 檢查是否已全部選過
     const noRepeatCheckbox = document.getElementById("noRepeat");
@@ -372,13 +398,20 @@ export function startSpin() {
     }
     
     // 若設置不重複選擇，則過濾掉已選過的項目
-    const availableItems = isRewardWheel ? items : 
-        (noRepeat ? items.filter(name => !selectedStudents.includes(name)) : items);
+    const availableItems = noRepeat ? 
+        items.filter(name => !selectedStudents.includes(name)) : items;
     
     if (availableItems.length === 0) {
         alert("沒有可選的項目了");
         return;
     }
+    
+    // 隨機選擇一個項目
+    const randomIndex = Math.floor(Math.random() * availableItems.length);
+    const selected = availableItems[randomIndex];
+    
+    // 記錄當前的選擇，用於停止後顯示
+    window.lastSelectedItem = selected;
     
     isSpinning = true;
     
@@ -392,16 +425,12 @@ export function startSpin() {
         wheelCanvas.classList.add("spinning");
     }
     
-    // 隨機選擇一個項目
-    const randomIndex = Math.floor(Math.random() * availableItems.length);
-    const selected = isRewardWheel ? availableItems[randomIndex] : 
-        availableItems[randomIndex];
-    
-    // 計算目標角度
-    const segmentAngle = 2 * Math.PI / items.length;
-    const targetSegment = items.indexOf(selected);
+    // 計算目標角度 - 重要：這裡要使用availableItems而非items
+    // 因為輪盤上只顯示可用項目
+    const angleStep = (Math.PI * 2) / availableItems.length;
+    const targetSegment = availableItems.indexOf(selected);
     const extraSpins = 4; // 額外旋轉圈數
-    const targetAngle = segmentAngle * targetSegment + extraSpins * 2 * Math.PI;
+    const targetAngle = angleStep * targetSegment + extraSpins * 2 * Math.PI;
     
     // 啟動動畫
     let startTime = null;
@@ -431,7 +460,8 @@ export function startSpin() {
         if (progress < 1) {
             wheelAnimation = requestAnimationFrame(step);
         } else {
-            stopSpin(selected);
+            // 使用單獨變數存儲的選中項目，確保一致性
+            stopSpin(window.lastSelectedItem);
         }
     }
     
@@ -483,8 +513,8 @@ function stopSpin(selected) {
                 resultPopup.classList.add('show');
                 resultPopup.style.display = 'block';
                 
-                // 生成彩色紙屑效果
-                createConfetti();
+                // 移除彩色紙屑效果
+                // createConfetti();
             }
             
             // 移除指針動畫

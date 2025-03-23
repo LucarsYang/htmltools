@@ -8,20 +8,9 @@ export function showHelp() {
     helpOverlay.classList.add('show');
     helpPopup.classList.add('show');
 
-    // 設置標籤切換
-    document.querySelectorAll('.tab-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const tabId = button.getAttribute('data-tab');
-            
-            // 移除所有活動狀態
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
-            // 添加新的活動狀態
-            button.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-        });
-    });
+    // 默認顯示使用說明
+    document.getElementById('usageContent').style.display = 'block';
+    document.getElementById('versionContent').style.display = 'none';
 
     // 關閉按鈕
     document.querySelector('.help-popup .close-btn')?.addEventListener('click', () => {

@@ -230,12 +230,6 @@
         <button class="close-btn" id="btnCloseWheel">&times;</button>
     </div>
     <div class="popup-body">
-        <!-- 輪盤類型切換 -->
-        <div class="wheel-type-switch">
-            <button id="btnStudentWheel" class="wheel-type-btn active">學生輪轉盤</button>
-            <button id="btnRewardWheel" class="wheel-type-btn">獎懲輪轉盤</button>
-        </div>
-        
         <!-- 輪盤控制項 -->
         <div class="wheel-controls-container">
             <!-- 左側控制項 - 學生輪盤時顯示 -->
@@ -284,7 +278,7 @@
 <!-- 選中結果彈窗 -->
 <div class="wheel-result-popup" id="wheelResultPopup">
     <div class="wheel-result-confetti" id="confetti"></div>
-    <div class="wheel-result-content">恭喜！選中了：</div>
+    <div class="wheel-result-content">選中結果：</div>
     <div class="wheel-result-name" id="wheelResultName">--</div>
     <button class="wheel-result-close" id="btnCloseResult">確定</button>
 </div>
@@ -297,11 +291,6 @@
         <button class="close-btn" id="btnCloseHelp">&times;</button>
     </div>
     <div class="popup-body">
-        <div class="help-tabs">
-            <button class="tab-btn active" data-tab="usage">使用說明</button>
-            <button class="tab-btn" data-tab="version">版本歷程</button>
-        </div>
-        
         <!-- 使用說明內容 -->
         <div class="tab-content active" id="usageContent">
             <div class="help-content">
@@ -349,7 +338,7 @@
         </div>
         
         <!-- 版本歷程內容 -->
-        <div class="tab-content" id="versionContent">
+        <div class="tab-content" id="versionContent" style="display: none;">
             <div class="help-content">
                 <div class="help-section version-history">
                     <div class="version-item">

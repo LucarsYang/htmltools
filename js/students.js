@@ -113,9 +113,6 @@ function initUI() {
 
     // 功能選單
     document.getElementById("btnExportCSV").addEventListener("click", exportCSV);
-    document.getElementById("btnImportCSV").addEventListener("click", () => {
-        document.getElementById("importCSV").click();
-    });
     
     // 登入選擇彈窗
     document.getElementById("closeLoginPopup").addEventListener("click", () => {
@@ -132,6 +129,13 @@ function initUI() {
             document.querySelectorAll('.login-overlay, .login-popup, .help-overlay, .help-popup, .wheel-overlay, .wheel-popup').forEach(el => {
                 el.classList.remove('show');
             });
+            
+            // 同時處理輪盤結果彈窗
+            const resultPopup = document.getElementById('wheelResultPopup');
+            if (resultPopup) {
+                resultPopup.classList.remove('show');
+                resultPopup.style.display = 'none';
+            }
         }
     });
     
@@ -156,7 +160,7 @@ function initUI() {
     // 監聽自定義的匯出 CSV 事件
     document.addEventListener('exportCSV', () => {
         console.log('收到匯出 CSV 事件');
-        exportToCSV();
+        exportCSV();
     });
 }
 

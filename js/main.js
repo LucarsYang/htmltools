@@ -20,9 +20,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // 初始化輪盤模組
     initWheel();
     
-    // 初始化幫助標籤切換功能
-    initHelpTabs();
-    
     // 初始化新的側邊欄功能
     initSidebarFunctions();
     
@@ -134,11 +131,8 @@ function initSidebarFunctions() {
     if (btnImportCSV) {
         btnImportCSV.addEventListener('click', () => {
             console.log('點擊匯入 CSV');
-            // 觸發匯入 CSV 事件
-            const importCSVInput = document.getElementById('importCSV');
-            if (importCSVInput) {
-                importCSVInput.click();
-            }
+            // 直接觸發檔案選擇，而非通過自定義事件
+            document.getElementById('importCSV').click();
         });
     }
 }
@@ -149,36 +143,22 @@ function showHelpPopup(tabType) {
     document.getElementById('helpOverlay').classList.add('show');
     document.getElementById('helpPopup').classList.add('show');
     
-    // 選擇對應標籤
-    const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabType}"]`);
-    if (tabBtn) {
-        // 模擬點擊對應的標籤按鈕
-        tabBtn.click();
+    // 設置標題和顯示對應內容
+    const helpTitle = document.getElementById('helpTitle');
+    const usageContent = document.getElementById('usageContent');
+    const versionContent = document.getElementById('versionContent');
+    
+    if (tabType === 'usage') {
+        helpTitle.textContent = '使用說明';
+        usageContent.style.display = 'block';
+        versionContent.style.display = 'none';
+    } else if (tabType === 'version') {
+        helpTitle.textContent = '版本歷程';
+        usageContent.style.display = 'none';
+        versionContent.style.display = 'block';
     }
-}
-
-// 初始化幫助標籤切換功能
-function initHelpTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
     
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // 移除所有按鈕的 active 類別
-            tabBtns.forEach(b => b.classList.remove('active'));
-            // 為當前按鈕添加 active 類別
-            btn.classList.add('active');
-            
-            // 隱藏所有內容
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => content.classList.remove('active'));
-            
-            // 顯示對應的內容
-            const targetId = btn.dataset.tab === 'usage' ? 'usageContent' : 'versionContent';
-            document.getElementById(targetId).classList.add('active');
-        });
-    });
-    
-    // 幫助視窗關閉按鈕
+    // 添加關閉按鈕事件處理
     document.getElementById('btnCloseHelp').addEventListener('click', () => {
         document.getElementById('helpOverlay').classList.remove('show');
         document.getElementById('helpPopup').classList.remove('show');
