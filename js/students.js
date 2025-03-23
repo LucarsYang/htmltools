@@ -526,6 +526,7 @@ function updateImagePreview() {
     
     // 獲取當前選中的圖片
     const currentSelected = getSelectedImage();
+    console.log('當前選中的圖片:', currentSelected);
     
     // 清空容器
     container.innerHTML = "";
@@ -545,7 +546,7 @@ function updateImagePreview() {
         img.setAttribute('data-label', label);
         
         // 檢查是否為選中的圖片
-        const isSelected = !customImageData && (currentSelected === label || (!currentSelected && label === labels[0]));
+        const isSelected = !customImageData && (currentSelected === label);
         if (isSelected) {
             img.classList.add("selected");
             setSelectedImage(label);
@@ -636,12 +637,21 @@ export function showPopup(mode = 'add', student = null) {
                 document.getElementById("removeCustomImgBtn").addEventListener("click", clearCustomImage);
             }
         } else if (student.imageLabel) {
+            // 設置選擇的圖片標籤
+            console.log('編輯模式: 設置預設圖片標籤', student.imageLabel);
             setSelectedImage(student.imageLabel);
+        } else {
+            // 如果沒有圖片標籤，使用性別對應的第一個圖片
+            const gender = student.gender;
+            const firstLabel = genderImageLabels[gender][0];
+            console.log('編輯模式: 使用性別默認圖片', firstLabel);
+            setSelectedImage(firstLabel);
         }
     } else {
         // 預設選擇性別對應的第一個圖片
         const gender = document.getElementById("studentGender").value;
         const firstLabel = genderImageLabels[gender][0];
+        console.log('新增模式: 使用性別默認圖片', firstLabel);
         setSelectedImage(firstLabel);
     }
     
@@ -672,27 +682,21 @@ export function closePopup() {
 function saveStudent() {
     if (updatingState) return;
     
-    const studentForm = document.getElementById('studentForm');
-    if (!studentForm.checkValidity()) {
-        studentForm.reportValidity();
-        return;
-    }
-    
+    // 直接檢查必要的輸入欄位
     const nameInput = document.getElementById('studentName');
     const genderSelect = document.getElementById('studentGender');
     const scoreInput = document.getElementById('studentScore');
-    const numInput = document.getElementById('studentNum');
+    
+    // 檢查姓名是否為空
+    if (!nameInput.value.trim()) {
+        nameInput.focus();
+        alert('請輸入學生姓名');
+        return;
+    }
     
     const name = nameInput.value.trim();
     const gender = genderSelect.value;
     const score = parseInt(scoreInput.value) || 0;
-    const num = numInput.value.trim();
-    
-    // 檢查欄位
-    if (!name) {
-        showToast('姓名不能為空', 'error');
-        return;
-    }
     
     // 取得目前班級的學生資料
     let students = classes[currentClass];
@@ -702,19 +706,31 @@ function saveStudent() {
         name,
         gender,
         score,
-        num,
         addDate: new Date().toISOString()
     };
     
     // 如果有自訂圖片
     if (customImageData) {
-        studentData.imageData = customImageData;
-        studentData.imageType = 'custom';
+        studentData.customImage = customImageData;
+        studentData.imageFileId = customImageFileId;
     } else {
         const selectedImg = getSelectedImage();
-        studentData.imageType = 'default';
-        studentData.imageIndex = selectedImg.index;
-        studentData.gender = selectedImg.gender;
+        if (typeof selectedImg === 'string') {
+            // 如果是標籤名稱
+            if (imageMap[selectedImg]) {
+                studentData.imageLabel = selectedImg;
+            } else {
+                // 如果是完整URL
+                const gender = genderSelect.value;
+                const firstLabel = genderImageLabels[gender][0];
+                studentData.imageLabel = firstLabel;
+            }
+        } else {
+            // 如果沒有選擇圖片，使用性別對應的第一張圖片
+            const gender = genderSelect.value;
+            const firstLabel = genderImageLabels[gender][0];
+            studentData.imageLabel = firstLabel;
+        }
     }
     
     // 如果是編輯模式，更新現有學生資料

@@ -201,9 +201,11 @@ export function getSelectedImage() {
     // 如果有透過 DOM 選中的圖片，優先返回
     const selectedImgDOM = document.querySelector('.image-preview img.selected');
     if (selectedImgDOM) {
-        // 優先使用 data-label 屬性，如果沒有則使用 src
-        return selectedImgDOM.getAttribute('data-label') || selectedImgDOM.src;
+        // 優先使用 data-label 屬性，這是標籤名稱
+        return selectedImgDOM.getAttribute('data-label');
     }
+    
+    // 如果沒有透過 DOM 選中，返回保存的值
     return selectedImage;
 }
 
