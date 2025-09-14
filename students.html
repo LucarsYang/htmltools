@@ -6,6 +6,9 @@
     <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+    <!-- 考試倒數計時器樣式 -->
+    <link rel="stylesheet" href="css/exam-countdown-timer.css">
+
     <!-- CSS 直接寫在 <style> 中 -->
     <style>
         body {
@@ -844,6 +847,9 @@
         </a>
         <a class="menu-item" id="btnImportCSV">
             <i>📥</i><span>匯入 CSV</span>
+        </a>
+        <a class="menu-item" id="btnExamTimer">
+            <i>⏰</i><span>考試倒數計時器</span>
         </a>
         <a class="menu-item" id="btnHelp">
             <i>❓</i><span>使用說明</span>
@@ -1764,6 +1770,12 @@
                     closeHelpPopup();
                 }
             }
+        });
+
+        // 考試倒數計時器
+        document.getElementById("btnExamTimer").addEventListener("click", () => {
+            if(checkIfUpdating()) return;
+            initExamTimer();
         });
 
         // 使用說明
@@ -2931,5 +2943,8 @@
     window.switchWheelType = switchWheelType;
     window.addNewReward = addNewReward;
 </script>
+
+<!-- 考試倒數計時器功能 -->
+<script src="js/exam-countdown-timer.js"></script>
 </body>
 </html>
