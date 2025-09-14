@@ -15,6 +15,7 @@ class ExamCountdownTimer {
         this.createHTML();
         this.bindEvents();
         this.loadSchedules();
+        this.updateFullscreenButtonText();
     }
 
     createHTML() {
@@ -50,14 +51,16 @@ class ExamCountdownTimer {
                 <!-- 時程佇列 -->
                 <div class="schedule-list">
                     <h3>已排定時程</h3>
-                    <button id="btnClearAll" class="btn-clear-all">清空全部</button>
-                    <div id="scheduleList"></div>
+                    <div class="schedule-list-content">
+                        <div id="scheduleList"></div>
+                    </div>
                 </div>
                 
                 <!-- 控制按鈕 -->
                 <div class="timer-controls">
+                    <button id="btnClearAll" class="btn-clear-all">清空全部</button>
                     <button id="btnStartTimer" class="btn-start-timer">開始計時</button>
-                    <button id="btnCancelTimer" class="btn-cancel-timer">取消</button>
+                    <button id="btnCancelTimer" class="btn-cancel-timer">退出設定</button>
                 </div>
             </div>
             
@@ -106,6 +109,7 @@ class ExamCountdownTimer {
         // 全螢幕變化事件
         document.addEventListener('fullscreenchange', () => {
             this.isFullscreen = !!document.fullscreenElement;
+            this.updateFullscreenButtonText();
         });
     }
 
@@ -272,7 +276,22 @@ class ExamCountdownTimer {
         const now = new Date();
         const currentTime = now.toTimeString().slice(0, 5);
         
+        // 調試日誌
+        console.log('updateCountdown - currentTime:', currentTime, 'startTime:', this.currentSchedule.startTime, 'endTime:', this.currentSchedule.endTime);
+        console.log('條件檢查 - currentTime >= startTime:', currentTime >= this.currentSchedule.startTime, 'currentTime < endTime:', currentTime < this.currentSchedule.endTime);
+        
+        // 檢查是否正在進行考試
         if (currentTime >= this.currentSchedule.startTime && currentTime < this.currentSchedule.endTime) {
+            console.log('進入考試進行中分支');
+            
+            // 確保顯示狀態正確
+            document.getElementById('examStatus').textContent = '考試進行中';
+            document.getElementById('examSubject').textContent = this.currentSchedule.subject;
+            document.getElementById('countdownTimer').style.display = 'block';
+            document.getElementById('waitingStatus').style.display = 'none';
+            document.getElementById('waitingTimer').style.display = 'none';
+            document.getElementById('examFinished').style.display = 'none';
+            
             // 正在進行中，顯示剩餘時間
             const endTime = new Date();
             const [hours, minutes] = this.currentSchedule.endTime.split(':');
@@ -290,6 +309,7 @@ class ExamCountdownTimer {
                 this.playTimeUpSound();
             }
         } else if (currentTime < this.currentSchedule.startTime) {
+            console.log('進入等待開始分支');
             // 等待開始，顯示倒數到開始時間
             const startTime = new Date();
             const [hours, minutes] = this.currentSchedule.startTime.split(':');
@@ -300,10 +320,27 @@ class ExamCountdownTimer {
                 const timeString = this.formatTime(waiting);
                 document.getElementById('waitingTimer').textContent = timeString;
             } else {
-                // 時間到了，重新檢查當前時程
-                this.findCurrentSchedule();
+                // 等待時間結束，檢查是否應該開始考試
+                console.log('等待時間結束 - currentTime:', currentTime, 'startTime:', this.currentSchedule.startTime, 'endTime:', this.currentSchedule.endTime);
+                if (currentTime >= this.currentSchedule.startTime && currentTime < this.currentSchedule.endTime) {
+                    console.log('切換到考試進行中狀態');
+                    // 時間到了，直接切換到考試進行中狀態
+                    document.getElementById('examStatus').textContent = '考試進行中';
+                    document.getElementById('examSubject').textContent = this.currentSchedule.subject;
+                    document.getElementById('countdownTimer').style.display = 'block';
+                    document.getElementById('waitingStatus').style.display = 'none';
+                    document.getElementById('waitingTimer').style.display = 'none';
+                    document.getElementById('examFinished').style.display = 'none';
+                    // 清除等待倒數計時器的內容
+                    document.getElementById('waitingTimer').textContent = '00:00:00';
+                } else {
+                    console.log('時間已超過考試時間，尋找下一個時程');
+                    // 如果時間已經超過考試時間，尋找下一個時程
+                    this.findCurrentSchedule();
+                }
             }
         } else {
+            console.log('進入時程已結束分支');
             // 當前時程已結束，尋找下一個
             this.findCurrentSchedule();
         }
@@ -362,6 +399,7 @@ class ExamCountdownTimer {
         } else {
             this.enterFullscreen();
         }
+        this.updateFullscreenButtonText();
     }
 
     enterFullscreen() {
@@ -382,6 +420,15 @@ class ExamCountdownTimer {
             document.webkitExitFullscreen();
         } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
+        }
+    }
+
+    updateFullscreenButtonText() {
+        const button = document.getElementById('btnFullscreen');
+        if (this.isFullscreen) {
+            button.textContent = '退出全螢幕';
+        } else {
+            button.textContent = '全螢幕';
         }
     }
 
