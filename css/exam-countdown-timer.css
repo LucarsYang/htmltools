@@ -1,0 +1,374 @@
+/* 考試倒數計時器樣式 */
+
+/* 全畫面燈箱容器 */
+.exam-timer-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: white;
+    z-index: 2000;
+    font-family: Arial, sans-serif;
+}
+
+.exam-timer-overlay.show {
+    display: block;
+}
+
+/* 設定畫面樣式 */
+.exam-timer-config {
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.exam-timer-config h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 30px;
+}
+
+/* 時程新增表單 */
+.schedule-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.btn-add-schedule {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+    transition: background 0.3s;
+}
+
+.btn-add-schedule:hover {
+    background: #45a049;
+}
+
+/* 時程佇列 */
+.schedule-list {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.schedule-list h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.schedule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    border-left: 4px solid #4caf50;
+}
+
+.schedule-item:last-child {
+    margin-bottom: 0;
+}
+
+.schedule-info {
+    flex: 1;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.schedule-remove {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+}
+
+.schedule-remove:hover {
+    background: #ff3333;
+}
+
+.btn-clear-all {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-bottom: 15px;
+    transition: background 0.3s;
+}
+
+.btn-clear-all:hover {
+    background: #e68900;
+}
+
+/* 控制按鈕 */
+.timer-controls {
+    text-align: center;
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.btn-start-timer {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.btn-start-timer:hover {
+    background: #1976d2;
+}
+
+.btn-cancel-timer {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.3s;
+}
+
+.btn-cancel-timer:hover {
+    background: #ff3333;
+}
+
+.btn-back-config {
+    background: #757575;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.3s;
+}
+
+.btn-back-config:hover {
+    background: #616161;
+}
+
+/* 倒數計時畫面樣式 */
+.exam-timer-display {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    height: 100vh;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.exam-timer-display.show {
+    display: flex;
+}
+
+/* 系統時間 */
+.system-time {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 18px;
+    color: #666;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* 狀態提示 */
+.exam-status {
+    font-size: 24px;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+/* 考試科目 */
+.exam-subject {
+    font-size: 36px;
+    color: #2196f3;
+    margin-bottom: 30px;
+    font-weight: bold;
+}
+
+/* 倒數計時器 */
+.countdown-timer {
+    font-size: 120px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 40px 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    font-family: 'Courier New', monospace;
+}
+
+/* 時間到效果 */
+.countdown-timer.time-up {
+    color: #ff4d4d;
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
+/* 控制按鈕區域 */
+.timer-display-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-back-settings {
+    background: #757575;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.btn-back-settings:hover {
+    background: #616161;
+}
+
+.btn-fullscreen {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.btn-fullscreen:hover {
+    background: #45a049;
+}
+
+/* 待機狀態 */
+.waiting-status {
+    font-size: 48px;
+    color: #ff9800;
+    margin: 40px 0;
+    font-weight: bold;
+}
+
+.waiting-timer {
+    font-size: 36px;
+    color: #666;
+    margin: 20px 0;
+}
+
+/* 結束狀態 */
+.exam-finished {
+    font-size: 48px;
+    color: #4caf50;
+    margin: 40px 0;
+    font-weight: bold;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .exam-timer-config {
+        padding: 10px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .countdown-timer {
+        font-size: 80px;
+    }
+    
+    .exam-subject {
+        font-size: 28px;
+    }
+    
+    .system-time {
+        position: relative;
+        top: auto;
+        right: auto;
+        margin-bottom: 20px;
+    }
+    
+    .timer-display-controls {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        margin-top: 30px;
+        flex-direction: column;
+        gap: 15px;
+    }
+}
