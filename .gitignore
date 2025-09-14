@@ -16,3 +16,9 @@ package.json
 scraper.js
 
 README.md
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
