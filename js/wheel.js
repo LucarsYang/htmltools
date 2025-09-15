@@ -44,38 +44,40 @@ class WheelManager {
                     <div class="wheel-section">
                         <div class="wheel-display">
                             <div class="wheel-canvas-container">
-                                <canvas id="wheelCanvas" width="300" height="300"></canvas>
+                                <canvas id="wheelCanvas" width="500" height="500"></canvas>
                                 <div class="wheel-pointer"></div>
                             </div>
                         </div>
                         
-                        <div class="wheel-controls">
-                            <div class="control-group">
-                                <label class="control-label">控制選項</label>
-                                <div class="checkbox-group">
-                                    <input type="checkbox" id="noRepeatCheck" checked>
-                                    <label for="noRepeatCheck">不重複選擇</label>
+                        <div class="wheel-right-panel">
+                            <div class="wheel-controls">
+                                <div class="control-group">
+                                    <label class="control-label">控制選項</label>
+                                    <div class="checkbox-group">
+                                        <input type="checkbox" id="noRepeatCheck" checked>
+                                        <label for="noRepeatCheck">不重複選擇</label>
+                                    </div>
+                                    <button class="control-btn secondary" id="resetBtn">重置已選名單</button>
+                                    <button class="control-btn primary" id="spinBtn">開始轉動</button>
                                 </div>
-                                <button class="control-btn secondary" id="resetBtn">重置已選名單</button>
-                                <button class="control-btn primary" id="spinBtn">開始轉動</button>
+                            </div>
+                            
+                            <div class="selected-items">
+                                <h3>已選項目</h3>
+                                <div class="selected-list" id="selectedList">
+                                    <div class="empty-state">暫無已選項目</div>
+                                </div>
+                            </div>
+                            
+                            <div class="reward-management" id="rewardManagement" style="display: none;">
+                                <h3>獎懲項目管理</h3>
+                                <div class="reward-input-group">
+                                    <input type="text" class="reward-input" id="rewardInput" placeholder="輸入新的獎懲項目">
+                                    <button class="reward-add-btn" id="rewardAddBtn">新增</button>
+                                </div>
+                                <div class="reward-list" id="rewardList"></div>
                             </div>
                         </div>
-                        
-                        <div class="selected-items">
-                            <h3>已選項目</h3>
-                            <div class="selected-list" id="selectedList">
-                                <div class="empty-state">暫無已選項目</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="reward-management" id="rewardManagement" style="display: none;">
-                        <h3>獎懲項目管理</h3>
-                        <div class="reward-input-group">
-                            <input type="text" class="reward-input" id="rewardInput" placeholder="輸入新的獎懲項目">
-                            <button class="reward-add-btn" id="rewardAddBtn">新增</button>
-                        </div>
-                        <div class="reward-list" id="rewardList"></div>
                     </div>
                 </div>
             </div>

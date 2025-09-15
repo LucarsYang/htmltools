@@ -96,17 +96,26 @@
 /* 輪盤區域 */
 .wheel-section {
     display: flex;
-    gap: 30px;
+    gap: 40px;
     align-items: flex-start;
     margin-bottom: 20px;
     flex: 1;
+    justify-content: center;
+}
+
+.wheel-right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    min-width: 280px;
+    max-width: 320px;
 }
 
 .wheel-display {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .wheel-canvas-container {
@@ -115,6 +124,8 @@
 }
 
 #wheelCanvas {
+    width: 500px;
+    height: 500px;
     border-radius: 50%;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     transition: transform 0.1s ease-out;
@@ -137,7 +148,6 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    min-width: 200px;
 }
 
 .control-group {
@@ -200,7 +210,6 @@
 /* 已選項目列表 */
 .selected-items {
     flex: 1;
-    min-width: 200px;
 }
 
 .selected-items h3 {
@@ -210,7 +219,8 @@
 }
 
 .selected-list {
-    max-height: 200px;
+    flex: 1;
+    max-height: 150px;
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -252,9 +262,9 @@
 
 /* 獎懲項目管理 */
 .reward-management {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 2px solid #eee;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .reward-management h3 {
@@ -299,7 +309,8 @@
 }
 
 .reward-list {
-    max-height: 150px;
+    flex: 1;
+    max-height: 200px;
     overflow-y: auto;
     border: 1px solid #ddd;
     border-radius: 8px;
@@ -356,10 +367,27 @@
     .wheel-section {
         flex-direction: column;
         gap: 20px;
+        align-items: center;
+    }
+    
+    .wheel-right-panel {
+        min-width: auto;
+        max-width: none;
+        width: 100%;
     }
     
     .wheel-controls {
         min-width: auto;
+    }
+    
+    .selected-items {
+        min-width: auto;
+        max-width: none;
+    }
+    
+    #wheelCanvas {
+        width: 350px;
+        height: 350px;
     }
     
     .mode-btn {
