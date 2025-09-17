@@ -11,45 +11,57 @@
 <body>
 <div class="app-shell">
     <aside class="sidebar" id="sidebar" aria-label="主功能選單">
-        <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" aria-label="切換側邊欄">☰</button>
+        <button class="sidebar-toggle" type="button" onclick="toggleSidebar()" aria-label="切換側邊欄" aria-pressed="false">☰</button>
 
-        <section class="menu-group" aria-labelledby="account-group">
-            <h2 class="menu-group-title" id="account-group">帳號管理</h2>
-            <a class="menu-item" id="login-btn" style="display:none;">
-                <i aria-hidden="true">👤</i><span>登入 Google</span>
-            </a>
-            <a class="menu-item" id="logout-btn" style="display:none;">
-                <i aria-hidden="true">🚪</i><span>登出</span>
-            </a>
-        </section>
-
-        <section class="menu-group" aria-labelledby="class-group">
-            <h2 class="menu-group-title" id="class-group">班級</h2>
-            <div class="menu-item">
-                <i aria-hidden="true">📚</i>
-                <span><select id="classSelect" style="display:none;"></select></span>
+        <div class="sidebar-header">
+            <div class="brand-icon" aria-hidden="true">🎓</div>
+            <div class="brand-text">
+                <span class="brand-title">教學工具</span>
+                <span class="brand-subtitle">班級管理</span>
             </div>
-        </section>
+        </div>
 
-        <section class="menu-group" aria-labelledby="feature-group">
-            <h2 class="menu-group-title" id="feature-group">功能選單</h2>
-            <a class="menu-item" id="btnScoreSettings"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
-            <a class="menu-item" id="btnClassManage"><i aria-hidden="true">📝</i><span>班級管理</span></a>
-            <a class="menu-item" id="btnAddStudent"><i aria-hidden="true">➕</i><span>新增學生</span></a>
-            <a class="menu-item" id="btnWheel"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
-            <a class="menu-item" id="btnExportCSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
-            <a class="menu-item" id="btnImportCSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
-            <a class="menu-item" id="btnExamTimer"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
-        </section>
+        <div class="sidebar-content" role="presentation">
+            <section class="menu-group" aria-labelledby="account-group">
+                <h2 class="menu-group-title" id="account-group">帳號管理</h2>
+                <a class="menu-item" id="login-btn" data-label="登入 Google" title="登入 Google" style="display:none;">
+                    <i aria-hidden="true">👤</i><span>登入 Google</span>
+                </a>
+                <a class="menu-item" id="logout-btn" data-label="登出" title="登出" style="display:none;">
+                    <i aria-hidden="true">🚪</i><span>登出</span>
+                </a>
+            </section>
 
-        <section class="menu-group" aria-labelledby="sync-group">
-            <h2 class="menu-group-title" id="sync-group">同步狀態</h2>
-            <button class="sync-status" id="syncStatusBar" type="button" aria-live="polite">
-                <span id="statusDirty" class="grey">有異動</span>
-                <span id="statusUpdating" class="grey">更新中</span>
-                <span id="statusSynced" class="grey">已同步</span>
-            </button>
-        </section>
+            <section class="menu-group" aria-labelledby="class-group">
+                <h2 class="menu-group-title" id="class-group">班級</h2>
+                <div class="menu-item" data-label="選擇班級" title="選擇班級">
+                    <i aria-hidden="true">📚</i>
+                    <span><select id="classSelect" style="display:none;"></select></span>
+                </div>
+            </section>
+
+            <section class="menu-group" aria-labelledby="feature-group">
+                <h2 class="menu-group-title" id="feature-group">功能選單</h2>
+                <a class="menu-item" id="btnScoreSettings" data-label="分數按鈕設定" title="分數按鈕設定"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
+                <a class="menu-item" id="btnClassManage" data-label="班級管理" title="班級管理"><i aria-hidden="true">📝</i><span>班級管理</span></a>
+                <a class="menu-item" id="btnAddStudent" data-label="新增學生" title="新增學生"><i aria-hidden="true">➕</i><span>新增學生</span></a>
+                <a class="menu-item" id="btnWheel" data-label="輪轉盤" title="輪轉盤"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
+                <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
+                <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
+                <a class="menu-item" id="btnExamTimer" data-label="考試倒數計時器" title="考試倒數計時器"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
+            </section>
+        </div>
+
+        <div class="sidebar-footer">
+            <section class="menu-group" aria-labelledby="sync-group">
+                <h2 class="menu-group-title" id="sync-group">同步狀態</h2>
+                <button class="sync-status" id="syncStatusBar" type="button" aria-live="polite" data-state="synced">
+                    <span id="statusDirty" class="status-label status-label--dirty">有異動</span>
+                    <span id="statusUpdating" class="status-label status-label--updating">更新中</span>
+                    <span id="statusSynced" class="status-label status-label--synced">已同步</span>
+                </button>
+            </section>
+        </div>
     </aside>
 
     <main class="main-content" id="mainContent">
@@ -66,65 +78,91 @@
 <input type="file" id="importCSV" accept=".csv" hidden />
 
 <div class="login-overlay" id="loginOverlay" role="presentation"></div>
-<div class="login-popup" id="loginPopup" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <h2 id="loginTitle">請選擇登入方式</h2>
-    <p>若不登入，系統僅使用本地資料（離線模式）。</p>
-    <div class="dialog-actions">
+<div class="login-popup dialog" id="loginPopup" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="dialog-header">
+        <h2 id="loginTitle" class="dialog-title">請選擇登入方式</h2>
+        <button type="button" class="dialog-close" data-dialog-close="login-choice" aria-label="關閉登入選擇">×</button>
+    </div>
+    <div class="dialog-body">
+        <p>若不登入，系統僅使用本地資料（離線模式）。</p>
+        <p class="warn">注意：之後登入 Google 可能會覆蓋本地資料</p>
+    </div>
+    <div class="dialog-footer">
         <button id="btnLoginNow" class="btn-primary" type="button">登入 Google</button>
         <button id="btnOffline" class="btn-secondary" type="button">離線模式</button>
     </div>
-    <p class="warn">注意：之後登入 Google 可能會覆蓋本地資料</p>
 </div>
 
 <div class="login-processing-overlay" id="loginProcessingOverlay" role="presentation"></div>
-<div class="login-processing-popup" id="loginProcessingPopup" role="alertdialog" aria-modal="true">
-    <h2>登入中，請稍候...</h2>
-    <p>如關閉 Google 彈窗或登入失敗，將回到登入選擇。</p>
+<div class="login-processing-popup dialog" id="loginProcessingPopup" role="alertdialog" aria-modal="true">
+    <div class="dialog-header">
+        <h2 class="dialog-title">登入中，請稍候...</h2>
+        <button type="button" class="dialog-close" data-dialog-close="login-processing" aria-label="取消登入流程">×</button>
+    </div>
+    <div class="dialog-body">
+        <p>如關閉 Google 彈窗或登入失敗，將回到登入選擇。</p>
+    </div>
 </div>
 
 <div class="overlay" id="overlay" role="presentation"></div>
-<div class="popup" id="studentPopup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
-    <h2 id="popupTitle">新增學生</h2>
-    <label class="field">
-        <span>姓名</span>
-        <input type="text" id="studentName" placeholder="輸入姓名" />
-    </label>
-    <label class="field">
-        <span>分數</span>
-        <input type="number" id="studentScore" placeholder="輸入分數" min="0" />
-    </label>
-    <label class="field">
-        <span>性別</span>
-        <select id="studentGender">
-            <option value="男">男生</option>
-            <option value="女">女生</option>
-        </select>
-    </label>
-    <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
-    <div class="custom-image-upload">
-        <button id="btnUploadImage" class="btn-primary" type="button">上傳自訂圖片</button>
-        <input type="file" id="customImageUpload" accept="image/*" hidden />
-        <div id="customImagePreview" class="custom-image-preview" aria-live="polite"></div>
+<div class="popup dialog" id="studentPopup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+    <div class="dialog-header">
+        <h2 id="popupTitle" class="dialog-title">新增學生</h2>
+        <button type="button" class="dialog-close" data-dialog-close="student" aria-label="關閉學生表單">×</button>
     </div>
-    <div class="dialog-actions">
+    <div class="dialog-body">
+        <label class="field">
+            <span>姓名</span>
+            <input type="text" id="studentName" placeholder="輸入姓名" />
+        </label>
+        <label class="field">
+            <span>分數</span>
+            <input type="number" id="studentScore" placeholder="輸入分數" min="0" />
+        </label>
+        <label class="field">
+            <span>性別</span>
+            <select id="studentGender">
+                <option value="男">男生</option>
+                <option value="女">女生</option>
+            </select>
+        </label>
+        <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
+        <div class="custom-image-upload">
+            <button id="btnUploadImage" class="btn-primary" type="button">上傳自訂圖片</button>
+            <input type="file" id="customImageUpload" accept="image/*" hidden />
+            <div id="customImagePreview" class="custom-image-preview" aria-live="polite"></div>
+        </div>
+    </div>
+    <div class="dialog-footer">
         <button id="btnSaveStudent" class="btn-primary" type="button">儲存</button>
         <button id="btnClosePopup" class="btn-secondary" type="button">取消</button>
     </div>
 </div>
 
 <div class="class-overlay" id="classOverlay" role="presentation"></div>
-<div class="class-popup" id="classPopup" role="dialog" aria-modal="true" aria-labelledby="classPopupTitle">
-    <h2 id="classPopupTitle">班級管理</h2>
-    <button id="btnAddClass" class="btn-primary" type="button">新增班級</button>
-    <div class="class-list" id="classList"></div>
-    <div class="dialog-actions">
+<div class="class-popup dialog" id="classPopup" role="dialog" aria-modal="true" aria-labelledby="classPopupTitle">
+    <div class="dialog-header">
+        <h2 id="classPopupTitle" class="dialog-title">班級管理</h2>
+        <button type="button" class="dialog-close" data-dialog-close="class" aria-label="關閉班級管理">×</button>
+    </div>
+    <div class="dialog-body">
+        <button id="btnAddClass" class="btn-primary" type="button">新增班級</button>
+        <div class="class-list" id="classList"></div>
+    </div>
+    <div class="dialog-footer">
         <button id="btnCloseClassPopup" class="btn-secondary" type="button">關閉</button>
     </div>
 </div>
 
 <div class="sync-overlay" id="syncOverlay" role="presentation"></div>
-<div class="sync-popup" id="syncPopup" role="alertdialog" aria-modal="true">
-    <h2>資料同步中，請稍後...</h2>
+<div class="sync-popup dialog" id="syncPopup" role="alertdialog" aria-modal="true">
+    <div class="dialog-header">
+        <h2 class="dialog-title">資料同步中</h2>
+        <button type="button" class="dialog-close" data-dialog-close="sync" aria-label="關閉同步提示">×</button>
+    </div>
+    <div class="dialog-body">
+        <p>資料同步中，請稍候...</p>
+    </div>
 </div>
 
 <div id="wheel-main-container"></div>

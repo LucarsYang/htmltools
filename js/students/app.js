@@ -28,6 +28,7 @@ let uploadedImages = new Set();
 let autoSyncTimer = null;
 const AUTO_SYNC_DELAY = 30;
 let remainingSeconds = 0;
+let syncState = 'synced';
 
 let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60;
@@ -35,9 +36,13 @@ let lastActivityTime = Date.now();
 
 window.toggleSidebar = function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const mainContent = document.getElementById('mainContent');
-    sidebar?.classList.toggle('collapsed');
-    mainContent?.classList.toggle('expanded');
+    if (!sidebar) return;
+    const collapsed = sidebar.classList.toggle('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    const toggleBtn = document.querySelector('.sidebar-toggle');
+    if (toggleBtn) {
+        toggleBtn.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+    }
 };
 
 function saveClassesLocal() {
@@ -88,62 +93,82 @@ function setupActivityListeners() {
     });
 }
 
-function markDirty() {
-    document.getElementById('statusDirty')?.classList.replace('grey', 'red');
-    document.getElementById('statusUpdating')?.classList.replace('yellow', 'grey');
-    document.getElementById('statusSynced')?.classList.replace('green', 'grey');
-    const statusDirty = document.getElementById('statusDirty');
-    if (statusDirty) statusDirty.classList.add('red');
-    const statusUpdating = document.getElementById('statusUpdating');
-    if (statusUpdating) statusUpdating.classList.remove('yellow');
-    const statusSynced = document.getElementById('statusSynced');
-    if (statusSynced) statusSynced.classList.remove('green');
-
+function setSyncState(state) {
+    syncState = state;
     const syncBar = document.getElementById('syncStatusBar');
-    if (syncBar) syncBar.title = '點擊進行同步';
+    if (syncBar) {
+        syncBar.dataset.state = state;
+    }
+    refreshSyncLabels();
+}
+
+function refreshSyncLabels() {
+    const dirty = document.getElementById('statusDirty');
+    const updating = document.getElementById('statusUpdating');
+    const synced = document.getElementById('statusSynced');
+
+    if (dirty) {
+        if (syncState === 'dirty' && googleAuth.getIsSignedIn() && remainingSeconds > 0) {
+            dirty.textContent = `有異動 (${remainingSeconds}s)`;
+        } else {
+            dirty.textContent = '有異動';
+        }
+    }
+    if (updating) {
+        updating.textContent = '更新中';
+    }
+    if (synced) {
+        synced.textContent = '已同步';
+    }
+}
+
+function markDirty() {
+    setSyncState('dirty');
     updatingState = false;
     hideSyncOverlay();
     enableSyncBar();
     startAutoSyncTimer();
+    updateSyncStatus();
 }
 
 function markUpdating() {
-    document.getElementById('statusDirty')?.classList.remove('red');
-    document.getElementById('statusUpdating')?.classList.add('yellow');
-    document.getElementById('statusSynced')?.classList.remove('green');
-    const syncBar = document.getElementById('syncStatusBar');
-    if (syncBar) syncBar.title = '同步處理中...';
+    setSyncState('updating');
     updatingState = true;
     showSyncOverlay();
     disableSyncBar();
     stopAutoSyncTimer();
+    updateSyncStatus();
 }
 
 function markSynced() {
-    document.getElementById('statusDirty')?.classList.remove('red');
-    document.getElementById('statusUpdating')?.classList.remove('yellow');
-    document.getElementById('statusSynced')?.classList.add('green');
-    const syncBar = document.getElementById('syncStatusBar');
-    if (syncBar) syncBar.title = '資料已同步';
+    setSyncState('synced');
     updatingState = false;
     hideSyncOverlay();
     enableSyncBar();
     stopAutoSyncTimer();
+    updateSyncStatus();
 }
 
 function startAutoSyncTimer() {
-    if (!googleAuth.getIsSignedIn()) return;
+    if (!googleAuth.getIsSignedIn()) {
+        remainingSeconds = 0;
+        updateSyncStatus();
+        return;
+    }
     stopAutoSyncTimer();
     remainingSeconds = AUTO_SYNC_DELAY;
     updateSyncStatus();
 
     autoSyncTimer = setInterval(() => {
-        remainingSeconds--;
-        updateSyncStatus();
+        remainingSeconds -= 1;
         if (remainingSeconds <= 0) {
             clearInterval(autoSyncTimer);
             autoSyncTimer = null;
+            remainingSeconds = 0;
+            updateSyncStatus();
             performSync();
+        } else {
+            updateSyncStatus();
         }
     }, 1000);
 }
@@ -154,20 +179,25 @@ function stopAutoSyncTimer() {
         autoSyncTimer = null;
     }
     remainingSeconds = 0;
+    updateSyncStatus();
 }
 
 function updateSyncStatus() {
     const statusBar = document.getElementById('syncStatusBar');
-    const dirty = document.getElementById('statusDirty');
-    if (!statusBar || !dirty) return;
+    if (!statusBar) return;
 
-    if (remainingSeconds > 0) {
-        statusBar.title = `點擊同步 (${remainingSeconds}秒後自動同步)`;
-        dirty.textContent = `有異動 (${remainingSeconds}s)`;
+    if (syncState === 'dirty') {
+        if (googleAuth.getIsSignedIn() && remainingSeconds > 0) {
+            statusBar.title = `點擊同步 (${remainingSeconds}秒後自動同步)`;
+        } else {
+            statusBar.title = '點擊進行同步';
+        }
+    } else if (syncState === 'updating') {
+        statusBar.title = '同步處理中...';
     } else {
-        statusBar.title = '點擊進行同步';
-        dirty.textContent = '有異動';
+        statusBar.title = '資料已同步';
     }
+    refreshSyncLabels();
 }
 
 function performSync() {
@@ -256,6 +286,15 @@ function closeLoginChoice() {
 function backToLoginChoice() {
     hideLoginProcessingOverlay();
     showLoginChoice();
+}
+
+function enterOfflineMode(showNotice = true) {
+    closeLoginChoice();
+    showMainButtons();
+    markDirty();
+    if (showNotice) {
+        alert('離線模式啟用，之後登入Google可能覆蓋資料。');
+    }
 }
 
 function showLoginProcessingOverlay() {
@@ -925,19 +964,27 @@ function addSettingsPopup() {
 
     const popup = document.createElement('div');
     popup.id = 'settingsPopup';
-    popup.className = 'popup';
+    popup.className = 'popup dialog';
+    popup.setAttribute('role', 'dialog');
+    popup.setAttribute('aria-modal', 'true');
+    popup.setAttribute('aria-labelledby', 'scoreSettingsTitle');
     popup.innerHTML = `
-        <h3>分數按鈕設定</h3>
-        <p>請設定四個按鈕的分數值：</p>
-        <div class="score-settings-grid">
-            ${classes.scoreButtons.map((value, index) => `
-                <label>
-                    <span>第 ${index + 1} 個按鈕：</span>
-                    <input type="number" id="btn${index + 1}" value="${value}">
-                </label>
-            `).join('')}
+        <div class="dialog-header">
+            <h2 id="scoreSettingsTitle" class="dialog-title">分數按鈕設定</h2>
+            <button type="button" class="dialog-close" data-dialog-close="settings" aria-label="關閉分數按鈕設定">×</button>
         </div>
-        <div class="popup-actions">
+        <div class="dialog-body">
+            <p>請設定四個按鈕的分數值：</p>
+            <div class="score-settings-grid">
+                ${classes.scoreButtons.map((value, index) => `
+                    <label>
+                        <span>第 ${index + 1} 個按鈕：</span>
+                        <input type="number" id="btn${index + 1}" value="${value}">
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+        <div class="dialog-footer">
             <button type="button" class="btn-primary" data-action="save-score-settings">儲存</button>
             <button type="button" class="btn-secondary" data-action="close-score-settings">取消</button>
         </div>
@@ -1000,8 +1047,11 @@ function initUI() {
     });
 
     document.getElementById('syncStatusBar')?.addEventListener('click', () => {
-        const isDirty = document.getElementById('statusDirty')?.classList.contains('red');
-        if (!isDirty) {
+        if (syncState === 'updating') {
+            alert('同步處理中，請稍候...');
+            return;
+        }
+        if (syncState !== 'dirty') {
             alert('資料已是最新狀態');
             return;
         }
@@ -1030,10 +1080,7 @@ function initUI() {
         googleAuth.signIn();
     });
     document.getElementById('btnOffline')?.addEventListener('click', () => {
-        closeLoginChoice();
-        showMainButtons();
-        markDirty();
-        alert('離線模式啟用，之後登入Google可能覆蓋資料。');
+        enterOfflineMode(true);
     });
 
     document.getElementById('btnAddClass')?.addEventListener('click', addClassPrompt);
@@ -1066,16 +1113,50 @@ function initUI() {
         }
     });
 
+    document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const closeType = target.dataset.dialogClose;
+        if (!closeType) return;
+        event.preventDefault();
+        switch (closeType) {
+            case 'student':
+                closePopup();
+                break;
+            case 'class':
+                closeClassPopup();
+                break;
+            case 'login-choice':
+                enterOfflineMode(false);
+                break;
+            case 'login-processing':
+                backToLoginChoice();
+                break;
+            case 'sync':
+                hideSyncOverlay();
+                break;
+            case 'settings':
+                closeScoreButtonsSettings();
+                break;
+            default:
+                break;
+        }
+    });
+
     window.addEventListener('keydown', (evt) => {
         if (evt.key !== 'Escape') return;
-        if (document.getElementById('overlay')?.classList.contains('show')) {
+        if (document.getElementById('settingsOverlay')?.classList.contains('show')) {
+            closeScoreButtonsSettings();
+        } else if (document.getElementById('overlay')?.classList.contains('show')) {
             closePopup();
-        } else if (document.getElementById('loginOverlay')?.classList.contains('show')) {
-            closeLoginChoice();
         } else if (document.getElementById('classOverlay')?.classList.contains('show')) {
             closeClassPopup();
-        } else if (document.getElementById('settingsOverlay')?.classList.contains('show')) {
-            closeScoreButtonsSettings();
+        } else if (document.getElementById('loginProcessingOverlay')?.classList.contains('show')) {
+            backToLoginChoice();
+        } else if (document.getElementById('loginOverlay')?.classList.contains('show')) {
+            enterOfflineMode(false);
+        } else if (document.getElementById('syncOverlay')?.classList.contains('show')) {
+            hideSyncOverlay();
         }
     });
 }
@@ -1125,6 +1206,8 @@ function initializeApp() {
     );
 
     initUI();
+    setSyncState(syncState);
+    updateSyncStatus();
     renderClassDropdown();
     renderStudents();
     initWheel(() => getStudents(), () => classes);
