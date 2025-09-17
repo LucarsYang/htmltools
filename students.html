@@ -127,11 +127,15 @@
                     </select>
                 </label>
             </div>
+            <section class="student-avatar-section" aria-label="選擇預設頭像">
+                <h3 class="student-section-title">選擇頭像</h3>
+                <p class="student-section-hint">從預設頭像中挑選或切換代表圖片。</p>
+                <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
+            </section>
         </section>
-        <section class="student-image-section" aria-label="學生頭像設定">
-            <h3 class="student-section-title">選擇頭像</h3>
-            <p class="student-section-hint">從預設頭像或自訂圖片中挑選一張代表圖片。</p>
-            <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
+        <section class="student-image-section" aria-label="自訂圖片管理">
+            <h3 class="student-section-title">自訂圖片</h3>
+            <p class="student-section-hint">上傳或從雲端挑選曾經使用過的圖片。</p>
             <div class="custom-image-upload">
                 <button id="btnUploadImage" class="btn-primary" type="button">上傳自訂圖片</button>
                 <input type="file" id="customImageUpload" accept="image/*" hidden />

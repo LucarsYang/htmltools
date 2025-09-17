@@ -81,6 +81,18 @@
     display: flex;
 }
 
+.exam-timer-config.is-active {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: start;
+    gap: 28px;
+    overflow: hidden;
+}
+
+.exam-timer-config.is-active > * {
+    min-width: 0;
+}
+
 /* 設定畫面樣式 */
 .schedule-form {
     background: #f8fafc;
@@ -148,7 +160,7 @@
     box-shadow: 0 12px 24px rgba(76, 175, 80, 0.24);
 }
 
-.schedule-list {
+.exam-timer-config .schedule-list {
     background: #ffffff;
     border-radius: 20px;
     border: 1px solid #e2e8f0;
@@ -157,6 +169,8 @@
     flex-direction: column;
     gap: 16px;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    max-height: min(32vh, 320px);
+    overflow: hidden;
 }
 
 .schedule-list h3 {
@@ -166,7 +180,8 @@
 }
 
 .schedule-list-content {
-    max-height: 240px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     padding-right: 6px;
 }
@@ -373,6 +388,75 @@
 .btn-fullscreen:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 24px rgba(34, 197, 94, 0.25);
+}
+
+.exam-timer-overlay:fullscreen,
+.exam-timer-overlay:-webkit-full-screen {
+    padding: clamp(24px, 6vh, 80px);
+}
+
+.exam-timer-overlay:fullscreen .exam-timer-container,
+.exam-timer-overlay:-webkit-full-screen .exam-timer-container {
+    width: min(1280px, 90vw);
+    max-height: 94vh;
+}
+
+.exam-timer-overlay:fullscreen .exam-timer-header,
+.exam-timer-overlay:-webkit-full-screen .exam-timer-header {
+    padding: 32px clamp(40px, 8vw, 72px);
+}
+
+.exam-timer-overlay:fullscreen .exam-timer-title,
+.exam-timer-overlay:-webkit-full-screen .exam-timer-title {
+    font-size: clamp(30px, 3.4vw, 42px);
+}
+
+.exam-timer-overlay:fullscreen .system-time,
+.exam-timer-overlay:-webkit-full-screen .system-time {
+    font-size: clamp(20px, 2vw, 26px);
+    padding: 12px 22px;
+}
+
+.exam-timer-overlay:fullscreen .exam-display-content,
+.exam-timer-overlay:-webkit-full-screen .exam-display-content {
+    gap: 18px;
+}
+
+.exam-timer-overlay:fullscreen .exam-status,
+.exam-timer-overlay:-webkit-full-screen .exam-status {
+    font-size: clamp(30px, 3vw, 40px);
+}
+
+.exam-timer-overlay:fullscreen .exam-subject,
+.exam-timer-overlay:-webkit-full-screen .exam-subject {
+    font-size: clamp(44px, 4.6vw, 68px);
+}
+
+.exam-timer-overlay:fullscreen .countdown-timer,
+.exam-timer-overlay:-webkit-full-screen .countdown-timer {
+    font-size: clamp(160px, 15vw, 220px);
+}
+
+.exam-timer-overlay:fullscreen .waiting-status,
+.exam-timer-overlay:-webkit-full-screen .waiting-status {
+    font-size: clamp(52px, 5.6vw, 78px);
+}
+
+.exam-timer-overlay:fullscreen .waiting-timer,
+.exam-timer-overlay:-webkit-full-screen .waiting-timer {
+    font-size: clamp(40px, 4vw, 60px);
+}
+
+.exam-timer-overlay:fullscreen .exam-finished,
+.exam-timer-overlay:-webkit-full-screen .exam-finished {
+    font-size: clamp(56px, 5.4vw, 84px);
+}
+
+.exam-timer-overlay:fullscreen .timer-display-controls,
+.exam-timer-overlay:-webkit-full-screen .timer-display-controls {
+    bottom: 48px;
+    left: 48px;
+    right: 48px;
 }
 
 /* 響應式調整 */
