@@ -25,58 +25,60 @@ class ExamCountdownTimer {
         overlay.className = 'exam-timer-overlay';
         
         overlay.innerHTML = `
-            <!-- 設定畫面 -->
-            <div id="examTimerConfig" class="exam-timer-config">
-                <h2>考試倒數計時器</h2>
-                
-                <!-- 時程新增表單 -->
-                <div class="schedule-form">
-                    <div class="form-group">
-                        <label for="subjectName">考試科目：</label>
-                        <input type="text" id="subjectName" placeholder="例如：國語" maxlength="20">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="startTime">開始時間：</label>
-                            <input type="time" id="startTime">
+            <div class="exam-timer-container" role="dialog" aria-modal="true" aria-labelledby="examTimerTitle">
+                <header class="exam-timer-header">
+                    <h2 id="examTimerTitle" class="exam-timer-title">考試倒數計時器</h2>
+                    <button type="button" id="btnCloseExamTimer" class="exam-timer-close" aria-label="關閉考試倒數計時器">×</button>
+                </header>
+                <div class="exam-timer-panels">
+                    <section id="examTimerConfig" class="exam-timer-panel exam-timer-config is-active" aria-label="倒數計時器設定">
+                        <div class="schedule-form">
+                            <div class="form-group">
+                                <label for="subjectName">考試科目：</label>
+                                <input type="text" id="subjectName" placeholder="例如：國語" maxlength="20">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="startTime">開始時間：</label>
+                                    <input type="time" id="startTime">
+                                </div>
+                                <div class="form-group">
+                                    <label for="endTime">結束時間：</label>
+                                    <input type="time" id="endTime">
+                                </div>
+                            </div>
+                            <button id="btnAddSchedule" class="btn-add-schedule">新增時程</button>
                         </div>
-                        <div class="form-group">
-                            <label for="endTime">結束時間：</label>
-                            <input type="time" id="endTime">
+
+                        <div class="schedule-list">
+                            <h3>已排定時程</h3>
+                            <div class="schedule-list-content">
+                                <div id="scheduleList"></div>
+                            </div>
                         </div>
-                    </div>
-                    <button id="btnAddSchedule" class="btn-add-schedule">新增時程</button>
-                </div>
-                
-                <!-- 時程佇列 -->
-                <div class="schedule-list">
-                    <h3>已排定時程</h3>
-                    <div class="schedule-list-content">
-                        <div id="scheduleList"></div>
-                    </div>
-                </div>
-                
-                <!-- 控制按鈕 -->
-                <div class="timer-controls">
-                    <button id="btnClearAll" class="btn-clear-all">清空全部</button>
-                    <button id="btnStartTimer" class="btn-start-timer">開始計時</button>
-                    <button id="btnCancelTimer" class="btn-cancel-timer">退出設定</button>
-                </div>
-            </div>
-            
-            <!-- 倒數計時畫面 -->
-            <div id="examTimerDisplay" class="exam-timer-display">
-                <div class="system-time" id="systemTime"></div>
-                <div class="exam-status" id="examStatus">考試進行中</div>
-                <div class="exam-subject" id="examSubject">國語</div>
-                <div class="countdown-timer" id="countdownTimer">00:00:00</div>
-                <div class="waiting-status" id="waitingStatus" style="display: none;">等待下一個時程</div>
-                <div class="waiting-timer" id="waitingTimer" style="display: none;">00:00:00</div>
-                <div class="exam-finished" id="examFinished" style="display: none;">考試結束</div>
-                
-                <div class="timer-display-controls">
-                    <button id="btnBackSettings" class="btn-back-settings">返回設定</button>
-                    <button id="btnFullscreen" class="btn-fullscreen">全螢幕</button>
+
+                        <div class="timer-controls">
+                            <button id="btnClearAll" class="btn-clear-all">清空全部</button>
+                            <button id="btnStartTimer" class="btn-start-timer">開始計時</button>
+                        </div>
+                    </section>
+
+                    <section id="examTimerDisplay" class="exam-timer-panel exam-timer-display" aria-live="polite">
+                        <div class="system-time" id="systemTime"></div>
+                        <div class="exam-display-content">
+                            <div class="exam-status" id="examStatus">考試進行中</div>
+                            <div class="exam-subject" id="examSubject">國語</div>
+                            <div class="countdown-timer" id="countdownTimer">00:00:00</div>
+                            <div class="waiting-status" id="waitingStatus" style="display: none;">等待下一個時程</div>
+                            <div class="waiting-timer" id="waitingTimer" style="display: none;">00:00:00</div>
+                            <div class="exam-finished" id="examFinished" style="display: none;">考試結束</div>
+                        </div>
+
+                        <div class="timer-display-controls">
+                            <button id="btnBackSettings" class="btn-back-settings">返回設定</button>
+                            <button id="btnFullscreen" class="btn-fullscreen">全螢幕</button>
+                        </div>
+                    </section>
                 </div>
             </div>
         `;
@@ -89,7 +91,7 @@ class ExamCountdownTimer {
         document.getElementById('btnAddSchedule').addEventListener('click', () => this.addSchedule());
         document.getElementById('btnClearAll').addEventListener('click', () => this.clearAllSchedules());
         document.getElementById('btnStartTimer').addEventListener('click', () => this.startTimer());
-        document.getElementById('btnCancelTimer').addEventListener('click', () => this.hide());
+        document.getElementById('btnCloseExamTimer').addEventListener('click', () => this.hide());
         
         // 倒數計時畫面事件
         document.getElementById('btnBackSettings').addEventListener('click', () => this.backToConfig());
@@ -97,13 +99,11 @@ class ExamCountdownTimer {
         
         // 鍵盤事件
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (this.currentView === 'display') {
-                    this.backToConfig();
-                } else {
-                    this.hide();
-                }
-            }
+            if (e.key !== 'Escape') return;
+            const overlayEl = document.getElementById('examTimerOverlay');
+            if (!overlayEl || !overlayEl.classList.contains('show')) return;
+            e.preventDefault();
+            this.hide();
         });
         
         // 全螢幕變化事件
@@ -377,16 +377,20 @@ class ExamCountdownTimer {
     }
 
     showDisplayView() {
-        document.getElementById('examTimerConfig').style.display = 'none';
-        document.getElementById('examTimerDisplay').classList.add('show');
+        const configPanel = document.getElementById('examTimerConfig');
+        const displayPanel = document.getElementById('examTimerDisplay');
+        configPanel?.classList.remove('is-active');
+        displayPanel?.classList.add('is-active');
     }
 
     backToConfig() {
         this.stopCountdown();
         this.currentView = 'config';
-        document.getElementById('examTimerDisplay').classList.remove('show');
-        document.getElementById('examTimerConfig').style.display = 'block';
-        
+        const configPanel = document.getElementById('examTimerConfig');
+        const displayPanel = document.getElementById('examTimerDisplay');
+        displayPanel?.classList.remove('is-active');
+        configPanel?.classList.add('is-active');
+
         // 退出全螢幕
         if (this.isFullscreen) {
             this.exitFullscreen();
@@ -437,7 +441,6 @@ class ExamCountdownTimer {
     }
 
     hide() {
-        this.stopCountdown();
         document.getElementById('examTimerOverlay').classList.remove('show');
         this.backToConfig();
     }
