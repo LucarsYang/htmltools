@@ -103,23 +103,24 @@ function setSyncState(state) {
 }
 
 function refreshSyncLabels() {
-    const dirty = document.getElementById('statusDirty');
-    const updating = document.getElementById('statusUpdating');
-    const synced = document.getElementById('statusSynced');
+    const syncBar = document.getElementById('syncStatusBar');
+    if (!syncBar) return;
 
-    if (dirty) {
-        if (syncState === 'dirty' && googleAuth.getIsSignedIn() && remainingSeconds > 0) {
-            dirty.textContent = `有異動 (${remainingSeconds}s)`;
+    let hint = '已同步，資料為最新狀態';
+
+    if (syncState === 'dirty') {
+        if (googleAuth.getIsSignedIn() && remainingSeconds > 0) {
+            hint = `有異動，${remainingSeconds}s 後自動同步`;
         } else {
-            dirty.textContent = '有異動';
+            hint = '有異動，請點擊同步';
         }
+    } else if (syncState === 'updating') {
+        hint = '更新中，資料同步處理中';
     }
-    if (updating) {
-        updating.textContent = '更新中';
-    }
-    if (synced) {
-        synced.textContent = '已同步';
-    }
+
+    syncBar.dataset.hint = hint;
+    syncBar.setAttribute('aria-label', hint);
+    syncBar.title = hint;
 }
 
 function markDirty() {
@@ -185,18 +186,7 @@ function stopAutoSyncTimer() {
 function updateSyncStatus() {
     const statusBar = document.getElementById('syncStatusBar');
     if (!statusBar) return;
-
-    if (syncState === 'dirty') {
-        if (googleAuth.getIsSignedIn() && remainingSeconds > 0) {
-            statusBar.title = `點擊同步 (${remainingSeconds}秒後自動同步)`;
-        } else {
-            statusBar.title = '點擊進行同步';
-        }
-    } else if (syncState === 'updating') {
-        statusBar.title = '同步處理中...';
-    } else {
-        statusBar.title = '資料已同步';
-    }
+    statusBar.dataset.state = syncState;
     refreshSyncLabels();
 }
 
@@ -230,11 +220,17 @@ function performSync() {
 }
 
 function enableSyncBar() {
-    document.getElementById('syncStatusBar')?.classList.remove('disabled');
+    const bar = document.getElementById('syncStatusBar');
+    if (!bar) return;
+    bar.classList.remove('disabled');
+    bar.removeAttribute('aria-disabled');
 }
 
 function disableSyncBar() {
-    document.getElementById('syncStatusBar')?.classList.add('disabled');
+    const bar = document.getElementById('syncStatusBar');
+    if (!bar) return;
+    bar.classList.add('disabled');
+    bar.setAttribute('aria-disabled', 'true');
 }
 
 function showSyncOverlay() {

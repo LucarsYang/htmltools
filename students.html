@@ -55,10 +55,8 @@
         <div class="sidebar-footer">
             <section class="menu-group" aria-labelledby="sync-group">
                 <h2 class="menu-group-title" id="sync-group">同步狀態</h2>
-                <button class="sync-status" id="syncStatusBar" type="button" aria-live="polite" data-state="synced">
-                    <span id="statusDirty" class="status-label status-label--dirty">有異動</span>
-                    <span id="statusUpdating" class="status-label status-label--updating">更新中</span>
-                    <span id="statusSynced" class="status-label status-label--synced">已同步</span>
+                <button class="sync-indicator" id="syncStatusBar" type="button" aria-live="polite" aria-label="已同步" data-state="synced" data-hint="已同步">
+                    <span class="sync-light" aria-hidden="true"></span>
                 </button>
             </section>
         </div>
@@ -105,33 +103,41 @@
 </div>
 
 <div class="overlay" id="overlay" role="presentation"></div>
-<div class="popup dialog" id="studentPopup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+<div class="popup dialog dialog--fullscreen" id="studentPopup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
     <div class="dialog-header">
         <h2 id="popupTitle" class="dialog-title">新增學生</h2>
         <button type="button" class="dialog-close" data-dialog-close="student" aria-label="關閉學生表單">×</button>
     </div>
-    <div class="dialog-body">
-        <label class="field">
-            <span>姓名</span>
-            <input type="text" id="studentName" placeholder="輸入姓名" />
-        </label>
-        <label class="field">
-            <span>分數</span>
-            <input type="number" id="studentScore" placeholder="輸入分數" min="0" />
-        </label>
-        <label class="field">
-            <span>性別</span>
-            <select id="studentGender">
-                <option value="男">男生</option>
-                <option value="女">女生</option>
-            </select>
-        </label>
-        <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
-        <div class="custom-image-upload">
-            <button id="btnUploadImage" class="btn-primary" type="button">上傳自訂圖片</button>
-            <input type="file" id="customImageUpload" accept="image/*" hidden />
-            <div id="customImagePreview" class="custom-image-preview" aria-live="polite"></div>
-        </div>
+    <div class="dialog-body student-dialog-body">
+        <section class="student-form-section" aria-label="學生基本資料">
+            <div class="student-form-grid">
+                <label class="field">
+                    <span>姓名</span>
+                    <input type="text" id="studentName" placeholder="輸入姓名" />
+                </label>
+                <label class="field">
+                    <span>分數</span>
+                    <input type="number" id="studentScore" placeholder="輸入分數" min="0" />
+                </label>
+                <label class="field">
+                    <span>性別</span>
+                    <select id="studentGender">
+                        <option value="男">男生</option>
+                        <option value="女">女生</option>
+                    </select>
+                </label>
+            </div>
+        </section>
+        <section class="student-image-section" aria-label="學生頭像設定">
+            <h3 class="student-section-title">選擇頭像</h3>
+            <p class="student-section-hint">從預設頭像或自訂圖片中挑選一張代表圖片。</p>
+            <div class="image-preview" id="imageSelection" aria-label="預設頭像選擇"></div>
+            <div class="custom-image-upload">
+                <button id="btnUploadImage" class="btn-primary" type="button">上傳自訂圖片</button>
+                <input type="file" id="customImageUpload" accept="image/*" hidden />
+                <div id="customImagePreview" class="custom-image-preview" aria-live="polite"></div>
+            </div>
+        </section>
     </div>
     <div class="dialog-footer">
         <button id="btnSaveStudent" class="btn-primary" type="button">儲存</button>
