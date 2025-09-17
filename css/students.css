@@ -96,10 +96,9 @@ button {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 12px;
-    background: var(--color-sidebar-accent);
-    border: 1px solid var(--color-sidebar-outline);
-    border-radius: var(--radius-large);
+    padding: 4px 0 16px;
+    background: transparent;
+    border: none;
 }
 
 .brand-icon {
@@ -138,6 +137,16 @@ button {
     flex: 1;
     overflow-y: auto;
     padding-right: 4px;
+}
+
+.sidebar.collapsed .sidebar-content {
+    padding-right: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.sidebar.collapsed .sidebar-content::-webkit-scrollbar {
+    display: none;
 }
 
 .sidebar-footer {
