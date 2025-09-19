@@ -23,6 +23,18 @@
         </div>
 
         <div class="sidebar-content" role="presentation">
+            <section class="sidebar-sync" id="syncStatusCard" aria-labelledby="sync-group" data-state="synced">
+                <div class="sidebar-sync-text">
+                    <div class="sidebar-sync-heading">
+                        <h2 class="sidebar-sync-title" id="sync-group">同步狀態</h2>
+                        <span class="sync-status-badge" id="syncStatusBadge">已同步</span>
+                    </div>
+                    <p class="sidebar-sync-hint" id="syncStatusText">已同步，資料為最新狀態</p>
+                </div>
+                <button class="sync-indicator" id="syncStatusBar" type="button" aria-live="polite" aria-label="已同步" aria-describedby="syncStatusText" data-state="synced" data-hint="已同步">
+                    <span class="sync-light" aria-hidden="true"></span>
+                </button>
+            </section>
             <section class="menu-group" aria-labelledby="function-group">
                 <h2 class="menu-group-title" id="function-group">功能</h2>
                 <a class="menu-item" id="login-btn" data-label="登入 Google" title="登入 Google" style="display:none;">
@@ -51,15 +63,6 @@
                 <h2 class="menu-group-title" id="data-group">資料</h2>
                 <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
                 <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
-            </section>
-        </div>
-
-        <div class="sidebar-footer">
-            <section class="menu-group" aria-labelledby="sync-group">
-                <h2 class="menu-group-title" id="sync-group">同步狀態</h2>
-                <button class="sync-indicator" id="syncStatusBar" type="button" aria-live="polite" aria-label="已同步" data-state="synced" data-hint="已同步">
-                    <span class="sync-light" aria-hidden="true"></span>
-                </button>
             </section>
         </div>
     </aside>

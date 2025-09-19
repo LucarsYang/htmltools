@@ -103,8 +103,12 @@ function setupActivityListeners() {
 function setSyncState(state) {
     syncState = state;
     const syncBar = document.getElementById('syncStatusBar');
+    const syncCard = document.getElementById('syncStatusCard');
     if (syncBar) {
         syncBar.dataset.state = state;
+    }
+    if (syncCard) {
+        syncCard.dataset.state = state;
     }
     refreshSyncLabels();
 }
@@ -113,21 +117,41 @@ function refreshSyncLabels() {
     const syncBar = document.getElementById('syncStatusBar');
     if (!syncBar) return;
 
-    let hint = '已同步，資料為最新狀態';
+    const syncHint = document.getElementById('syncStatusText');
+    const syncBadge = document.getElementById('syncStatusBadge');
+    const isSignedIn = googleAuth.getIsSignedIn();
+
+    let hint = isSignedIn ? '已同步，資料為最新狀態' : '請登入以啟用資料同步';
+    let badgeText = isSignedIn ? '已同步' : '需登入';
 
     if (syncState === 'dirty') {
-        if (googleAuth.getIsSignedIn() && remainingSeconds > 0) {
+        if (!isSignedIn) {
+            hint = '有異動，請登入後同步';
+            badgeText = '需登入';
+        } else if (remainingSeconds > 0) {
             hint = `有異動，${remainingSeconds}s 後自動同步`;
+            badgeText = '待同步';
         } else {
             hint = '有異動，請點擊同步';
+            badgeText = '待同步';
         }
     } else if (syncState === 'updating') {
         hint = '更新中，資料同步處理中';
+        badgeText = '同步中';
     }
 
     syncBar.dataset.hint = hint;
     syncBar.setAttribute('aria-label', hint);
+    syncBar.setAttribute('aria-describedby', 'syncStatusText');
     syncBar.title = hint;
+
+    if (syncHint) {
+        syncHint.textContent = hint;
+    }
+
+    if (syncBadge) {
+        syncBadge.textContent = badgeText;
+    }
 }
 
 function markDirty() {
@@ -192,8 +216,14 @@ function stopAutoSyncTimer() {
 
 function updateSyncStatus() {
     const statusBar = document.getElementById('syncStatusBar');
+    const statusCard = document.getElementById('syncStatusCard');
     if (!statusBar) return;
     statusBar.dataset.state = syncState;
+    statusBar.setAttribute('aria-busy', syncState === 'updating' ? 'true' : 'false');
+    if (statusCard) {
+        statusCard.dataset.state = syncState;
+        statusCard.setAttribute('aria-busy', syncState === 'updating' ? 'true' : 'false');
+    }
     refreshSyncLabels();
 }
 
