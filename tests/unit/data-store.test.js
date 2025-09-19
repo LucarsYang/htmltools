@@ -12,6 +12,8 @@ import {
   updateStudentScore,
   DEFAULT_SCORE_BUTTONS,
   DEFAULT_REWARDS,
+  DEFAULT_DEDUCTION_ITEMS,
+  DEFAULT_SCORE_EVENTS,
   GENDER_IMAGE_LABELS
 } from '../../js/students/data-store.js';
 
@@ -35,6 +37,8 @@ test('createDefaultClasses returns expected template', () => {
   assert.ok(Array.isArray(defaults['501']));
   assert.deepEqual(defaults.scoreButtons, DEFAULT_SCORE_BUTTONS);
   assert.deepEqual(defaults.rewards, DEFAULT_REWARDS);
+  assert.deepEqual(defaults.deductionItems, DEFAULT_DEDUCTION_ITEMS);
+  assert.deepEqual(defaults.scoreEvents, DEFAULT_SCORE_EVENTS);
 });
 
 test('ensureClassesIntegrity repairs missing keys', () => {
@@ -43,6 +47,90 @@ test('ensureClassesIntegrity repairs missing keys', () => {
   assert.deepEqual(repaired.scoreButtons, [1, 2, 3, 4]);
   assert.deepEqual(repaired.rewards, DEFAULT_REWARDS);
   assert.ok(Array.isArray(repaired['A班']));
+  assert.deepEqual(repaired.deductionItems, DEFAULT_DEDUCTION_ITEMS);
+  assert.deepEqual(repaired.scoreEvents, DEFAULT_SCORE_EVENTS);
+});
+
+test('ensureClassesIntegrity normalizes score events and links deduction history', () => {
+  const rawClasses = {
+    '一班': [
+      {
+        name: '小明',
+        score: 10,
+        gender: '男',
+        deductionHistory: [
+          {
+            id: 'hist1',
+            itemId: 99,
+            itemName: '遲到',
+            points: -3,
+            scoreAfter: 7,
+            appliedAt: '2024-01-01T00:00:00.000Z'
+          }
+        ]
+      }
+    ],
+    scoreButtons: [...DEFAULT_SCORE_BUTTONS],
+    rewards: [...DEFAULT_REWARDS],
+    deductionItems: [],
+    scoreEvents: [
+      {
+        id: '',
+        className: '一班',
+        studentName: '小明',
+        studentIndex: '0',
+        previousScore: '10',
+        delta: '2',
+        newScore: '12',
+        metadata: { source: 'custom' },
+        performedAt: ''
+      },
+      {
+        className: '',
+        studentName: '',
+        studentIndex: null,
+        previousScore: null,
+        delta: '-3',
+        newScore: '7',
+        type: 'deduction-item',
+        metadata: { historyId: 'hist1' },
+        performedAt: ''
+      }
+    ]
+  };
+
+  const normalized = ensureClassesIntegrity(rawClasses);
+  const events = normalized.scoreEvents;
+  assert.equal(events.length, 2);
+
+  const ids = new Set(events.map(event => event.id));
+  assert.equal(ids.size, events.length, 'event ids should be unique');
+
+  const customEvent = events.find(event => event.metadata?.source === 'custom');
+  assert.ok(customEvent, 'custom event should exist');
+  assert.equal(customEvent.className, '一班');
+  assert.equal(customEvent.studentName, '小明');
+  assert.equal(customEvent.studentIndex, 0);
+  assert.equal(customEvent.delta, 2);
+  assert.equal(customEvent.previousScore, 10);
+  assert.equal(customEvent.newScore, 12);
+  assert.equal(typeof customEvent.performedAt, 'string');
+
+  const historyEvent = events.find(event => event.metadata?.historyId === 'hist1');
+  assert.ok(historyEvent, 'history-linked event should exist');
+  assert.equal(historyEvent.className, '一班');
+  assert.equal(historyEvent.studentName, '小明');
+  assert.equal(historyEvent.studentIndex, 0);
+  assert.equal(historyEvent.metadata.itemId, 99);
+  assert.equal(historyEvent.metadata.itemName, '遲到');
+  assert.equal(historyEvent.newScore, 7);
+  assert.equal(typeof historyEvent.performedAt, 'string');
+
+  const [student] = normalized['一班'];
+  assert.ok(student, 'student should exist after normalization');
+  const [historyEntry] = student.deductionHistory;
+  assert.ok(historyEntry, 'deduction history should remain');
+  assert.equal(historyEntry.eventId, historyEvent.id);
 });
 
 test('loadClasses fallback to default when storage empty', () => {

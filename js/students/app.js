@@ -39,25 +39,12 @@ let syncState = 'synced';
 let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60;
 let lastActivityTime = Date.now();
-let dashboardRenderScheduled = false;
 
 function ensureScoreEventsStore() {
     if (!Array.isArray(classes.scoreEvents)) {
         classes.scoreEvents = [];
     }
     return classes.scoreEvents;
-}
-
-function scheduleScoreDashboardRender() {
-    if (dashboardRenderScheduled) return;
-    dashboardRenderScheduled = true;
-    const schedule = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
-        ? window.requestAnimationFrame
-        : (cb) => setTimeout(cb, 16);
-    schedule(() => {
-        dashboardRenderScheduled = false;
-        renderScoreDashboard();
-    });
 }
 
 function generateScoreEventId() {
@@ -107,7 +94,6 @@ function recordScoreEvent({
     };
 
     ensureScoreEventsStore().push(event);
-    scheduleScoreDashboardRender();
     return event;
 }
 
@@ -415,7 +401,6 @@ async function loadClassesFromDrive() {
             closeScoreHistory();
             renderClassDropdown();
             renderStudents();
-            renderScoreDashboard();
             deductionManager?.refresh();
             markSynced();
         } else {
@@ -761,179 +746,6 @@ function describeScoreEvent(event) {
                 detail: detailParts.join(' • ')
             };
     }
-}
-
-function buildScoreTrendDataset(events, days = 7) {
-    const dataset = {
-        labels: [],
-        positives: [],
-        negatives: [],
-        maxValue: 0
-    };
-
-    const totalsByDay = new Map();
-    events.forEach(event => {
-        if (!event || !event.performedAt) return;
-        const date = new Date(event.performedAt);
-        if (Number.isNaN(date.getTime())) return;
-        const isoKey = date.toISOString().slice(0, 10);
-        if (!totalsByDay.has(isoKey)) {
-            totalsByDay.set(isoKey, { positive: 0, negative: 0 });
-        }
-        const entry = totalsByDay.get(isoKey);
-        const delta = Number(event.delta) || 0;
-        if (delta > 0) {
-            entry.positive += delta;
-        } else if (delta < 0) {
-            entry.negative += Math.abs(delta);
-        }
-    });
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (let i = days - 1; i >= 0; i -= 1) {
-        const day = new Date(today);
-        day.setDate(today.getDate() - i);
-        const isoKey = day.toISOString().slice(0, 10);
-        const entry = totalsByDay.get(isoKey) || { positive: 0, negative: 0 };
-        const label = `${day.getMonth() + 1}/${String(day.getDate()).padStart(2, '0')}`;
-        dataset.labels.push(label);
-        dataset.positives.push(entry.positive);
-        dataset.negatives.push(entry.negative);
-    }
-
-    dataset.maxValue = Math.max(0, ...dataset.positives, ...dataset.negatives);
-    return dataset;
-}
-
-function drawScoreTrendChart(canvas, dataset) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-    const clientWidth = canvas.clientWidth || canvas.width || 640;
-    const clientHeight = canvas.clientHeight || canvas.height || 260;
-    if (canvas.width !== Math.floor(clientWidth * dpr) || canvas.height !== Math.floor(clientHeight * dpr)) {
-        canvas.width = Math.floor(clientWidth * dpr);
-        canvas.height = Math.floor(clientHeight * dpr);
-    }
-
-    if (typeof ctx.resetTransform === 'function') {
-        ctx.resetTransform();
-    } else {
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.scale(dpr, dpr);
-
-    const width = canvas.width / dpr;
-    const height = canvas.height / dpr;
-    const padding = { top: 20, right: 24, bottom: 40, left: 52 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    if (chartWidth <= 0 || chartHeight <= 0) {
-        return;
-    }
-
-    const labels = dataset.labels;
-    const positives = dataset.positives;
-    const negatives = dataset.negatives;
-    const maxValue = dataset.maxValue > 0 ? dataset.maxValue : 1;
-    const steps = labels.length > 1 ? labels.length - 1 : 1;
-
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = '#cbd5f5';
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top);
-    ctx.lineTo(padding.left, padding.top + chartHeight);
-    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
-    ctx.stroke();
-
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top + chartHeight / 2);
-    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight / 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    const drawLine = (data, color) => {
-        ctx.beginPath();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = color;
-        data.forEach((value, index) => {
-            const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
-            const y = padding.top + chartHeight - (Math.min(value, maxValue) / maxValue) * chartHeight;
-            if (index === 0 || steps === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
-        ctx.stroke();
-        data.forEach((value, index) => {
-            const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
-            const y = padding.top + chartHeight - (Math.min(value, maxValue) / maxValue) * chartHeight;
-            ctx.beginPath();
-            ctx.fillStyle = color;
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    };
-
-    drawLine(positives, '#16a34a');
-    drawLine(negatives, '#dc2626');
-
-    ctx.fillStyle = '#475569';
-    ctx.font = '12px "Noto Sans TC", "PingFang TC", sans-serif';
-    labels.forEach((label, index) => {
-        const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
-        const textWidth = ctx.measureText(label).width;
-        ctx.fillText(label, x - textWidth / 2, padding.top + chartHeight + 20);
-    });
-
-    const maxLabel = `峰值 ${Math.round(maxValue)}`;
-    ctx.fillText(maxLabel, padding.left, padding.top - 6);
-}
-
-function renderScoreDashboard() {
-    const dashboard = document.getElementById('scoreDashboard');
-    if (!dashboard) return;
-
-    const events = ensureScoreEventsStore().filter(event => event?.className === currentClass);
-    let positiveTotal = 0;
-    let negativeTotal = 0;
-    events.forEach(event => {
-        const delta = Number(event?.delta) || 0;
-        if (delta > 0) {
-            positiveTotal += delta;
-        } else if (delta < 0) {
-            negativeTotal += Math.abs(delta);
-        }
-    });
-
-    const totalEl = document.getElementById('scoreEventTotal');
-    const positiveEl = document.getElementById('scoreEventPositive');
-    const negativeEl = document.getElementById('scoreEventNegative');
-    if (totalEl) totalEl.textContent = String(events.length);
-    if (positiveEl) positiveEl.textContent = positiveTotal ? `+${positiveTotal}` : '0';
-    if (negativeEl) negativeEl.textContent = negativeTotal ? `-${negativeTotal}` : '0';
-
-    const canvas = document.getElementById('scoreTrendCanvas');
-    const emptyState = document.getElementById('scoreTrendEmpty');
-    if (!canvas || !emptyState) return;
-
-    const dataset = buildScoreTrendDataset(events);
-    const hasData = dataset.labels.some((_, index) => (dataset.positives[index] || dataset.negatives[index]));
-    if (!hasData) {
-        emptyState.classList.add('is-visible');
-        const ctx = canvas.getContext('2d');
-        ctx?.clearRect(0, 0, canvas.width, canvas.height);
-        return;
-    }
-
-    emptyState.classList.remove('is-visible');
-    drawScoreTrendChart(canvas, dataset);
 }
 
 function syncScoreEventsForStudent(studentIndex, previousName, nextName) {
@@ -1307,7 +1119,6 @@ function renderStudents() {
         container.appendChild(card);
     });
 
-    scheduleScoreDashboardRender();
 }
 
 function handleDragStart(e) {
@@ -2243,14 +2054,12 @@ function initializeApp() {
     updateSyncStatus();
     renderClassDropdown();
     renderStudents();
-    renderScoreDashboard();
     deductionManager?.refresh();
     initWheel(() => getStudents(), () => classes);
 
     window.clearCustomImage = clearCustomImage;
 }
 
-window.addEventListener('resize', scheduleScoreDashboardRender);
 window.addEventListener('DOMContentLoaded', initializeApp);
 
 export function getClassesReference() {
