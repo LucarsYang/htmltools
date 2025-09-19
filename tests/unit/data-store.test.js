@@ -12,6 +12,8 @@ import {
   updateStudentScore,
   DEFAULT_SCORE_BUTTONS,
   DEFAULT_REWARDS,
+  DEFAULT_DEDUCTION_ITEMS,
+  DEFAULT_SCORE_EVENTS,
   GENDER_IMAGE_LABELS
 } from '../../js/students/data-store.js';
 
@@ -35,6 +37,8 @@ test('createDefaultClasses returns expected template', () => {
   assert.ok(Array.isArray(defaults['501']));
   assert.deepEqual(defaults.scoreButtons, DEFAULT_SCORE_BUTTONS);
   assert.deepEqual(defaults.rewards, DEFAULT_REWARDS);
+  assert.deepEqual(defaults.deductionItems, DEFAULT_DEDUCTION_ITEMS);
+  assert.deepEqual(defaults.scoreEvents, DEFAULT_SCORE_EVENTS);
 });
 
 test('ensureClassesIntegrity repairs missing keys', () => {
@@ -43,6 +47,47 @@ test('ensureClassesIntegrity repairs missing keys', () => {
   assert.deepEqual(repaired.scoreButtons, [1, 2, 3, 4]);
   assert.deepEqual(repaired.rewards, DEFAULT_REWARDS);
   assert.ok(Array.isArray(repaired['A班']));
+  assert.deepEqual(repaired.deductionItems, DEFAULT_DEDUCTION_ITEMS);
+  assert.ok(Array.isArray(repaired.scoreEvents));
+  assert.ok(repaired.scoreEvents.every(event => typeof event.id === 'string'));
+});
+
+test('ensureClassesIntegrity migrates deduction history into scoreEvents', () => {
+  const classes = {
+    Foo: [
+      {
+        name: '小明',
+        score: 10,
+        deductionHistory: [
+          {
+            id: 'h-1',
+            itemName: '遲到',
+            points: -2,
+            scoreAfter: 8,
+            appliedAt: '2024-01-10T08:00:00.000Z'
+          }
+        ]
+      }
+    ],
+    scoreButtons: DEFAULT_SCORE_BUTTONS,
+    rewards: DEFAULT_REWARDS
+  };
+
+  const normalized = ensureClassesIntegrity(classes);
+  assert.equal(normalized.scoreEvents.length, 1);
+  const event = normalized.scoreEvents[0];
+  assert.equal(event.className, 'Foo');
+  assert.equal(event.studentName, '小明');
+  assert.equal(event.studentIndex, 0);
+  assert.equal(event.delta, -2);
+  assert.equal(event.newScore, 8);
+  assert.equal(event.previousScore, 10);
+  assert.equal(event.type, 'deduction-item');
+  assert.equal(event.metadata.historyId, 'h-1');
+  assert.equal(
+    normalized.Foo[0].deductionHistory[0].eventId,
+    event.id
+  );
 });
 
 test('loadClasses fallback to default when storage empty', () => {

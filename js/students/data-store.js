@@ -1,8 +1,9 @@
 const DEFAULT_CLASS_NAME = '一班';
-export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems'];
+export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems', 'scoreEvents'];
 export const DEFAULT_SCORE_BUTTONS = [-5, -1, 1, 5];
 export const DEFAULT_REWARDS = ['獎勵', '懲罰'];
 export const DEFAULT_DEDUCTION_ITEMS = [];
+export const DEFAULT_SCORE_EVENTS = [];
 
 export const IMAGE_MAP = {
     '男1': 'https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000',
@@ -23,8 +24,63 @@ export function createDefaultClasses() {
         '501': [],
         scoreButtons: [...DEFAULT_SCORE_BUTTONS],
         rewards: [...DEFAULT_REWARDS],
-        deductionItems: [...DEFAULT_DEDUCTION_ITEMS]
+        deductionItems: [...DEFAULT_DEDUCTION_ITEMS],
+        scoreEvents: [...DEFAULT_SCORE_EVENTS]
     };
+}
+
+function normalizeScoreEvents(events) {
+    if (!Array.isArray(events)) {
+        return [...DEFAULT_SCORE_EVENTS];
+    }
+
+    const seenIds = new Set();
+    let fallbackId = Date.now();
+
+    return events.reduce((acc, raw) => {
+        if (!raw || typeof raw !== 'object') return acc;
+
+        const normalized = {};
+
+        const idValue = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : '';
+        let normalizedId = idValue;
+        while (!normalizedId || seenIds.has(normalizedId)) {
+            normalizedId = `se-${fallbackId}`;
+            fallbackId += 1;
+        }
+        seenIds.add(normalizedId);
+        normalized.id = normalizedId;
+
+        normalized.className = typeof raw.className === 'string' ? raw.className : '';
+        normalized.studentName = typeof raw.studentName === 'string' ? raw.studentName : '';
+
+        const studentIndexValue = Number(raw.studentIndex);
+        normalized.studentIndex = Number.isInteger(studentIndexValue) ? studentIndexValue : null;
+
+        const deltaValue = Number(raw.delta);
+        normalized.delta = Number.isFinite(deltaValue) ? deltaValue : 0;
+
+        const prevValue = Number(raw.previousScore);
+        normalized.previousScore = Number.isFinite(prevValue) ? prevValue : null;
+
+        const nextValue = Number(raw.newScore);
+        normalized.newScore = Number.isFinite(nextValue) ? nextValue : null;
+
+        normalized.type = typeof raw.type === 'string' ? raw.type : 'unknown';
+
+        const metadata = raw.metadata;
+        normalized.metadata = metadata && typeof metadata === 'object' ? metadata : {};
+
+        const timeValue = typeof raw.performedAt === 'string' ? raw.performedAt : '';
+        let normalizedTime = timeValue;
+        if (!normalizedTime) {
+            normalizedTime = new Date().toISOString();
+        }
+        normalized.performedAt = normalizedTime;
+
+        acc.push(normalized);
+        return acc;
+    }, []);
 }
 
 function getStorage(storage) {
@@ -73,6 +129,35 @@ export function ensureClassesIntegrity(classes) {
         classes.deductionItems = normalizedItems;
     }
 
+    classes.scoreEvents = normalizeScoreEvents(classes.scoreEvents);
+    const scoreEvents = classes.scoreEvents;
+    const eventsById = new Map();
+    const eventsByHistory = new Map();
+    const usedEventIds = new Set();
+
+    scoreEvents.forEach(event => {
+        if (!event || typeof event !== 'object') return;
+        if (typeof event.id === 'string' && event.id.trim()) {
+            usedEventIds.add(event.id);
+            eventsById.set(event.id, event);
+        }
+        const historyId = event?.metadata?.historyId;
+        if (typeof historyId === 'string' && historyId.trim()) {
+            eventsByHistory.set(historyId.trim(), event);
+        }
+    });
+
+    let fallbackEventId = Date.now();
+    function allocateScoreEventId() {
+        let candidate = '';
+        do {
+            candidate = `se-${fallbackEventId}`;
+            fallbackEventId += 1;
+        } while (usedEventIds.has(candidate));
+        usedEventIds.add(candidate);
+        return candidate;
+    }
+
     let classKeys = Object.keys(classes).filter(key => !SPECIAL_CLASS_KEYS.includes(key));
     if (classKeys.length === 0) {
         classes[DEFAULT_CLASS_NAME] = [];
@@ -84,7 +169,7 @@ export function ensureClassesIntegrity(classes) {
         const usedHistoryIds = new Set();
         let fallbackId = Date.now();
 
-        classes[className] = students.map(student => {
+        classes[className] = students.map((student, studentIndex) => {
             const normalized = normalizeStudentRecord(student);
             const history = Array.isArray(student?.deductionHistory) ? student.deductionHistory : [];
             const normalizedHistory = [];
@@ -124,15 +209,76 @@ export function ensureClassesIntegrity(classes) {
                 usedHistoryIds.add(normalizedId);
 
                 const scoreAfterValue = Number(record.scoreAfter);
+                const eventIdRaw = record.eventId;
+                const normalizedEventId =
+                    typeof eventIdRaw === 'string' || typeof eventIdRaw === 'number'
+                        ? String(eventIdRaw).trim()
+                        : null;
 
-                normalizedHistory.push({
+                const entry = {
                     id: normalizedId,
                     itemId: typeof record.itemId === 'string' || typeof record.itemId === 'number' ? record.itemId : null,
                     itemName,
                     points,
                     scoreAfter: Number.isFinite(scoreAfterValue) ? scoreAfterValue : null,
-                    appliedAt: appliedAtValue
-                });
+                    appliedAt: appliedAtValue,
+                    eventId: normalizedEventId && normalizedEventId.length ? normalizedEventId : null
+                };
+
+                let linkedEvent = null;
+                if (entry.eventId && eventsById.has(entry.eventId)) {
+                    linkedEvent = eventsById.get(entry.eventId);
+                } else if (eventsByHistory.has(normalizedId)) {
+                    linkedEvent = eventsByHistory.get(normalizedId);
+                }
+
+                if (linkedEvent) {
+                    linkedEvent.studentIndex = studentIndex;
+                    linkedEvent.studentName = normalized.name || linkedEvent.studentName || '';
+                    linkedEvent.className = className;
+                    if (!linkedEvent.metadata || typeof linkedEvent.metadata !== 'object') {
+                        linkedEvent.metadata = {};
+                    }
+                    linkedEvent.metadata.historyId = normalizedId;
+                    if (entry.itemId !== null && entry.itemId !== undefined) {
+                        linkedEvent.metadata.itemId = entry.itemId;
+                    }
+                    if (entry.itemName) {
+                        linkedEvent.metadata.itemName = entry.itemName;
+                    }
+                    entry.eventId = linkedEvent.id;
+                } else {
+                    const newEventId = allocateScoreEventId();
+                    const deltaValue = entry.points;
+                    const scoreAfter = entry.scoreAfter;
+                    const computedPrevious =
+                        Number.isFinite(scoreAfter) && Number.isFinite(deltaValue)
+                            ? scoreAfter - deltaValue
+                            : null;
+                    const newEvent = {
+                        id: newEventId,
+                        className,
+                        studentName: normalized.name || '',
+                        studentIndex,
+                        previousScore: Number.isFinite(computedPrevious) ? computedPrevious : null,
+                        delta: Number.isFinite(deltaValue) ? deltaValue : 0,
+                        newScore: Number.isFinite(scoreAfter) ? scoreAfter : null,
+                        type: 'deduction-item',
+                        metadata: {
+                            itemId: entry.itemId,
+                            itemName: entry.itemName,
+                            historyId: normalizedId,
+                            source: 'legacy-history'
+                        },
+                        performedAt: appliedAtValue
+                    };
+                    scoreEvents.push(newEvent);
+                    eventsById.set(newEventId, newEvent);
+                    eventsByHistory.set(normalizedId, newEvent);
+                    entry.eventId = newEventId;
+                }
+
+                normalizedHistory.push(entry);
             });
 
             normalizedHistory.sort((a, b) => {
