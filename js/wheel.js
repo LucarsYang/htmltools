@@ -37,8 +37,8 @@ class WheelManager {
                     </div>
                     
                     <div class="wheel-mode-switch">
-                        <button class="mode-btn" data-mode="student">學生輪轉盤</button>
                         <button class="mode-btn active" data-mode="reward">獎懲輪轉盤</button>
+                        <button class="mode-btn" data-mode="student">學生輪轉盤</button>
                     </div>
                     
                     <div class="wheel-section">
