@@ -1,7 +1,8 @@
 const DEFAULT_CLASS_NAME = '一班';
-export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards'];
+export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems'];
 export const DEFAULT_SCORE_BUTTONS = [-5, -1, 1, 5];
 export const DEFAULT_REWARDS = ['獎勵', '懲罰'];
+export const DEFAULT_DEDUCTION_ITEMS = [];
 
 export const IMAGE_MAP = {
     '男1': 'https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000',
@@ -21,7 +22,8 @@ export function createDefaultClasses() {
     return {
         '501': [],
         scoreButtons: [...DEFAULT_SCORE_BUTTONS],
-        rewards: [...DEFAULT_REWARDS]
+        rewards: [...DEFAULT_REWARDS],
+        deductionItems: [...DEFAULT_DEDUCTION_ITEMS]
     };
 }
 
@@ -48,10 +50,101 @@ export function ensureClassesIntegrity(classes) {
         classes.rewards = [...DEFAULT_REWARDS];
     }
 
-    const classKeys = Object.keys(classes).filter(key => !SPECIAL_CLASS_KEYS.includes(key));
+    if (!Array.isArray(classes.deductionItems)) {
+        classes.deductionItems = [...DEFAULT_DEDUCTION_ITEMS];
+    } else {
+        const normalizedItems = [];
+        const usedIds = new Set();
+        let fallbackId = Date.now();
+        classes.deductionItems.forEach((item) => {
+            if (!item || typeof item.name !== 'string') return;
+            const trimmedName = item.name.trim();
+            if (!trimmedName) return;
+            const points = Number(item.points);
+            if (!Number.isFinite(points)) return;
+            let id = typeof item.id === 'number' ? item.id : null;
+            while (id === null || usedIds.has(id)) {
+                id = fallbackId;
+                fallbackId += 1;
+            }
+            usedIds.add(id);
+            normalizedItems.push({ id, name: trimmedName, points });
+        });
+        classes.deductionItems = normalizedItems;
+    }
+
+    let classKeys = Object.keys(classes).filter(key => !SPECIAL_CLASS_KEYS.includes(key));
     if (classKeys.length === 0) {
         classes[DEFAULT_CLASS_NAME] = [];
+        classKeys = [DEFAULT_CLASS_NAME];
     }
+
+    classKeys.forEach(className => {
+        const students = Array.isArray(classes[className]) ? classes[className] : [];
+        const usedHistoryIds = new Set();
+        let fallbackId = Date.now();
+
+        classes[className] = students.map(student => {
+            const normalized = normalizeStudentRecord(student);
+            const history = Array.isArray(student?.deductionHistory) ? student.deductionHistory : [];
+            const normalizedHistory = [];
+
+            history.forEach(record => {
+                if (!record || typeof record !== 'object') return;
+                const rawName = typeof record.itemName === 'string' ? record.itemName.trim() : '';
+                const itemName = rawName || '未命名項目';
+                const points = Number(record.points);
+                if (!Number.isFinite(points)) return;
+
+                let appliedAtValue = typeof record.appliedAt === 'string' ? record.appliedAt : '';
+                let appliedDate = appliedAtValue ? new Date(appliedAtValue) : null;
+                if (!appliedDate || Number.isNaN(appliedDate.getTime())) {
+                    if (typeof record.timestamp === 'string') {
+                        const fallbackDate = new Date(record.timestamp);
+                        if (!Number.isNaN(fallbackDate.getTime())) {
+                            appliedDate = fallbackDate;
+                            appliedAtValue = fallbackDate.toISOString();
+                        }
+                    }
+                }
+                if (!appliedDate || Number.isNaN(appliedDate.getTime())) {
+                    appliedDate = new Date();
+                    appliedAtValue = appliedDate.toISOString();
+                }
+
+                let recordId = record.id;
+                if (typeof recordId !== 'string' && typeof recordId !== 'number') {
+                    recordId = null;
+                }
+                let normalizedId = recordId !== null ? String(recordId) : '';
+                while (!normalizedId || usedHistoryIds.has(normalizedId)) {
+                    normalizedId = `h-${fallbackId}`;
+                    fallbackId += 1;
+                }
+                usedHistoryIds.add(normalizedId);
+
+                const scoreAfterValue = Number(record.scoreAfter);
+
+                normalizedHistory.push({
+                    id: normalizedId,
+                    itemId: typeof record.itemId === 'string' || typeof record.itemId === 'number' ? record.itemId : null,
+                    itemName,
+                    points,
+                    scoreAfter: Number.isFinite(scoreAfterValue) ? scoreAfterValue : null,
+                    appliedAt: appliedAtValue
+                });
+            });
+
+            normalizedHistory.sort((a, b) => {
+                const timeA = new Date(a.appliedAt).getTime();
+                const timeB = new Date(b.appliedAt).getTime();
+                return timeA - timeB;
+            });
+
+            normalized.deductionHistory = normalizedHistory;
+            return normalized;
+        });
+    });
 
     return classes;
 }
@@ -102,7 +195,8 @@ export function normalizeStudentRecord(student) {
         gender: '男',
         imageLabel: '',
         customImage: null,
-        customImageFileId: null
+        customImageFileId: null,
+        deductionHistory: []
     };
     return { ...base, ...student };
 }
