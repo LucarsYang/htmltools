@@ -23,43 +23,46 @@
         </div>
 
         <div class="sidebar-content" role="presentation">
-            <section class="menu-group" aria-labelledby="account-group">
-                <h2 class="menu-group-title" id="account-group">帳號管理</h2>
+            <section class="sidebar-sync" id="syncStatusCard" aria-labelledby="sync-group" data-state="synced">
+                <div class="sidebar-sync-text">
+                    <div class="sidebar-sync-heading">
+                        <h2 class="sidebar-sync-title" id="sync-group">同步狀態</h2>
+                        <span class="sync-status-badge" id="syncStatusBadge">已同步</span>
+                    </div>
+                    <p class="sidebar-sync-hint" id="syncStatusText">已同步，資料為最新狀態</p>
+                </div>
+                <button class="sync-indicator" id="syncStatusBar" type="button" aria-live="polite" aria-label="已同步" aria-describedby="syncStatusText" data-state="synced" data-hint="已同步">
+                    <span class="sync-light" aria-hidden="true"></span>
+                </button>
+            </section>
+            <section class="menu-group" aria-labelledby="function-group">
+                <h2 class="menu-group-title" id="function-group">功能</h2>
                 <a class="menu-item" id="login-btn" data-label="登入 Google" title="登入 Google" style="display:none;">
                     <i aria-hidden="true">👤</i><span>登入 Google</span>
                 </a>
                 <a class="menu-item" id="logout-btn" data-label="登出" title="登出" style="display:none;">
                     <i aria-hidden="true">🚪</i><span>登出</span>
                 </a>
-            </section>
-
-            <section class="menu-group" aria-labelledby="class-group">
-                <h2 class="menu-group-title" id="class-group">班級</h2>
                 <div class="menu-item" data-label="選擇班級" title="選擇班級">
                     <i aria-hidden="true">📚</i>
                     <span><select id="classSelect" style="display:none;"></select></span>
                 </div>
+                <a class="menu-item" id="btnExamTimer" data-label="考試倒數計時器" title="考試倒數計時器"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
+                <a class="menu-item" id="btnWheel" data-label="輪轉盤" title="輪轉盤"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
             </section>
 
-            <section class="menu-group" aria-labelledby="feature-group">
-                <h2 class="menu-group-title" id="feature-group">功能選單</h2>
-                <a class="menu-item" id="btnScoreSettings" data-label="分數按鈕設定" title="分數按鈕設定"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
+            <section class="menu-group" aria-labelledby="settings-group">
+                <h2 class="menu-group-title" id="settings-group">設定</h2>
                 <a class="menu-item" id="btnClassManage" data-label="班級管理" title="班級管理"><i aria-hidden="true">📝</i><span>班級管理</span></a>
                 <a class="menu-item" id="btnAddStudent" data-label="新增學生" title="新增學生"><i aria-hidden="true">➕</i><span>新增學生</span></a>
-                <a class="menu-item" id="btnWheel" data-label="輪轉盤" title="輪轉盤"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
-                <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
-                <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
-                <a class="menu-item" id="btnExamTimer" data-label="考試倒數計時器" title="考試倒數計時器"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
+                <a class="menu-item" id="btnScoreSettings" data-label="分數按鈕設定" title="分數按鈕設定"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
                 <a class="menu-item" id="btnDeductionManage" data-label="扣分項目管理" title="扣分項目管理"><i aria-hidden="true">📉</i><span>扣分項目管理</span></a>
             </section>
-        </div>
 
-        <div class="sidebar-footer">
-            <section class="menu-group" aria-labelledby="sync-group">
-                <h2 class="menu-group-title" id="sync-group">同步狀態</h2>
-                <button class="sync-indicator" id="syncStatusBar" type="button" aria-live="polite" aria-label="已同步" data-state="synced" data-hint="已同步">
-                    <span class="sync-light" aria-hidden="true"></span>
-                </button>
+            <section class="menu-group" aria-labelledby="data-group">
+                <h2 class="menu-group-title" id="data-group">資料</h2>
+                <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
+                <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
             </section>
         </div>
     </aside>
@@ -72,6 +75,44 @@
         <section class="student-list" aria-live="polite" aria-label="學生列表">
             <div class="container" id="studentContainer"></div>
         </section>
+
+        <section class="score-dashboard" id="scoreDashboard" aria-label="分數儀表板">
+            <div class="score-dashboard-card">
+                <header class="score-dashboard-header">
+                    <div>
+                        <h2 class="score-dashboard-title">分數儀表板</h2>
+                        <p class="score-dashboard-hint">掌握班級分數異動與加減分走勢</p>
+                    </div>
+                </header>
+                <div class="score-dashboard-metrics" role="list">
+                    <div class="score-dashboard-metric" role="listitem">
+                        <span class="metric-label">分數異動總數</span>
+                        <span class="metric-value" id="scoreEventTotal">0</span>
+                    </div>
+                    <div class="score-dashboard-metric metric-positive" role="listitem">
+                        <span class="metric-label">總加分</span>
+                        <span class="metric-value" id="scoreEventPositive">0</span>
+                    </div>
+                    <div class="score-dashboard-metric metric-negative" role="listitem">
+                        <span class="metric-label">總扣分</span>
+                        <span class="metric-value" id="scoreEventNegative">0</span>
+                    </div>
+                </div>
+                <div class="score-dashboard-chart">
+                    <div class="score-dashboard-chart-header">
+                        <h3 class="chart-title">最近 7 日加分／扣分趨勢</h3>
+                        <div class="chart-legend" id="scoreTrendLegend" aria-hidden="true">
+                            <span class="legend-item legend-positive">加分</span>
+                            <span class="legend-item legend-negative">扣分</span>
+                        </div>
+                    </div>
+                    <div class="score-dashboard-canvas-wrapper">
+                        <canvas id="scoreTrendCanvas" width="640" height="260" role="img" aria-label="最近 7 日的加分與扣分走勢"></canvas>
+                        <p class="score-dashboard-chart-empty" id="scoreTrendEmpty">最近尚無分數異動紀錄</p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 
@@ -80,16 +121,13 @@
 <div class="login-overlay" id="loginOverlay" role="presentation"></div>
 <div class="login-popup dialog" id="loginPopup" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="dialog-header">
-        <h2 id="loginTitle" class="dialog-title">請選擇登入方式</h2>
-        <button type="button" class="dialog-close" data-dialog-close="login-choice" aria-label="關閉登入選擇">×</button>
+        <h2 id="loginTitle" class="dialog-title">請登入以繼續</h2>
     </div>
     <div class="dialog-body">
-        <p>若不登入，系統僅使用本地資料（離線模式）。</p>
-        <p class="warn">注意：之後登入 Google 可能會覆蓋本地資料</p>
+        <p>請登入 Google 帳號後即可使用所有教學管理功能。</p>
     </div>
     <div class="dialog-footer">
         <button id="btnLoginNow" class="btn-primary" type="button">登入 Google</button>
-        <button id="btnOffline" class="btn-secondary" type="button">離線模式</button>
     </div>
 </div>
 

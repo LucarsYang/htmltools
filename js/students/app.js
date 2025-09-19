@@ -19,8 +19,8 @@ const googleDrive = createGoogleDrive(googleAuth);
 let classes = ensureClassesIntegrity(loadClasses(storage));
 let currentClass = getInitialClassName(classes);
 let deductionManager = null;
-let deductionHistoryOverlay = null;
-let deductionHistoryElements = null;
+let scoreHistoryOverlay = null;
+let scoreHistoryElements = null;
 let activeHistoryStudentIndex = -1;
 let historyLastFocusedElement = null;
 
@@ -39,6 +39,77 @@ let syncState = 'synced';
 let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60;
 let lastActivityTime = Date.now();
+let dashboardRenderScheduled = false;
+
+function ensureScoreEventsStore() {
+    if (!Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = [];
+    }
+    return classes.scoreEvents;
+}
+
+function scheduleScoreDashboardRender() {
+    if (dashboardRenderScheduled) return;
+    dashboardRenderScheduled = true;
+    const schedule = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame
+        : (cb) => setTimeout(cb, 16);
+    schedule(() => {
+        dashboardRenderScheduled = false;
+        renderScoreDashboard();
+    });
+}
+
+function generateScoreEventId() {
+    const events = ensureScoreEventsStore();
+    const existingIds = new Set(
+        events
+            .map(event => (event && typeof event.id === 'string' ? event.id : null))
+            .filter(Boolean)
+    );
+    let candidate = '';
+    do {
+        candidate = `se-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    } while (existingIds.has(candidate));
+    return candidate;
+}
+
+function recordScoreEvent({
+    studentName = '',
+    studentIndex = null,
+    previousScore = null,
+    delta = 0,
+    newScore = null,
+    type = 'unknown',
+    metadata = {}
+} = {}) {
+    const numericDelta = Number(delta);
+    if (!Number.isFinite(numericDelta) || numericDelta === 0) {
+        return;
+    }
+
+    const previous = Number(previousScore);
+    const next = Number(newScore);
+    const indexValue = Number(studentIndex);
+    const normalizedMetadata = metadata && typeof metadata === 'object' ? { ...metadata } : {};
+
+    const event = {
+        id: generateScoreEventId(),
+        className: currentClass,
+        studentName: typeof studentName === 'string' ? studentName : '',
+        studentIndex: Number.isInteger(indexValue) ? indexValue : null,
+        previousScore: Number.isFinite(previous) ? previous : null,
+        delta: numericDelta,
+        newScore: Number.isFinite(next) ? next : null,
+        type: typeof type === 'string' ? type : 'unknown',
+        metadata: normalizedMetadata,
+        performedAt: new Date().toISOString()
+    };
+
+    ensureScoreEventsStore().push(event);
+    scheduleScoreDashboardRender();
+    return event;
+}
 
 window.toggleSidebar = function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
@@ -103,8 +174,12 @@ function setupActivityListeners() {
 function setSyncState(state) {
     syncState = state;
     const syncBar = document.getElementById('syncStatusBar');
+    const syncCard = document.getElementById('syncStatusCard');
     if (syncBar) {
         syncBar.dataset.state = state;
+    }
+    if (syncCard) {
+        syncCard.dataset.state = state;
     }
     refreshSyncLabels();
 }
@@ -113,21 +188,41 @@ function refreshSyncLabels() {
     const syncBar = document.getElementById('syncStatusBar');
     if (!syncBar) return;
 
-    let hint = '已同步，資料為最新狀態';
+    const syncHint = document.getElementById('syncStatusText');
+    const syncBadge = document.getElementById('syncStatusBadge');
+    const isSignedIn = googleAuth.getIsSignedIn();
+
+    let hint = isSignedIn ? '已同步，資料為最新狀態' : '請登入以啟用資料同步';
+    let badgeText = isSignedIn ? '已同步' : '需登入';
 
     if (syncState === 'dirty') {
-        if (googleAuth.getIsSignedIn() && remainingSeconds > 0) {
+        if (!isSignedIn) {
+            hint = '有異動，請登入後同步';
+            badgeText = '需登入';
+        } else if (remainingSeconds > 0) {
             hint = `有異動，${remainingSeconds}s 後自動同步`;
+            badgeText = '待同步';
         } else {
             hint = '有異動，請點擊同步';
+            badgeText = '待同步';
         }
     } else if (syncState === 'updating') {
         hint = '更新中，資料同步處理中';
+        badgeText = '同步中';
     }
 
     syncBar.dataset.hint = hint;
     syncBar.setAttribute('aria-label', hint);
+    syncBar.setAttribute('aria-describedby', 'syncStatusText');
     syncBar.title = hint;
+
+    if (syncHint) {
+        syncHint.textContent = hint;
+    }
+
+    if (syncBadge) {
+        syncBadge.textContent = badgeText;
+    }
 }
 
 function markDirty() {
@@ -192,8 +287,14 @@ function stopAutoSyncTimer() {
 
 function updateSyncStatus() {
     const statusBar = document.getElementById('syncStatusBar');
+    const statusCard = document.getElementById('syncStatusCard');
     if (!statusBar) return;
     statusBar.dataset.state = syncState;
+    statusBar.setAttribute('aria-busy', syncState === 'updating' ? 'true' : 'false');
+    if (statusCard) {
+        statusCard.dataset.state = syncState;
+        statusCard.setAttribute('aria-busy', syncState === 'updating' ? 'true' : 'false');
+    }
     refreshSyncLabels();
 }
 
@@ -291,15 +392,6 @@ function backToLoginChoice() {
     showLoginChoice();
 }
 
-function enterOfflineMode(showNotice = true) {
-    closeLoginChoice();
-    showMainButtons();
-    markDirty();
-    if (showNotice) {
-        alert('離線模式啟用，之後登入Google可能覆蓋資料。');
-    }
-}
-
 function showLoginProcessingOverlay() {
     document.getElementById('loginProcessingOverlay')?.classList.add('show');
     document.getElementById('loginProcessingPopup')?.classList.add('show');
@@ -320,9 +412,10 @@ async function loadClassesFromDrive() {
             if (!classes[currentClass]) {
                 currentClass = getInitialClassName(classes);
             }
-            closeDeductionHistory();
+            closeScoreHistory();
             renderClassDropdown();
             renderStudents();
+            renderScoreDashboard();
             deductionManager?.refresh();
             markSynced();
         } else {
@@ -389,108 +482,121 @@ function generateHistoryId(history = []) {
     return candidate;
 }
 
-function ensureDeductionHistoryOverlay() {
-    if (deductionHistoryOverlay && deductionHistoryElements) {
+function ensureScoreHistoryOverlay() {
+    if (scoreHistoryOverlay && scoreHistoryElements) {
         return;
     }
 
     const overlay = document.createElement('div');
-    overlay.id = 'deductionHistoryOverlay';
-    overlay.className = 'deduction-history-overlay';
+    overlay.id = 'scoreHistoryOverlay';
+    overlay.className = 'score-history-overlay';
     overlay.setAttribute('aria-hidden', 'true');
     overlay.innerHTML = `
-        <div class="deduction-history-container" role="dialog" aria-modal="true" aria-labelledby="deductionHistoryTitle">
-            <header class="deduction-history-header">
-                <div class="deduction-history-header-text">
-                    <h3 id="deductionHistoryTitle">扣分紀錄</h3>
-                    <p id="deductionHistoryCount" class="deduction-history-count" aria-live="polite"></p>
+        <div class="score-history-container" role="dialog" aria-modal="true" aria-labelledby="scoreHistoryTitle">
+            <header class="score-history-header">
+                <div class="score-history-header-text">
+                    <h3 id="scoreHistoryTitle">分數異動紀錄</h3>
+                    <p id="scoreHistoryCount" class="score-history-count" aria-live="polite"></p>
                 </div>
-                <button type="button" class="deduction-history-close" aria-label="關閉扣分紀錄">×</button>
+                <button type="button" class="score-history-close" aria-label="關閉分數異動紀錄">×</button>
             </header>
-            <div class="deduction-history-body">
-                <form class="deduction-history-filters">
-                    <label class="deduction-history-filter" for="historyItemFilter">
-                        <span>扣分項目</span>
-                        <select id="historyItemFilter" name="historyItemFilter"></select>
+            <div class="score-history-body">
+                <form class="score-history-filters">
+                    <label class="score-history-filter" for="historyTypeFilter">
+                        <span>紀錄類型</span>
+                        <select id="historyTypeFilter" name="historyTypeFilter">
+                            <option value="all">全部紀錄</option>
+                            <option value="deductions">僅扣分</option>
+                        </select>
                     </label>
-                    <label class="deduction-history-filter" for="historyStartDate">
+                    <label class="score-history-filter" for="historyItemFilter">
+                        <span>扣分項目</span>
+                        <select id="historyItemFilter" name="historyItemFilter" disabled></select>
+                    </label>
+                    <label class="score-history-filter" for="historyStartDate">
                         <span>起始日期</span>
                         <input type="date" id="historyStartDate" name="historyStartDate" />
                     </label>
-                    <label class="deduction-history-filter" for="historyEndDate">
+                    <label class="score-history-filter" for="historyEndDate">
                         <span>結束日期</span>
                         <input type="date" id="historyEndDate" name="historyEndDate" />
                     </label>
-                    <div class="deduction-history-filter-actions">
+                    <div class="score-history-filter-actions">
                         <button type="submit" class="btn-primary">套用篩選</button>
                         <button type="button" class="btn-secondary" data-action="reset-filters">清除篩選</button>
                     </div>
                 </form>
-                <div class="deduction-history-table-wrapper">
-                    <div class="deduction-history-scroll">
-                        <table class="deduction-history-table" aria-describedby="deductionHistoryTitle">
+                <div class="score-history-table-wrapper">
+                    <div class="score-history-scroll">
+                        <table class="score-history-table" aria-describedby="scoreHistoryTitle">
                             <thead>
                                 <tr>
-                                    <th scope="col">套用時間</th>
-                                    <th scope="col">項目</th>
-                                    <th scope="col">扣除分數</th>
-                                    <th scope="col">套用後總分</th>
+                                    <th scope="col">異動時間</th>
+                                    <th scope="col">操作內容</th>
+                                    <th scope="col">分數變化</th>
+                                    <th scope="col">異動後分數</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
                         </table>
                     </div>
-                    <p class="deduction-history-empty" aria-live="polite"></p>
+                    <p class="score-history-empty" aria-live="polite"></p>
                 </div>
             </div>
         </div>
     `;
 
     document.body.appendChild(overlay);
-    deductionHistoryOverlay = overlay;
-    deductionHistoryElements = {
-        container: overlay.querySelector('.deduction-history-container'),
-        title: overlay.querySelector('#deductionHistoryTitle'),
-        count: overlay.querySelector('#deductionHistoryCount'),
-        closeBtn: overlay.querySelector('.deduction-history-close'),
-        form: overlay.querySelector('.deduction-history-filters'),
+    scoreHistoryOverlay = overlay;
+    scoreHistoryElements = {
+        container: overlay.querySelector('.score-history-container'),
+        title: overlay.querySelector('#scoreHistoryTitle'),
+        count: overlay.querySelector('#scoreHistoryCount'),
+        closeBtn: overlay.querySelector('.score-history-close'),
+        form: overlay.querySelector('.score-history-filters'),
+        typeSelect: overlay.querySelector('#historyTypeFilter'),
         itemSelect: overlay.querySelector('#historyItemFilter'),
         startInput: overlay.querySelector('#historyStartDate'),
         endInput: overlay.querySelector('#historyEndDate'),
         resetBtn: overlay.querySelector('[data-action="reset-filters"]'),
-        table: overlay.querySelector('.deduction-history-table'),
-        tableBody: overlay.querySelector('.deduction-history-table tbody'),
-        emptyMessage: overlay.querySelector('.deduction-history-empty')
+        table: overlay.querySelector('.score-history-table'),
+        tableBody: overlay.querySelector('.score-history-table tbody'),
+        emptyMessage: overlay.querySelector('.score-history-empty')
     };
 
-    deductionHistoryElements.closeBtn?.addEventListener('click', closeDeductionHistory);
+    scoreHistoryElements.closeBtn?.addEventListener('click', closeScoreHistory);
     overlay.addEventListener('click', (event) => {
         if (event.target === overlay) {
-            closeDeductionHistory();
+            closeScoreHistory();
         }
     });
-    deductionHistoryElements.form?.addEventListener('submit', (event) => {
+    scoreHistoryElements.form?.addEventListener('submit', (event) => {
         event.preventDefault();
-        renderDeductionHistoryList();
+        renderScoreHistoryList();
     });
-    deductionHistoryElements.form?.addEventListener('change', () => {
-        renderDeductionHistoryList();
+    scoreHistoryElements.form?.addEventListener('change', () => {
+        updateScoreHistoryFilterState();
+        renderScoreHistoryList();
     });
-    deductionHistoryElements.resetBtn?.addEventListener('click', (event) => {
+    scoreHistoryElements.resetBtn?.addEventListener('click', (event) => {
         event.preventDefault();
-        if (deductionHistoryElements.itemSelect) deductionHistoryElements.itemSelect.value = '';
-        if (deductionHistoryElements.startInput) deductionHistoryElements.startInput.value = '';
-        if (deductionHistoryElements.endInput) deductionHistoryElements.endInput.value = '';
-        renderDeductionHistoryList();
+        if (scoreHistoryElements.typeSelect) scoreHistoryElements.typeSelect.value = 'all';
+        if (scoreHistoryElements.itemSelect) scoreHistoryElements.itemSelect.value = '';
+        if (scoreHistoryElements.startInput) scoreHistoryElements.startInput.value = '';
+        if (scoreHistoryElements.endInput) scoreHistoryElements.endInput.value = '';
+        updateScoreHistoryFilterState();
+        renderScoreHistoryList();
     });
 
-    if (deductionHistoryElements.itemSelect) {
-        deductionHistoryElements.itemSelect.innerHTML = '';
+    if (scoreHistoryElements.itemSelect) {
+        scoreHistoryElements.itemSelect.innerHTML = '';
         const option = document.createElement('option');
         option.value = '';
         option.textContent = '全部項目';
-        deductionHistoryElements.itemSelect.appendChild(option);
+        scoreHistoryElements.itemSelect.appendChild(option);
     }
+
+    updateScoreHistoryFilterState();
 }
 
 function getActiveHistoryStudent() {
@@ -501,10 +607,17 @@ function getActiveHistoryStudent() {
     return arr[activeHistoryStudentIndex];
 }
 
-function populateHistoryItemFilter(student) {
-    if (!deductionHistoryElements?.itemSelect) return;
-    const select = deductionHistoryElements.itemSelect;
-    const currentValue = select.value;
+function updateScoreHistoryFilterState() {
+    const typeValue = scoreHistoryElements?.typeSelect?.value || 'all';
+    if (scoreHistoryElements?.itemSelect) {
+        scoreHistoryElements.itemSelect.disabled = typeValue !== 'deductions';
+    }
+}
+
+function populateScoreHistoryItemFilter(events) {
+    if (!scoreHistoryElements?.itemSelect) return;
+    const select = scoreHistoryElements.itemSelect;
+    const previousValue = select.value;
     select.innerHTML = '';
 
     const defaultOption = document.createElement('option');
@@ -512,14 +625,22 @@ function populateHistoryItemFilter(student) {
     defaultOption.textContent = '全部項目';
     select.appendChild(defaultOption);
 
-    const history = Array.isArray(student?.deductionHistory) ? student.deductionHistory : [];
     const uniqueItems = new Map();
-    history.forEach(record => {
-        if (!record) return;
-        const itemName = record.itemName || '未命名項目';
-        const key = record.itemId !== null && record.itemId !== undefined ? `id:${record.itemId}` : `name:${itemName}`;
-        if (!uniqueItems.has(key)) {
-            uniqueItems.set(key, itemName);
+    let hasOther = false;
+
+    events.forEach(event => {
+        if (!event) return;
+        const delta = Number(event.delta) || 0;
+        if (delta >= 0) return;
+        const rawName = typeof event.metadata?.itemName === 'string' ? event.metadata.itemName.trim() : '';
+        const itemId = event.metadata?.itemId;
+        if (rawName) {
+            const key = itemId !== null && itemId !== undefined ? `id:${itemId}` : `name:${rawName}`;
+            if (!uniqueItems.has(key)) {
+                uniqueItems.set(key, rawName);
+            }
+        } else {
+            hasOther = true;
         }
     });
 
@@ -530,8 +651,15 @@ function populateHistoryItemFilter(student) {
         select.appendChild(opt);
     });
 
-    if ([...uniqueItems.keys()].some(key => key === currentValue)) {
-        select.value = currentValue;
+    if (hasOther) {
+        const otherOpt = document.createElement('option');
+        otherOpt.value = 'other';
+        otherOpt.textContent = '其他扣分';
+        select.appendChild(otherOpt);
+    }
+
+    if ([...uniqueItems.keys(), 'other', ''].includes(previousValue)) {
+        select.value = previousValue;
     } else {
         select.value = '';
     }
@@ -540,7 +668,7 @@ function populateHistoryItemFilter(student) {
 function formatHistoryDate(value) {
     const date = value ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) {
-        return '';
+        return '—';
     }
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -550,43 +678,366 @@ function formatHistoryDate(value) {
     return `${year}/${month}/${day} ${hours}:${minutes}`;
 }
 
-function renderDeductionHistoryList() {
-    if (!deductionHistoryElements) return;
-    const student = getActiveHistoryStudent();
-    if (!student) {
-        closeDeductionHistory();
+function getStudentScoreEvents(studentIndex) {
+    const events = ensureScoreEventsStore();
+    const student = getStudents()[studentIndex];
+    if (!student) return [];
+    const studentName = student.name || '';
+    const historyIds = new Set(
+        Array.isArray(student.deductionHistory)
+            ? student.deductionHistory.map(entry => entry?.id).filter(id => typeof id === 'string')
+            : []
+    );
+
+    return events.filter(event => {
+        if (!event || event.className !== currentClass) return false;
+        const eventIndex = Number(event.studentIndex);
+        const indexMatch = Number.isInteger(eventIndex) && eventIndex === studentIndex;
+        const nameMatch = studentName && event.studentName === studentName;
+        const historyId = typeof event.metadata?.historyId === 'string' ? event.metadata.historyId : null;
+        const historyMatch = historyId && historyIds.has(historyId);
+        return indexMatch || historyMatch || nameMatch;
+    });
+}
+
+function matchesScoreHistoryItemFilter(event, filterValue) {
+    if (!filterValue) return true;
+    const metadata = event.metadata || {};
+    const rawName = typeof metadata.itemName === 'string' ? metadata.itemName.trim() : '';
+    const itemId = metadata.itemId;
+    if (filterValue === 'other') {
+        return !rawName;
+    }
+    const key = itemId !== null && itemId !== undefined ? `id:${itemId}` : rawName ? `name:${rawName}` : '';
+    return key === filterValue;
+}
+
+function describeScoreEvent(event) {
+    const delta = Number(event.delta) || 0;
+    const metadata = event.metadata || {};
+    const detailParts = [];
+
+    switch (event.type) {
+        case 'quick-adjust':
+            return {
+                title: delta >= 0 ? '快速加分' : '快速扣分',
+                detail: metadata.source === 'score-button' ? '分數按鈕操作' : ''
+            };
+        case 'custom-adjust': {
+            if (metadata.inputValue !== undefined && metadata.inputValue !== null) {
+                const rawValue = Number(metadata.inputValue) || 0;
+                const absValue = Math.abs(rawValue);
+                const signText = metadata.sign === '-' ? '扣' : '加';
+                detailParts.push(`自訂${signText}${absValue}分`);
+            }
+            return {
+                title: '自訂調整',
+                detail: detailParts.join(' • ')
+            };
+        }
+        case 'manual-edit': {
+            if (metadata.source === 'student-editor') {
+                detailParts.push('手動編輯分數');
+            }
+            if (metadata.previousName && metadata.previousName !== event.studentName) {
+                detailParts.push(`原姓名：${metadata.previousName}`);
+            }
+            return {
+                title: '手動編輯',
+                detail: detailParts.join(' • ')
+            };
+        }
+        case 'deduction-item':
+            return {
+                title: '扣分項目',
+                detail: metadata.itemName || '扣分'
+            };
+        default:
+            if (metadata.source) {
+                detailParts.push(String(metadata.source));
+            }
+            return {
+                title: '分數異動',
+                detail: detailParts.join(' • ')
+            };
+    }
+}
+
+function buildScoreTrendDataset(events, days = 7) {
+    const dataset = {
+        labels: [],
+        positives: [],
+        negatives: [],
+        maxValue: 0
+    };
+
+    const totalsByDay = new Map();
+    events.forEach(event => {
+        if (!event || !event.performedAt) return;
+        const date = new Date(event.performedAt);
+        if (Number.isNaN(date.getTime())) return;
+        const isoKey = date.toISOString().slice(0, 10);
+        if (!totalsByDay.has(isoKey)) {
+            totalsByDay.set(isoKey, { positive: 0, negative: 0 });
+        }
+        const entry = totalsByDay.get(isoKey);
+        const delta = Number(event.delta) || 0;
+        if (delta > 0) {
+            entry.positive += delta;
+        } else if (delta < 0) {
+            entry.negative += Math.abs(delta);
+        }
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = days - 1; i >= 0; i -= 1) {
+        const day = new Date(today);
+        day.setDate(today.getDate() - i);
+        const isoKey = day.toISOString().slice(0, 10);
+        const entry = totalsByDay.get(isoKey) || { positive: 0, negative: 0 };
+        const label = `${day.getMonth() + 1}/${String(day.getDate()).padStart(2, '0')}`;
+        dataset.labels.push(label);
+        dataset.positives.push(entry.positive);
+        dataset.negatives.push(entry.negative);
+    }
+
+    dataset.maxValue = Math.max(0, ...dataset.positives, ...dataset.negatives);
+    return dataset;
+}
+
+function drawScoreTrendChart(canvas, dataset) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const clientWidth = canvas.clientWidth || canvas.width || 640;
+    const clientHeight = canvas.clientHeight || canvas.height || 260;
+    if (canvas.width !== Math.floor(clientWidth * dpr) || canvas.height !== Math.floor(clientHeight * dpr)) {
+        canvas.width = Math.floor(clientWidth * dpr);
+        canvas.height = Math.floor(clientHeight * dpr);
+    }
+
+    if (typeof ctx.resetTransform === 'function') {
+        ctx.resetTransform();
+    } else {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const padding = { top: 20, right: 24, bottom: 40, left: 52 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    if (chartWidth <= 0 || chartHeight <= 0) {
         return;
     }
 
-    const tbody = deductionHistoryElements.tableBody;
-    const table = deductionHistoryElements.table;
-    const emptyMessage = deductionHistoryElements.emptyMessage;
-    const countEl = deductionHistoryElements.count;
+    const labels = dataset.labels;
+    const positives = dataset.positives;
+    const negatives = dataset.negatives;
+    const maxValue = dataset.maxValue > 0 ? dataset.maxValue : 1;
+    const steps = labels.length > 1 ? labels.length - 1 : 1;
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#cbd5f5';
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, padding.top + chartHeight);
+    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+    ctx.stroke();
+
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top + chartHeight / 2);
+    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const drawLine = (data, color) => {
+        ctx.beginPath();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        data.forEach((value, index) => {
+            const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
+            const y = padding.top + chartHeight - (Math.min(value, maxValue) / maxValue) * chartHeight;
+            if (index === 0 || steps === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.stroke();
+        data.forEach((value, index) => {
+            const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
+            const y = padding.top + chartHeight - (Math.min(value, maxValue) / maxValue) * chartHeight;
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    };
+
+    drawLine(positives, '#16a34a');
+    drawLine(negatives, '#dc2626');
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '12px "Noto Sans TC", "PingFang TC", sans-serif';
+    labels.forEach((label, index) => {
+        const x = padding.left + (steps === 0 ? chartWidth / 2 : (chartWidth / steps) * index);
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillText(label, x - textWidth / 2, padding.top + chartHeight + 20);
+    });
+
+    const maxLabel = `峰值 ${Math.round(maxValue)}`;
+    ctx.fillText(maxLabel, padding.left, padding.top - 6);
+}
+
+function renderScoreDashboard() {
+    const dashboard = document.getElementById('scoreDashboard');
+    if (!dashboard) return;
+
+    const events = ensureScoreEventsStore().filter(event => event?.className === currentClass);
+    let positiveTotal = 0;
+    let negativeTotal = 0;
+    events.forEach(event => {
+        const delta = Number(event?.delta) || 0;
+        if (delta > 0) {
+            positiveTotal += delta;
+        } else if (delta < 0) {
+            negativeTotal += Math.abs(delta);
+        }
+    });
+
+    const totalEl = document.getElementById('scoreEventTotal');
+    const positiveEl = document.getElementById('scoreEventPositive');
+    const negativeEl = document.getElementById('scoreEventNegative');
+    if (totalEl) totalEl.textContent = String(events.length);
+    if (positiveEl) positiveEl.textContent = positiveTotal ? `+${positiveTotal}` : '0';
+    if (negativeEl) negativeEl.textContent = negativeTotal ? `-${negativeTotal}` : '0';
+
+    const canvas = document.getElementById('scoreTrendCanvas');
+    const emptyState = document.getElementById('scoreTrendEmpty');
+    if (!canvas || !emptyState) return;
+
+    const dataset = buildScoreTrendDataset(events);
+    const hasData = dataset.labels.some((_, index) => (dataset.positives[index] || dataset.negatives[index]));
+    if (!hasData) {
+        emptyState.classList.add('is-visible');
+        const ctx = canvas.getContext('2d');
+        ctx?.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+
+    emptyState.classList.remove('is-visible');
+    drawScoreTrendChart(canvas, dataset);
+}
+
+function syncScoreEventsForStudent(studentIndex, previousName, nextName) {
+    const events = ensureScoreEventsStore();
+    events.forEach(event => {
+        if (!event || event.className !== currentClass) return;
+        const eventIndex = Number(event.studentIndex);
+        const matchesIndex = Number.isInteger(eventIndex) && eventIndex === studentIndex;
+        const matchesName = previousName && event.studentName === previousName;
+        if (matchesIndex || matchesName) {
+            event.studentIndex = studentIndex;
+            if (typeof nextName === 'string') {
+                event.studentName = nextName;
+            }
+        }
+    });
+}
+
+function syncScoreEventIndexesForClass() {
+    const events = ensureScoreEventsStore();
+    const students = getStudents();
+    const nameToIndexes = new Map();
+
+    students.forEach((student, index) => {
+        if (!student) return;
+        const key = student.name || `__index_${index}`;
+        if (!nameToIndexes.has(key)) {
+            nameToIndexes.set(key, []);
+        }
+        nameToIndexes.get(key).push(index);
+    });
+
+    events.forEach(event => {
+        if (!event || event.className !== currentClass) return;
+        const eventIndex = Number(event.studentIndex);
+        const hasValidIndex =
+            Number.isInteger(eventIndex) &&
+            eventIndex >= 0 &&
+            eventIndex < students.length &&
+            students[eventIndex]?.name === event.studentName;
+        if (hasValidIndex) return;
+
+        const historyId = typeof event.metadata?.historyId === 'string' ? event.metadata.historyId : null;
+        if (historyId) {
+            const historyMatchIndex = students.findIndex(student =>
+                Array.isArray(student?.deductionHistory) &&
+                student.deductionHistory.some(record => record?.id === historyId)
+            );
+            if (historyMatchIndex !== -1) {
+                event.studentIndex = historyMatchIndex;
+                event.studentName = students[historyMatchIndex].name;
+                return;
+            }
+        }
+
+        const candidateIndexes = nameToIndexes.get(event.studentName || '') || [];
+        if (candidateIndexes.length > 0) {
+            const targetIndex = candidateIndexes[0];
+            event.studentIndex = targetIndex;
+            event.studentName = students[targetIndex]?.name || event.studentName;
+        }
+    });
+}
+
+function renderScoreHistoryList() {
+    if (!scoreHistoryElements) return;
+    const student = getActiveHistoryStudent();
+    if (!student) {
+        closeScoreHistory();
+        return;
+    }
+
+    updateScoreHistoryFilterState();
+
+    const tbody = scoreHistoryElements.tableBody;
+    const table = scoreHistoryElements.table;
+    const emptyMessage = scoreHistoryElements.emptyMessage;
+    const countEl = scoreHistoryElements.count;
     if (!tbody || !table || !emptyMessage) return;
 
-    const history = Array.isArray(student.deductionHistory) ? [...student.deductionHistory] : [];
-    const total = history.length;
+    const events = getStudentScoreEvents(activeHistoryStudentIndex);
+    populateScoreHistoryItemFilter(events);
+    const total = events.length;
 
-    const itemFilterValue = deductionHistoryElements.itemSelect?.value || '';
-    const startDateValue = deductionHistoryElements.startInput?.value || '';
-    const endDateValue = deductionHistoryElements.endInput?.value || '';
+    const typeFilterValue = scoreHistoryElements.typeSelect?.value || 'all';
+    const itemFilterValue = scoreHistoryElements.itemSelect?.value || '';
+    const startDateValue = scoreHistoryElements.startInput?.value || '';
+    const endDateValue = scoreHistoryElements.endInput?.value || '';
 
-    let filtered = history.filter(record => Boolean(record));
+    let filtered = events.filter(event => Boolean(event));
 
-    if (itemFilterValue) {
-        filtered = filtered.filter(record => {
-            const itemName = record.itemName || '未命名項目';
-            const key = record.itemId !== null && record.itemId !== undefined ? `id:${record.itemId}` : `name:${itemName}`;
-            return key === itemFilterValue;
-        });
+    if (typeFilterValue === 'deductions') {
+        filtered = filtered.filter(event => Number(event.delta) < 0);
+        if (itemFilterValue && !(scoreHistoryElements.itemSelect?.disabled)) {
+            filtered = filtered.filter(event => matchesScoreHistoryItemFilter(event, itemFilterValue));
+        }
     }
 
     if (startDateValue) {
         const startDate = new Date(`${startDateValue}T00:00:00`);
         if (!Number.isNaN(startDate.getTime())) {
-            filtered = filtered.filter(record => {
-                const appliedDate = new Date(record.appliedAt);
-                return !Number.isNaN(appliedDate.getTime()) && appliedDate >= startDate;
+            filtered = filtered.filter(event => {
+                const performedDate = new Date(event.performedAt);
+                return !Number.isNaN(performedDate.getTime()) && performedDate >= startDate;
             });
         }
     }
@@ -594,16 +1045,16 @@ function renderDeductionHistoryList() {
     if (endDateValue) {
         const endDate = new Date(`${endDateValue}T23:59:59.999`);
         if (!Number.isNaN(endDate.getTime())) {
-            filtered = filtered.filter(record => {
-                const appliedDate = new Date(record.appliedAt);
-                return !Number.isNaN(appliedDate.getTime()) && appliedDate <= endDate;
+            filtered = filtered.filter(event => {
+                const performedDate = new Date(event.performedAt);
+                return !Number.isNaN(performedDate.getTime()) && performedDate <= endDate;
             });
         }
     }
 
     filtered.sort((a, b) => {
-        const timeA = new Date(a.appliedAt).getTime();
-        const timeB = new Date(b.appliedAt).getTime();
+        const timeA = new Date(a.performedAt).getTime();
+        const timeB = new Date(b.performedAt).getTime();
         return timeB - timeA;
     });
 
@@ -615,79 +1066,100 @@ function renderDeductionHistoryList() {
 
     if (!filtered.length) {
         table.style.display = 'none';
-        emptyMessage.textContent = '目前沒有符合條件的扣分紀錄';
+        emptyMessage.textContent = '目前沒有符合條件的分數異動紀錄';
         return;
     }
 
     table.style.display = 'table';
     emptyMessage.textContent = '';
 
-    filtered.forEach(record => {
+    filtered.forEach(event => {
         const row = document.createElement('tr');
 
         const timeCell = document.createElement('td');
-        timeCell.textContent = formatHistoryDate(record.appliedAt);
+        timeCell.textContent = formatHistoryDate(event.performedAt);
 
-        const nameCell = document.createElement('td');
-        nameCell.textContent = record.itemName || '未命名項目';
+        const infoCell = document.createElement('td');
+        infoCell.className = 'event-description';
+        const description = describeScoreEvent(event);
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = description.title;
+        infoCell.appendChild(titleSpan);
+        if (description.detail) {
+            const detailSpan = document.createElement('span');
+            detailSpan.className = 'event-meta';
+            detailSpan.textContent = description.detail;
+            infoCell.appendChild(detailSpan);
+        }
 
-        const pointCell = document.createElement('td');
-        const pointValue = Number(record.points) || 0;
-        pointCell.textContent = pointValue > 0 ? `+${pointValue}` : String(pointValue);
+        const deltaCell = document.createElement('td');
+        const deltaValue = Number(event.delta) || 0;
+        if (deltaValue > 0) {
+            deltaCell.textContent = `+${deltaValue}`;
+            deltaCell.classList.add('delta-positive');
+        } else if (deltaValue < 0) {
+            deltaCell.textContent = String(deltaValue);
+            deltaCell.classList.add('delta-negative');
+        } else {
+            deltaCell.textContent = '0';
+        }
 
         const scoreCell = document.createElement('td');
-        const rawScoreAfter = record.scoreAfter;
-        const numericScore = Number(rawScoreAfter);
-        if (rawScoreAfter !== undefined && rawScoreAfter !== null && rawScoreAfter !== '' && Number.isFinite(numericScore)) {
-            scoreCell.textContent = String(numericScore);
+        const newScoreValue = Number(event.newScore);
+        if (Number.isFinite(newScoreValue)) {
+            scoreCell.textContent = String(newScoreValue);
         } else {
             scoreCell.textContent = '—';
         }
 
-        row.append(timeCell, nameCell, pointCell, scoreCell);
+        row.append(timeCell, infoCell, deltaCell, scoreCell);
         tbody.appendChild(row);
     });
 }
 
-function openDeductionHistory(idx) {
+function openScoreHistory(idx) {
     if (checkIfUpdating()) return;
-    ensureDeductionHistoryOverlay();
+    ensureScoreHistoryOverlay();
     const student = getStudents()[idx];
-    if (!student || !deductionHistoryOverlay || !deductionHistoryElements) return;
+    if (!student || !scoreHistoryOverlay || !scoreHistoryElements) return;
 
     activeHistoryStudentIndex = idx;
     historyLastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-    const titleEl = deductionHistoryElements.title;
+    const titleEl = scoreHistoryElements.title;
     if (titleEl) {
         const name = student.name || '未命名學生';
-        titleEl.textContent = `${name} 的扣分紀錄`;
+        titleEl.textContent = `${name} 的分數異動紀錄`;
     }
 
-    populateHistoryItemFilter(student);
-    if (deductionHistoryElements.itemSelect) {
-        deductionHistoryElements.itemSelect.value = '';
+    if (scoreHistoryElements.typeSelect) {
+        scoreHistoryElements.typeSelect.value = 'all';
     }
-    if (deductionHistoryElements.startInput) {
-        deductionHistoryElements.startInput.value = '';
+    if (scoreHistoryElements.itemSelect) {
+        scoreHistoryElements.itemSelect.value = '';
     }
-    if (deductionHistoryElements.endInput) {
-        deductionHistoryElements.endInput.value = '';
+    if (scoreHistoryElements.startInput) {
+        scoreHistoryElements.startInput.value = '';
+    }
+    if (scoreHistoryElements.endInput) {
+        scoreHistoryElements.endInput.value = '';
     }
 
-    deductionHistoryOverlay.classList.add('show');
-    deductionHistoryOverlay.setAttribute('aria-hidden', 'false');
-    renderDeductionHistoryList();
+    updateScoreHistoryFilterState();
+
+    scoreHistoryOverlay.classList.add('show');
+    scoreHistoryOverlay.setAttribute('aria-hidden', 'false');
+    renderScoreHistoryList();
 
     window.setTimeout(() => {
-        deductionHistoryElements?.itemSelect?.focus();
+        scoreHistoryElements?.typeSelect?.focus();
     }, 0);
 }
 
-function closeDeductionHistory() {
-    if (!deductionHistoryOverlay) return;
-    deductionHistoryOverlay.classList.remove('show');
-    deductionHistoryOverlay.setAttribute('aria-hidden', 'true');
+function closeScoreHistory() {
+    if (!scoreHistoryOverlay) return;
+    scoreHistoryOverlay.classList.remove('show');
+    scoreHistoryOverlay.setAttribute('aria-hidden', 'true');
     activeHistoryStudentIndex = -1;
     if (historyLastFocusedElement instanceof HTMLElement) {
         historyLastFocusedElement.focus();
@@ -824,16 +1296,18 @@ function renderStudents() {
 
         const historyBtn = document.createElement('button');
         historyBtn.type = 'button';
-        historyBtn.className = 'deduction-history-btn';
-        historyBtn.textContent = '查看扣分紀錄';
-        historyBtn.setAttribute('aria-label', `查看${st.name || '學生'}的扣分紀錄`);
-        historyBtn.addEventListener('click', () => openDeductionHistory(idx));
+        historyBtn.className = 'score-history-btn';
+        historyBtn.textContent = '查看分數異動紀錄';
+        historyBtn.setAttribute('aria-label', `查看${st.name || '學生'}的分數異動紀錄`);
+        historyBtn.addEventListener('click', () => openScoreHistory(idx));
 
         actionSection.appendChild(historyBtn);
         card.appendChild(actionSection);
 
         container.appendChild(card);
     });
+
+    scheduleScoreDashboardRender();
 }
 
 function handleDragStart(e) {
@@ -866,6 +1340,7 @@ function handleDrop(e) {
     const arr = getStudents();
     const [movedStudent] = arr.splice(fromIndex, 1);
     arr.splice(toIndex, 0, movedStudent);
+    syncScoreEventIndexesForClass();
     saveClassesLocal();
     renderStudents();
     markDirty();
@@ -879,25 +1354,61 @@ function editStudent(idx) {
 function updateScore(idx, delta) {
     if (checkIfUpdating()) return;
     const arr = getStudents();
-    arr[idx].score += delta;
+    const student = arr[idx];
+    if (!student) return;
+    const numericDelta = Number(delta);
+    if (!Number.isFinite(numericDelta) || numericDelta === 0) return;
+    const previousScore = Number(student.score) || 0;
+    const newScore = previousScore + numericDelta;
+    student.score = newScore;
+    recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: numericDelta,
+        newScore,
+        type: 'quick-adjust',
+        metadata: { source: 'score-button' }
+    });
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
-    if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
+    if (scoreEl) scoreEl.textContent = `${student.score} 分`;
     markDirty();
 }
 
 function customAdjust(idx) {
     if (checkIfUpdating()) return;
     const arr = getStudents();
+    const student = arr[idx];
+    if (!student) return;
     const signSel = document.getElementById(`sign-${idx}`);
     const customIn = document.getElementById(`custom-${idx}`);
     if (!signSel || !customIn) return;
-    let val = parseInt(customIn.value, 10) || 0;
-    if (signSel.value === '-') val = -val;
-    arr[idx].score += val;
+    let rawInput = parseInt(customIn.value, 10);
+    if (!Number.isFinite(rawInput)) rawInput = 0;
+    let val = rawInput;
+    if (signSel.value === '-') {
+        val = -val;
+    }
+    const previousScore = Number(student.score) || 0;
+    const newScore = previousScore + val;
+    student.score = newScore;
+    recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: val,
+        newScore,
+        type: 'custom-adjust',
+        metadata: {
+            source: 'custom-input',
+            inputValue: rawInput,
+            sign: signSel.value
+        }
+    });
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
-    if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
+    if (scoreEl) scoreEl.textContent = `${student.score} 分`;
     customIn.value = '';
     markDirty();
 }
@@ -942,14 +1453,29 @@ function applyDeduction(idx) {
     };
     student.deductionHistory.push(historyEntry);
     student.deductionHistory.sort((a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime());
+    const scoreEvent = recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: points,
+        newScore,
+        type: 'deduction-item',
+        metadata: {
+            itemId: historyEntry.itemId,
+            itemName: historyEntry.itemName,
+            historyId: historyEntry.id
+        }
+    });
+    if (scoreEvent?.id) {
+        historyEntry.eventId = scoreEvent.id;
+    }
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
     if (scoreEl) scoreEl.textContent = `${student.score} 分`;
     select.value = '';
     markDirty();
-    if (deductionHistoryOverlay?.classList.contains('show') && activeHistoryStudentIndex === idx) {
-        populateHistoryItemFilter(student);
-        renderDeductionHistoryList();
+    if (scoreHistoryOverlay?.classList.contains('show') && activeHistoryStudentIndex === idx) {
+        renderScoreHistoryList();
     }
 }
 
@@ -958,6 +1484,7 @@ function deleteStudent(idx) {
     if (!confirm('確定要刪除這位學生嗎？')) return;
     const arr = getStudents();
     arr.splice(idx, 1);
+    syncScoreEventIndexesForClass();
     saveClassesLocal();
     renderStudents();
     markDirty();
@@ -1153,6 +1680,27 @@ function saveStudent() {
     if (editIndex === -1) {
         arr.push(studentData);
     } else {
+        const existingStudent = arr[editIndex];
+        if (existingStudent) {
+            const previousScore = Number(existingStudent.score) || 0;
+            if (previousScore !== score) {
+                recordScoreEvent({
+                    studentName: name,
+                    studentIndex: editIndex,
+                    previousScore,
+                    delta: score - previousScore,
+                    newScore: score,
+                    type: 'manual-edit',
+                    metadata: {
+                        source: 'student-editor',
+                        previousName: existingStudent.name
+                    }
+                });
+            }
+            if (existingStudent.name !== name) {
+                syncScoreEventsForStudent(editIndex, existingStudent.name || '', name);
+            }
+        }
         arr[editIndex] = studentData;
     }
 
@@ -1215,6 +1763,7 @@ async function importCSV(evt) {
         }
 
         classes[currentClass] = newArr;
+        syncScoreEventIndexesForClass();
         saveClassesLocal();
         renderStudents();
         markDirty();
@@ -1275,7 +1824,7 @@ function addClassPrompt() {
     classes[newName] = [];
     saveClassesLocal();
     currentClass = newName;
-    closeDeductionHistory();
+    closeScoreHistory();
     renderClassDropdown();
     renderStudents();
     renderClassList();
@@ -1294,6 +1843,13 @@ function renameClassPrompt(oldName) {
     }
     classes[newName] = classes[oldName];
     delete classes[oldName];
+    if (Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = classes.scoreEvents.map(event => (
+            event && event.className === oldName
+                ? { ...event, className: newName }
+                : event
+        ));
+    }
     if (currentClass === oldName) currentClass = newName;
     saveClassesLocal();
     renderClassDropdown();
@@ -1311,8 +1867,11 @@ function deleteClass(cName) {
     }
     if (!confirm(`確定刪除「${cName}」?`)) return;
     delete classes[cName];
+    if (Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = classes.scoreEvents.filter(event => event?.className !== cName);
+    }
     currentClass = getInitialClassName(classes);
-    closeDeductionHistory();
+    closeScoreHistory();
     saveClassesLocal();
     renderClassDropdown();
     renderStudents();
@@ -1503,7 +2062,7 @@ function initUI() {
             return;
         }
         currentClass = evt.target.value;
-        closeDeductionHistory();
+        closeScoreHistory();
         renderStudents();
     });
 
@@ -1543,13 +2102,8 @@ function initUI() {
 
     document.getElementById('btnLoginNow')?.addEventListener('click', () => {
         closeLoginChoice();
-        showMainButtons();
-        markDirty();
         showLoginProcessingOverlay();
         googleAuth.signIn();
-    });
-    document.getElementById('btnOffline')?.addEventListener('click', () => {
-        enterOfflineMode(true);
     });
 
     document.getElementById('btnAddClass')?.addEventListener('click', addClassPrompt);
@@ -1600,9 +2154,6 @@ function initUI() {
             case 'class':
                 closeClassPopup();
                 break;
-            case 'login-choice':
-                enterOfflineMode(false);
-                break;
             case 'login-processing':
                 backToLoginChoice();
                 break;
@@ -1619,8 +2170,8 @@ function initUI() {
 
     window.addEventListener('keydown', (evt) => {
         if (evt.key !== 'Escape') return;
-        if (deductionHistoryOverlay?.classList.contains('show')) {
-            closeDeductionHistory();
+        if (scoreHistoryOverlay?.classList.contains('show')) {
+            closeScoreHistory();
         } else if (document.getElementById('settingsOverlay')?.classList.contains('show')) {
             closeScoreButtonsSettings();
         } else if (document.getElementById('overlay')?.classList.contains('show')) {
@@ -1629,8 +2180,6 @@ function initUI() {
             closeClassPopup();
         } else if (document.getElementById('loginProcessingOverlay')?.classList.contains('show')) {
             backToLoginChoice();
-        } else if (document.getElementById('loginOverlay')?.classList.contains('show')) {
-            enterOfflineMode(false);
         } else if (document.getElementById('syncOverlay')?.classList.contains('show')) {
             hideSyncOverlay();
         }
@@ -1667,8 +2216,8 @@ function initializeApp() {
     googleAuth.initGoogleAuth(
         () => {
             hideLoginProcessingOverlay();
-            document.getElementById('login-btn')?.style.setProperty('display', 'none');
-            document.getElementById('logout-btn')?.style.setProperty('display', 'inline-block');
+            showMainButtons();
+            closeLoginChoice();
             markSynced();
             loadClassesFromDrive();
             setupActivityListeners();
@@ -1694,12 +2243,14 @@ function initializeApp() {
     updateSyncStatus();
     renderClassDropdown();
     renderStudents();
+    renderScoreDashboard();
     deductionManager?.refresh();
     initWheel(() => getStudents(), () => classes);
 
     window.clearCustomImage = clearCustomImage;
 }
 
+window.addEventListener('resize', scheduleScoreDashboardRender);
 window.addEventListener('DOMContentLoaded', initializeApp);
 
 export function getClassesReference() {

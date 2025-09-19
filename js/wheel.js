@@ -3,7 +3,7 @@ class WheelManager {
     constructor(getStudents, getClasses) {
         this.getStudents = getStudents;
         this.getClasses = getClasses;
-        this.currentMode = 'student'; // 'student' 或 'reward'
+        this.currentMode = 'reward'; // 'student' 或 'reward'
         this.selectedItems = {
             student: [],
             reward: []
@@ -21,7 +21,7 @@ class WheelManager {
     init() {
         this.createWheelContainer();
         this.bindEvents();
-        this.updateWheelData();
+        this.switchMode(this.currentMode);
     }
 
     createWheelContainer() {
@@ -37,8 +37,8 @@ class WheelManager {
                     </div>
                     
                     <div class="wheel-mode-switch">
-                        <button class="mode-btn active" data-mode="student">學生輪轉盤</button>
-                        <button class="mode-btn" data-mode="reward">獎懲輪轉盤</button>
+                        <button class="mode-btn active" data-mode="reward">獎懲輪轉盤</button>
+                        <button class="mode-btn" data-mode="student">學生輪轉盤</button>
                     </div>
                     
                     <div class="wheel-section">
