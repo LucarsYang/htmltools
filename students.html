@@ -41,16 +41,24 @@
                 </div>
             </section>
 
-            <section class="menu-group" aria-labelledby="feature-group">
-                <h2 class="menu-group-title" id="feature-group">功能選單</h2>
-                <a class="menu-item" id="btnScoreSettings" data-label="分數按鈕設定" title="分數按鈕設定"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
+            <section class="menu-group" aria-labelledby="function-group">
+                <h2 class="menu-group-title" id="function-group">功能</h2>
+                <a class="menu-item" id="btnExamTimer" data-label="考試倒數計時器" title="考試倒數計時器"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
+                <a class="menu-item" id="btnWheel" data-label="輪轉盤" title="輪轉盤"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
+            </section>
+
+            <section class="menu-group" aria-labelledby="settings-group">
+                <h2 class="menu-group-title" id="settings-group">設定</h2>
                 <a class="menu-item" id="btnClassManage" data-label="班級管理" title="班級管理"><i aria-hidden="true">📝</i><span>班級管理</span></a>
                 <a class="menu-item" id="btnAddStudent" data-label="新增學生" title="新增學生"><i aria-hidden="true">➕</i><span>新增學生</span></a>
-                <a class="menu-item" id="btnWheel" data-label="輪轉盤" title="輪轉盤"><i aria-hidden="true">🎡</i><span>輪轉盤</span></a>
-                <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
-                <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
-                <a class="menu-item" id="btnExamTimer" data-label="考試倒數計時器" title="考試倒數計時器"><i aria-hidden="true">⏰</i><span>考試倒數計時器</span></a>
+                <a class="menu-item" id="btnScoreSettings" data-label="分數按鈕設定" title="分數按鈕設定"><i aria-hidden="true">⚙️</i><span>分數按鈕設定</span></a>
                 <a class="menu-item" id="btnDeductionManage" data-label="扣分項目管理" title="扣分項目管理"><i aria-hidden="true">📉</i><span>扣分項目管理</span></a>
+            </section>
+
+            <section class="menu-group" aria-labelledby="data-group">
+                <h2 class="menu-group-title" id="data-group">資料</h2>
+                <a class="menu-item" id="btnImportCSV" data-label="匯入 CSV" title="匯入 CSV"><i aria-hidden="true">📥</i><span>匯入 CSV</span></a>
+                <a class="menu-item" id="btnExportCSV" data-label="匯出 CSV" title="匯出 CSV"><i aria-hidden="true">📤</i><span>匯出 CSV</span></a>
             </section>
         </div>
 
@@ -80,16 +88,13 @@
 <div class="login-overlay" id="loginOverlay" role="presentation"></div>
 <div class="login-popup dialog" id="loginPopup" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="dialog-header">
-        <h2 id="loginTitle" class="dialog-title">請選擇登入方式</h2>
-        <button type="button" class="dialog-close" data-dialog-close="login-choice" aria-label="關閉登入選擇">×</button>
+        <h2 id="loginTitle" class="dialog-title">請登入以繼續</h2>
     </div>
     <div class="dialog-body">
-        <p>若不登入，系統僅使用本地資料（離線模式）。</p>
-        <p class="warn">注意：之後登入 Google 可能會覆蓋本地資料</p>
+        <p>請登入 Google 帳號後即可使用所有教學管理功能。</p>
     </div>
     <div class="dialog-footer">
         <button id="btnLoginNow" class="btn-primary" type="button">登入 Google</button>
-        <button id="btnOffline" class="btn-secondary" type="button">離線模式</button>
     </div>
 </div>
 

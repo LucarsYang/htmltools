@@ -291,15 +291,6 @@ function backToLoginChoice() {
     showLoginChoice();
 }
 
-function enterOfflineMode(showNotice = true) {
-    closeLoginChoice();
-    showMainButtons();
-    markDirty();
-    if (showNotice) {
-        alert('離線模式啟用，之後登入Google可能覆蓋資料。');
-    }
-}
-
 function showLoginProcessingOverlay() {
     document.getElementById('loginProcessingOverlay')?.classList.add('show');
     document.getElementById('loginProcessingPopup')?.classList.add('show');
@@ -1543,13 +1534,8 @@ function initUI() {
 
     document.getElementById('btnLoginNow')?.addEventListener('click', () => {
         closeLoginChoice();
-        showMainButtons();
-        markDirty();
         showLoginProcessingOverlay();
         googleAuth.signIn();
-    });
-    document.getElementById('btnOffline')?.addEventListener('click', () => {
-        enterOfflineMode(true);
     });
 
     document.getElementById('btnAddClass')?.addEventListener('click', addClassPrompt);
@@ -1600,9 +1586,6 @@ function initUI() {
             case 'class':
                 closeClassPopup();
                 break;
-            case 'login-choice':
-                enterOfflineMode(false);
-                break;
             case 'login-processing':
                 backToLoginChoice();
                 break;
@@ -1629,8 +1612,6 @@ function initUI() {
             closeClassPopup();
         } else if (document.getElementById('loginProcessingOverlay')?.classList.contains('show')) {
             backToLoginChoice();
-        } else if (document.getElementById('loginOverlay')?.classList.contains('show')) {
-            enterOfflineMode(false);
         } else if (document.getElementById('syncOverlay')?.classList.contains('show')) {
             hideSyncOverlay();
         }
@@ -1667,8 +1648,8 @@ function initializeApp() {
     googleAuth.initGoogleAuth(
         () => {
             hideLoginProcessingOverlay();
-            document.getElementById('login-btn')?.style.setProperty('display', 'none');
-            document.getElementById('logout-btn')?.style.setProperty('display', 'inline-block');
+            showMainButtons();
+            closeLoginChoice();
             markSynced();
             loadClassesFromDrive();
             setupActivityListeners();
