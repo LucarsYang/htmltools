@@ -40,6 +40,62 @@ let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60;
 let lastActivityTime = Date.now();
 
+function ensureScoreEventsStore() {
+    if (!Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = [];
+    }
+    return classes.scoreEvents;
+}
+
+function generateScoreEventId() {
+    const events = ensureScoreEventsStore();
+    const existingIds = new Set(
+        events
+            .map(event => (event && typeof event.id === 'string' ? event.id : null))
+            .filter(Boolean)
+    );
+    let candidate = '';
+    do {
+        candidate = `se-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    } while (existingIds.has(candidate));
+    return candidate;
+}
+
+function recordScoreEvent({
+    studentName = '',
+    studentIndex = null,
+    previousScore = null,
+    delta = 0,
+    newScore = null,
+    type = 'unknown',
+    metadata = {}
+} = {}) {
+    const numericDelta = Number(delta);
+    if (!Number.isFinite(numericDelta) || numericDelta === 0) {
+        return;
+    }
+
+    const previous = Number(previousScore);
+    const next = Number(newScore);
+    const indexValue = Number(studentIndex);
+    const normalizedMetadata = metadata && typeof metadata === 'object' ? { ...metadata } : {};
+
+    const event = {
+        id: generateScoreEventId(),
+        className: currentClass,
+        studentName: typeof studentName === 'string' ? studentName : '',
+        studentIndex: Number.isInteger(indexValue) ? indexValue : null,
+        previousScore: Number.isFinite(previous) ? previous : null,
+        delta: numericDelta,
+        newScore: Number.isFinite(next) ? next : null,
+        type: typeof type === 'string' ? type : 'unknown',
+        metadata: normalizedMetadata,
+        performedAt: new Date().toISOString()
+    };
+
+    ensureScoreEventsStore().push(event);
+}
+
 window.toggleSidebar = function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -900,25 +956,61 @@ function editStudent(idx) {
 function updateScore(idx, delta) {
     if (checkIfUpdating()) return;
     const arr = getStudents();
-    arr[idx].score += delta;
+    const student = arr[idx];
+    if (!student) return;
+    const numericDelta = Number(delta);
+    if (!Number.isFinite(numericDelta) || numericDelta === 0) return;
+    const previousScore = Number(student.score) || 0;
+    const newScore = previousScore + numericDelta;
+    student.score = newScore;
+    recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: numericDelta,
+        newScore,
+        type: 'quick-adjust',
+        metadata: { source: 'score-button' }
+    });
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
-    if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
+    if (scoreEl) scoreEl.textContent = `${student.score} 分`;
     markDirty();
 }
 
 function customAdjust(idx) {
     if (checkIfUpdating()) return;
     const arr = getStudents();
+    const student = arr[idx];
+    if (!student) return;
     const signSel = document.getElementById(`sign-${idx}`);
     const customIn = document.getElementById(`custom-${idx}`);
     if (!signSel || !customIn) return;
-    let val = parseInt(customIn.value, 10) || 0;
-    if (signSel.value === '-') val = -val;
-    arr[idx].score += val;
+    let rawInput = parseInt(customIn.value, 10);
+    if (!Number.isFinite(rawInput)) rawInput = 0;
+    let val = rawInput;
+    if (signSel.value === '-') {
+        val = -val;
+    }
+    const previousScore = Number(student.score) || 0;
+    const newScore = previousScore + val;
+    student.score = newScore;
+    recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: val,
+        newScore,
+        type: 'custom-adjust',
+        metadata: {
+            source: 'custom-input',
+            inputValue: rawInput,
+            sign: signSel.value
+        }
+    });
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
-    if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
+    if (scoreEl) scoreEl.textContent = `${student.score} 分`;
     customIn.value = '';
     markDirty();
 }
@@ -963,6 +1055,19 @@ function applyDeduction(idx) {
     };
     student.deductionHistory.push(historyEntry);
     student.deductionHistory.sort((a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime());
+    recordScoreEvent({
+        studentName: student.name,
+        studentIndex: idx,
+        previousScore,
+        delta: points,
+        newScore,
+        type: 'deduction-item',
+        metadata: {
+            itemId: historyEntry.itemId,
+            itemName: historyEntry.itemName,
+            historyId: historyEntry.id
+        }
+    });
     saveClassesLocal();
     const scoreEl = document.getElementById(`score-${idx}`);
     if (scoreEl) scoreEl.textContent = `${student.score} 分`;
@@ -1174,6 +1279,24 @@ function saveStudent() {
     if (editIndex === -1) {
         arr.push(studentData);
     } else {
+        const existingStudent = arr[editIndex];
+        if (existingStudent) {
+            const previousScore = Number(existingStudent.score) || 0;
+            if (previousScore !== score) {
+                recordScoreEvent({
+                    studentName: name,
+                    studentIndex: editIndex,
+                    previousScore,
+                    delta: score - previousScore,
+                    newScore: score,
+                    type: 'manual-edit',
+                    metadata: {
+                        source: 'student-editor',
+                        previousName: existingStudent.name
+                    }
+                });
+            }
+        }
         arr[editIndex] = studentData;
     }
 
@@ -1315,6 +1438,13 @@ function renameClassPrompt(oldName) {
     }
     classes[newName] = classes[oldName];
     delete classes[oldName];
+    if (Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = classes.scoreEvents.map(event => (
+            event && event.className === oldName
+                ? { ...event, className: newName }
+                : event
+        ));
+    }
     if (currentClass === oldName) currentClass = newName;
     saveClassesLocal();
     renderClassDropdown();
@@ -1332,6 +1462,9 @@ function deleteClass(cName) {
     }
     if (!confirm(`確定刪除「${cName}」?`)) return;
     delete classes[cName];
+    if (Array.isArray(classes.scoreEvents)) {
+        classes.scoreEvents = classes.scoreEvents.filter(event => event?.className !== cName);
+    }
     currentClass = getInitialClassName(classes);
     closeDeductionHistory();
     saveClassesLocal();

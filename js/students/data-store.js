@@ -1,8 +1,9 @@
 const DEFAULT_CLASS_NAME = '一班';
-export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems'];
+export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems', 'scoreEvents'];
 export const DEFAULT_SCORE_BUTTONS = [-5, -1, 1, 5];
 export const DEFAULT_REWARDS = ['獎勵', '懲罰'];
 export const DEFAULT_DEDUCTION_ITEMS = [];
+export const DEFAULT_SCORE_EVENTS = [];
 
 export const IMAGE_MAP = {
     '男1': 'https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000',
@@ -23,8 +24,63 @@ export function createDefaultClasses() {
         '501': [],
         scoreButtons: [...DEFAULT_SCORE_BUTTONS],
         rewards: [...DEFAULT_REWARDS],
-        deductionItems: [...DEFAULT_DEDUCTION_ITEMS]
+        deductionItems: [...DEFAULT_DEDUCTION_ITEMS],
+        scoreEvents: [...DEFAULT_SCORE_EVENTS]
     };
+}
+
+function normalizeScoreEvents(events) {
+    if (!Array.isArray(events)) {
+        return [...DEFAULT_SCORE_EVENTS];
+    }
+
+    const seenIds = new Set();
+    let fallbackId = Date.now();
+
+    return events.reduce((acc, raw) => {
+        if (!raw || typeof raw !== 'object') return acc;
+
+        const normalized = {};
+
+        const idValue = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : '';
+        let normalizedId = idValue;
+        while (!normalizedId || seenIds.has(normalizedId)) {
+            normalizedId = `se-${fallbackId}`;
+            fallbackId += 1;
+        }
+        seenIds.add(normalizedId);
+        normalized.id = normalizedId;
+
+        normalized.className = typeof raw.className === 'string' ? raw.className : '';
+        normalized.studentName = typeof raw.studentName === 'string' ? raw.studentName : '';
+
+        const studentIndexValue = Number(raw.studentIndex);
+        normalized.studentIndex = Number.isInteger(studentIndexValue) ? studentIndexValue : null;
+
+        const deltaValue = Number(raw.delta);
+        normalized.delta = Number.isFinite(deltaValue) ? deltaValue : 0;
+
+        const prevValue = Number(raw.previousScore);
+        normalized.previousScore = Number.isFinite(prevValue) ? prevValue : null;
+
+        const nextValue = Number(raw.newScore);
+        normalized.newScore = Number.isFinite(nextValue) ? nextValue : null;
+
+        normalized.type = typeof raw.type === 'string' ? raw.type : 'unknown';
+
+        const metadata = raw.metadata;
+        normalized.metadata = metadata && typeof metadata === 'object' ? metadata : {};
+
+        const timeValue = typeof raw.performedAt === 'string' ? raw.performedAt : '';
+        let normalizedTime = timeValue;
+        if (!normalizedTime) {
+            normalizedTime = new Date().toISOString();
+        }
+        normalized.performedAt = normalizedTime;
+
+        acc.push(normalized);
+        return acc;
+    }, []);
 }
 
 function getStorage(storage) {
@@ -72,6 +128,8 @@ export function ensureClassesIntegrity(classes) {
         });
         classes.deductionItems = normalizedItems;
     }
+
+    classes.scoreEvents = normalizeScoreEvents(classes.scoreEvents);
 
     let classKeys = Object.keys(classes).filter(key => !SPECIAL_CLASS_KEYS.includes(key));
     if (classKeys.length === 0) {
