@@ -11,12 +11,14 @@ import {
     resolveImageLabel
 } from './data-store.js';
 import { init as initWheel } from '../wheel.js';
+import { createDeductionManager } from '../deduction-management.js';
 
 const storage = typeof window !== 'undefined' ? window.localStorage : null;
 const googleAuth = createGoogleAuth(storage);
 const googleDrive = createGoogleDrive(googleAuth);
 let classes = ensureClassesIntegrity(loadClasses(storage));
 let currentClass = getInitialClassName(classes);
+let deductionManager = null;
 
 let updatingState = false;
 let editIndex = -1;
@@ -74,6 +76,7 @@ async function checkCloudFile() {
                 saveClassesLocal();
                 renderClassDropdown();
                 renderStudents();
+                deductionManager?.refresh();
                 markSynced();
             }
         }
@@ -315,6 +318,7 @@ async function loadClassesFromDrive() {
             }
             renderClassDropdown();
             renderStudents();
+            deductionManager?.refresh();
             markSynced();
         } else {
             markDirty();
@@ -328,6 +332,34 @@ async function loadClassesFromDrive() {
 function getStudents() {
     if (!classes[currentClass]) classes[currentClass] = [];
     return classes[currentClass];
+}
+
+function getDeductionItems() {
+    if (!Array.isArray(classes.deductionItems)) {
+        classes.deductionItems = [];
+    }
+    return classes.deductionItems;
+}
+
+function setDeductionItems(items) {
+    const normalized = Array.isArray(items)
+        ? items
+              .filter(item => item && typeof item.name === 'string' && Number.isFinite(Number(item.points)))
+              .map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  points: Number(item.points)
+              }))
+        : [];
+    classes.deductionItems = normalized;
+    saveClassesLocal();
+    renderStudents();
+    markDirty();
+    deductionManager?.refresh();
+}
+
+function findDeductionItemById(id) {
+    return getDeductionItems().find(item => String(item.id) === String(id));
 }
 
 function renderClassDropdown() {
@@ -417,6 +449,42 @@ function renderStudents() {
         quickAdjust.append(select, input, confirmBtn);
         card.appendChild(quickAdjust);
 
+        const deductionGroup = document.createElement('div');
+        deductionGroup.className = 'deduction-select-group';
+        const deductionSelect = document.createElement('select');
+        deductionSelect.id = `deduction-${idx}`;
+        deductionSelect.setAttribute('aria-label', '套用扣分項目');
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = '選擇扣分項目';
+        deductionSelect.appendChild(placeholderOption);
+
+        const deductionItems = getDeductionItems();
+        if (deductionItems.length === 0) {
+            deductionSelect.disabled = true;
+            placeholderOption.textContent = '尚未建立扣分項目';
+        } else {
+            deductionItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = String(item.id);
+                const pointValue = Number(item.points) || 0;
+                const pointLabel = pointValue > 0 ? `+${pointValue}` : String(pointValue);
+                option.textContent = `${item.name} (${pointLabel})`;
+                deductionSelect.appendChild(option);
+            });
+        }
+
+        const applyDeductionBtn = document.createElement('button');
+        applyDeductionBtn.type = 'button';
+        applyDeductionBtn.textContent = '確定';
+        applyDeductionBtn.addEventListener('click', () => applyDeduction(idx));
+        if (deductionItems.length === 0) {
+            applyDeductionBtn.disabled = true;
+        }
+
+        deductionGroup.append(deductionSelect, applyDeductionBtn);
+        card.appendChild(deductionGroup);
+
         container.appendChild(card);
     });
 }
@@ -484,6 +552,36 @@ function customAdjust(idx) {
     const scoreEl = document.getElementById(`score-${idx}`);
     if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
     customIn.value = '';
+    markDirty();
+}
+
+function applyDeduction(idx) {
+    if (checkIfUpdating()) return;
+    const arr = getStudents();
+    if (!arr[idx]) return;
+    const select = document.getElementById(`deduction-${idx}`);
+    if (!select) return;
+    const selectedId = select.value;
+    if (!selectedId) {
+        alert('請先選擇扣分項目');
+        return;
+    }
+    const item = findDeductionItemById(selectedId);
+    if (!item) {
+        alert('找不到對應的扣分項目，請重新整理後再試');
+        renderStudents();
+        return;
+    }
+    const points = Number(item.points);
+    if (!Number.isFinite(points)) {
+        alert('扣分項目資料異常，請重新設定');
+        return;
+    }
+    arr[idx].score += points;
+    saveClassesLocal();
+    const scoreEl = document.getElementById(`score-${idx}`);
+    if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
+    select.value = '';
     markDirty();
 }
 
@@ -1098,6 +1196,11 @@ function initUI() {
         }
     });
 
+    document.getElementById('btnDeductionManage')?.addEventListener('click', () => {
+        if (checkIfUpdating()) return;
+        deductionManager?.open();
+    });
+
     document.body.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
@@ -1201,11 +1304,20 @@ function initializeApp() {
         }
     );
 
+    if (!deductionManager) {
+        deductionManager = createDeductionManager({
+            getItems: () => [...getDeductionItems()],
+            setItems: setDeductionItems,
+            checkIfUpdating
+        });
+    }
+
     initUI();
     setSyncState(syncState);
     updateSyncStatus();
     renderClassDropdown();
     renderStudents();
+    deductionManager?.refresh();
     initWheel(() => getStudents(), () => classes);
 
     window.clearCustomImage = clearCustomImage;

@@ -1,7 +1,8 @@
 const DEFAULT_CLASS_NAME = '一班';
-export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards'];
+export const SPECIAL_CLASS_KEYS = ['scoreButtons', 'rewards', 'deductionItems'];
 export const DEFAULT_SCORE_BUTTONS = [-5, -1, 1, 5];
 export const DEFAULT_REWARDS = ['獎勵', '懲罰'];
+export const DEFAULT_DEDUCTION_ITEMS = [];
 
 export const IMAGE_MAP = {
     '男1': 'https://img.icons8.com/?size=100&id=oqlkrpDy3clZ&format=png&color=000000',
@@ -21,7 +22,8 @@ export function createDefaultClasses() {
     return {
         '501': [],
         scoreButtons: [...DEFAULT_SCORE_BUTTONS],
-        rewards: [...DEFAULT_REWARDS]
+        rewards: [...DEFAULT_REWARDS],
+        deductionItems: [...DEFAULT_DEDUCTION_ITEMS]
     };
 }
 
@@ -46,6 +48,29 @@ export function ensureClassesIntegrity(classes) {
 
     if (!Array.isArray(classes.rewards)) {
         classes.rewards = [...DEFAULT_REWARDS];
+    }
+
+    if (!Array.isArray(classes.deductionItems)) {
+        classes.deductionItems = [...DEFAULT_DEDUCTION_ITEMS];
+    } else {
+        const normalizedItems = [];
+        const usedIds = new Set();
+        let fallbackId = Date.now();
+        classes.deductionItems.forEach((item) => {
+            if (!item || typeof item.name !== 'string') return;
+            const trimmedName = item.name.trim();
+            if (!trimmedName) return;
+            const points = Number(item.points);
+            if (!Number.isFinite(points)) return;
+            let id = typeof item.id === 'number' ? item.id : null;
+            while (id === null || usedIds.has(id)) {
+                id = fallbackId;
+                fallbackId += 1;
+            }
+            usedIds.add(id);
+            normalizedItems.push({ id, name: trimmedName, points });
+        });
+        classes.deductionItems = normalizedItems;
     }
 
     const classKeys = Object.keys(classes).filter(key => !SPECIAL_CLASS_KEYS.includes(key));
