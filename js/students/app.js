@@ -11,12 +11,18 @@ import {
     resolveImageLabel
 } from './data-store.js';
 import { init as initWheel } from '../wheel.js';
+import { createDeductionManager } from '../deduction-management.js';
 
 const storage = typeof window !== 'undefined' ? window.localStorage : null;
 const googleAuth = createGoogleAuth(storage);
 const googleDrive = createGoogleDrive(googleAuth);
 let classes = ensureClassesIntegrity(loadClasses(storage));
 let currentClass = getInitialClassName(classes);
+let deductionManager = null;
+let deductionHistoryOverlay = null;
+let deductionHistoryElements = null;
+let activeHistoryStudentIndex = -1;
+let historyLastFocusedElement = null;
 
 let updatingState = false;
 let editIndex = -1;
@@ -74,6 +80,7 @@ async function checkCloudFile() {
                 saveClassesLocal();
                 renderClassDropdown();
                 renderStudents();
+                deductionManager?.refresh();
                 markSynced();
             }
         }
@@ -313,8 +320,10 @@ async function loadClassesFromDrive() {
             if (!classes[currentClass]) {
                 currentClass = getInitialClassName(classes);
             }
+            closeDeductionHistory();
             renderClassDropdown();
             renderStudents();
+            deductionManager?.refresh();
             markSynced();
         } else {
             markDirty();
@@ -328,6 +337,361 @@ async function loadClassesFromDrive() {
 function getStudents() {
     if (!classes[currentClass]) classes[currentClass] = [];
     return classes[currentClass];
+}
+
+function getDeductionItems() {
+    if (!Array.isArray(classes.deductionItems)) {
+        classes.deductionItems = [];
+    }
+    return classes.deductionItems;
+}
+
+function setDeductionItems(items) {
+    const normalized = Array.isArray(items)
+        ? items
+              .filter(item => item && typeof item.name === 'string' && Number.isFinite(Number(item.points)))
+              .map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  points: Number(item.points)
+              }))
+        : [];
+    classes.deductionItems = normalized;
+    saveClassesLocal();
+    renderStudents();
+    markDirty();
+    deductionManager?.refresh();
+}
+
+function findDeductionItemById(id) {
+    return getDeductionItems().find(item => String(item.id) === String(id));
+}
+
+function generateHistoryId(history = []) {
+    const used = new Set(
+        history
+            .map(record => {
+                if (!record) return null;
+                if (typeof record.id === 'string' || typeof record.id === 'number') {
+                    return String(record.id);
+                }
+                return null;
+            })
+            .filter(Boolean)
+    );
+
+    let base = Date.now();
+    let candidate = `h-${base}`;
+    while (used.has(candidate)) {
+        base += 1;
+        candidate = `h-${base}`;
+    }
+    return candidate;
+}
+
+function ensureDeductionHistoryOverlay() {
+    if (deductionHistoryOverlay && deductionHistoryElements) {
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'deductionHistoryOverlay';
+    overlay.className = 'deduction-history-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = `
+        <div class="deduction-history-container" role="dialog" aria-modal="true" aria-labelledby="deductionHistoryTitle">
+            <header class="deduction-history-header">
+                <div class="deduction-history-header-text">
+                    <h3 id="deductionHistoryTitle">扣分紀錄</h3>
+                    <p id="deductionHistoryCount" class="deduction-history-count" aria-live="polite"></p>
+                </div>
+                <button type="button" class="deduction-history-close" aria-label="關閉扣分紀錄">×</button>
+            </header>
+            <div class="deduction-history-body">
+                <form class="deduction-history-filters">
+                    <label class="deduction-history-filter" for="historyItemFilter">
+                        <span>扣分項目</span>
+                        <select id="historyItemFilter" name="historyItemFilter"></select>
+                    </label>
+                    <label class="deduction-history-filter" for="historyStartDate">
+                        <span>起始日期</span>
+                        <input type="date" id="historyStartDate" name="historyStartDate" />
+                    </label>
+                    <label class="deduction-history-filter" for="historyEndDate">
+                        <span>結束日期</span>
+                        <input type="date" id="historyEndDate" name="historyEndDate" />
+                    </label>
+                    <div class="deduction-history-filter-actions">
+                        <button type="submit" class="btn-primary">套用篩選</button>
+                        <button type="button" class="btn-secondary" data-action="reset-filters">清除篩選</button>
+                    </div>
+                </form>
+                <div class="deduction-history-table-wrapper">
+                    <div class="deduction-history-scroll">
+                        <table class="deduction-history-table" aria-describedby="deductionHistoryTitle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">套用時間</th>
+                                    <th scope="col">項目</th>
+                                    <th scope="col">扣除分數</th>
+                                    <th scope="col">套用後總分</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <p class="deduction-history-empty" aria-live="polite"></p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    deductionHistoryOverlay = overlay;
+    deductionHistoryElements = {
+        container: overlay.querySelector('.deduction-history-container'),
+        title: overlay.querySelector('#deductionHistoryTitle'),
+        count: overlay.querySelector('#deductionHistoryCount'),
+        closeBtn: overlay.querySelector('.deduction-history-close'),
+        form: overlay.querySelector('.deduction-history-filters'),
+        itemSelect: overlay.querySelector('#historyItemFilter'),
+        startInput: overlay.querySelector('#historyStartDate'),
+        endInput: overlay.querySelector('#historyEndDate'),
+        resetBtn: overlay.querySelector('[data-action="reset-filters"]'),
+        table: overlay.querySelector('.deduction-history-table'),
+        tableBody: overlay.querySelector('.deduction-history-table tbody'),
+        emptyMessage: overlay.querySelector('.deduction-history-empty')
+    };
+
+    deductionHistoryElements.closeBtn?.addEventListener('click', closeDeductionHistory);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closeDeductionHistory();
+        }
+    });
+    deductionHistoryElements.form?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        renderDeductionHistoryList();
+    });
+    deductionHistoryElements.form?.addEventListener('change', () => {
+        renderDeductionHistoryList();
+    });
+    deductionHistoryElements.resetBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (deductionHistoryElements.itemSelect) deductionHistoryElements.itemSelect.value = '';
+        if (deductionHistoryElements.startInput) deductionHistoryElements.startInput.value = '';
+        if (deductionHistoryElements.endInput) deductionHistoryElements.endInput.value = '';
+        renderDeductionHistoryList();
+    });
+
+    if (deductionHistoryElements.itemSelect) {
+        deductionHistoryElements.itemSelect.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '全部項目';
+        deductionHistoryElements.itemSelect.appendChild(option);
+    }
+}
+
+function getActiveHistoryStudent() {
+    const arr = getStudents();
+    if (activeHistoryStudentIndex < 0 || activeHistoryStudentIndex >= arr.length) {
+        return null;
+    }
+    return arr[activeHistoryStudentIndex];
+}
+
+function populateHistoryItemFilter(student) {
+    if (!deductionHistoryElements?.itemSelect) return;
+    const select = deductionHistoryElements.itemSelect;
+    const currentValue = select.value;
+    select.innerHTML = '';
+
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '全部項目';
+    select.appendChild(defaultOption);
+
+    const history = Array.isArray(student?.deductionHistory) ? student.deductionHistory : [];
+    const uniqueItems = new Map();
+    history.forEach(record => {
+        if (!record) return;
+        const itemName = record.itemName || '未命名項目';
+        const key = record.itemId !== null && record.itemId !== undefined ? `id:${record.itemId}` : `name:${itemName}`;
+        if (!uniqueItems.has(key)) {
+            uniqueItems.set(key, itemName);
+        }
+    });
+
+    uniqueItems.forEach((label, key) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = label;
+        select.appendChild(opt);
+    });
+
+    if ([...uniqueItems.keys()].some(key => key === currentValue)) {
+        select.value = currentValue;
+    } else {
+        select.value = '';
+    }
+}
+
+function formatHistoryDate(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) {
+        return '';
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}`;
+}
+
+function renderDeductionHistoryList() {
+    if (!deductionHistoryElements) return;
+    const student = getActiveHistoryStudent();
+    if (!student) {
+        closeDeductionHistory();
+        return;
+    }
+
+    const tbody = deductionHistoryElements.tableBody;
+    const table = deductionHistoryElements.table;
+    const emptyMessage = deductionHistoryElements.emptyMessage;
+    const countEl = deductionHistoryElements.count;
+    if (!tbody || !table || !emptyMessage) return;
+
+    const history = Array.isArray(student.deductionHistory) ? [...student.deductionHistory] : [];
+    const total = history.length;
+
+    const itemFilterValue = deductionHistoryElements.itemSelect?.value || '';
+    const startDateValue = deductionHistoryElements.startInput?.value || '';
+    const endDateValue = deductionHistoryElements.endInput?.value || '';
+
+    let filtered = history.filter(record => Boolean(record));
+
+    if (itemFilterValue) {
+        filtered = filtered.filter(record => {
+            const itemName = record.itemName || '未命名項目';
+            const key = record.itemId !== null && record.itemId !== undefined ? `id:${record.itemId}` : `name:${itemName}`;
+            return key === itemFilterValue;
+        });
+    }
+
+    if (startDateValue) {
+        const startDate = new Date(`${startDateValue}T00:00:00`);
+        if (!Number.isNaN(startDate.getTime())) {
+            filtered = filtered.filter(record => {
+                const appliedDate = new Date(record.appliedAt);
+                return !Number.isNaN(appliedDate.getTime()) && appliedDate >= startDate;
+            });
+        }
+    }
+
+    if (endDateValue) {
+        const endDate = new Date(`${endDateValue}T23:59:59.999`);
+        if (!Number.isNaN(endDate.getTime())) {
+            filtered = filtered.filter(record => {
+                const appliedDate = new Date(record.appliedAt);
+                return !Number.isNaN(appliedDate.getTime()) && appliedDate <= endDate;
+            });
+        }
+    }
+
+    filtered.sort((a, b) => {
+        const timeA = new Date(a.appliedAt).getTime();
+        const timeB = new Date(b.appliedAt).getTime();
+        return timeB - timeA;
+    });
+
+    tbody.innerHTML = '';
+
+    if (countEl) {
+        countEl.textContent = `顯示 ${filtered.length} 筆／共 ${total} 筆`;
+    }
+
+    if (!filtered.length) {
+        table.style.display = 'none';
+        emptyMessage.textContent = '目前沒有符合條件的扣分紀錄';
+        return;
+    }
+
+    table.style.display = 'table';
+    emptyMessage.textContent = '';
+
+    filtered.forEach(record => {
+        const row = document.createElement('tr');
+
+        const timeCell = document.createElement('td');
+        timeCell.textContent = formatHistoryDate(record.appliedAt);
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = record.itemName || '未命名項目';
+
+        const pointCell = document.createElement('td');
+        const pointValue = Number(record.points) || 0;
+        pointCell.textContent = pointValue > 0 ? `+${pointValue}` : String(pointValue);
+
+        const scoreCell = document.createElement('td');
+        const rawScoreAfter = record.scoreAfter;
+        const numericScore = Number(rawScoreAfter);
+        if (rawScoreAfter !== undefined && rawScoreAfter !== null && rawScoreAfter !== '' && Number.isFinite(numericScore)) {
+            scoreCell.textContent = String(numericScore);
+        } else {
+            scoreCell.textContent = '—';
+        }
+
+        row.append(timeCell, nameCell, pointCell, scoreCell);
+        tbody.appendChild(row);
+    });
+}
+
+function openDeductionHistory(idx) {
+    if (checkIfUpdating()) return;
+    ensureDeductionHistoryOverlay();
+    const student = getStudents()[idx];
+    if (!student || !deductionHistoryOverlay || !deductionHistoryElements) return;
+
+    activeHistoryStudentIndex = idx;
+    historyLastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const titleEl = deductionHistoryElements.title;
+    if (titleEl) {
+        const name = student.name || '未命名學生';
+        titleEl.textContent = `${name} 的扣分紀錄`;
+    }
+
+    populateHistoryItemFilter(student);
+    if (deductionHistoryElements.itemSelect) {
+        deductionHistoryElements.itemSelect.value = '';
+    }
+    if (deductionHistoryElements.startInput) {
+        deductionHistoryElements.startInput.value = '';
+    }
+    if (deductionHistoryElements.endInput) {
+        deductionHistoryElements.endInput.value = '';
+    }
+
+    deductionHistoryOverlay.classList.add('show');
+    deductionHistoryOverlay.setAttribute('aria-hidden', 'false');
+    renderDeductionHistoryList();
+
+    window.setTimeout(() => {
+        deductionHistoryElements?.itemSelect?.focus();
+    }, 0);
+}
+
+function closeDeductionHistory() {
+    if (!deductionHistoryOverlay) return;
+    deductionHistoryOverlay.classList.remove('show');
+    deductionHistoryOverlay.setAttribute('aria-hidden', 'true');
+    activeHistoryStudentIndex = -1;
+    if (historyLastFocusedElement instanceof HTMLElement) {
+        historyLastFocusedElement.focus();
+    }
 }
 
 function renderClassDropdown() {
@@ -417,6 +781,50 @@ function renderStudents() {
         quickAdjust.append(select, input, confirmBtn);
         card.appendChild(quickAdjust);
 
+        const deductionGroup = document.createElement('div');
+        deductionGroup.className = 'deduction-select-group';
+        const deductionSelect = document.createElement('select');
+        deductionSelect.id = `deduction-${idx}`;
+        deductionSelect.setAttribute('aria-label', '套用扣分項目');
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = '選擇扣分項目';
+        deductionSelect.appendChild(placeholderOption);
+
+        const deductionItems = getDeductionItems();
+        if (deductionItems.length === 0) {
+            deductionSelect.disabled = true;
+            placeholderOption.textContent = '尚未建立扣分項目';
+        } else {
+            deductionItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = String(item.id);
+                const pointValue = Number(item.points) || 0;
+                const pointLabel = pointValue > 0 ? `+${pointValue}` : String(pointValue);
+                option.textContent = `${item.name} (${pointLabel})`;
+                deductionSelect.appendChild(option);
+            });
+        }
+
+        const applyDeductionBtn = document.createElement('button');
+        applyDeductionBtn.type = 'button';
+        applyDeductionBtn.textContent = '確定';
+        applyDeductionBtn.addEventListener('click', () => applyDeduction(idx));
+        if (deductionItems.length === 0) {
+            applyDeductionBtn.disabled = true;
+        }
+
+        deductionGroup.append(deductionSelect, applyDeductionBtn);
+        card.appendChild(deductionGroup);
+
+        const historyBtn = document.createElement('button');
+        historyBtn.type = 'button';
+        historyBtn.className = 'deduction-history-btn';
+        historyBtn.textContent = '查看扣分紀錄';
+        historyBtn.setAttribute('aria-label', `查看${st.name || '學生'}的扣分紀錄`);
+        historyBtn.addEventListener('click', () => openDeductionHistory(idx));
+        card.appendChild(historyBtn);
+
         container.appendChild(card);
     });
 }
@@ -485,6 +893,57 @@ function customAdjust(idx) {
     if (scoreEl) scoreEl.textContent = `${arr[idx].score} 分`;
     customIn.value = '';
     markDirty();
+}
+
+function applyDeduction(idx) {
+    if (checkIfUpdating()) return;
+    const arr = getStudents();
+    if (!arr[idx]) return;
+    const student = arr[idx];
+    const select = document.getElementById(`deduction-${idx}`);
+    if (!select) return;
+    const selectedId = select.value;
+    if (!selectedId) {
+        alert('請先選擇扣分項目');
+        return;
+    }
+    const item = findDeductionItemById(selectedId);
+    if (!item) {
+        alert('找不到對應的扣分項目，請重新整理後再試');
+        renderStudents();
+        return;
+    }
+    const points = Number(item.points);
+    if (!Number.isFinite(points)) {
+        alert('扣分項目資料異常，請重新設定');
+        return;
+    }
+    const appliedAt = new Date().toISOString();
+    const previousScore = Number(student.score) || 0;
+    const newScore = previousScore + points;
+    student.score = newScore;
+    if (!Array.isArray(student.deductionHistory)) {
+        student.deductionHistory = [];
+    }
+    const historyEntry = {
+        id: generateHistoryId(student.deductionHistory),
+        itemId: typeof item.id === 'string' || typeof item.id === 'number' ? item.id : null,
+        itemName: item.name || '未命名項目',
+        points,
+        scoreAfter: newScore,
+        appliedAt
+    };
+    student.deductionHistory.push(historyEntry);
+    student.deductionHistory.sort((a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime());
+    saveClassesLocal();
+    const scoreEl = document.getElementById(`score-${idx}`);
+    if (scoreEl) scoreEl.textContent = `${student.score} 分`;
+    select.value = '';
+    markDirty();
+    if (deductionHistoryOverlay?.classList.contains('show') && activeHistoryStudentIndex === idx) {
+        populateHistoryItemFilter(student);
+        renderDeductionHistoryList();
+    }
 }
 
 function deleteStudent(idx) {
@@ -671,13 +1130,17 @@ function saveStudent() {
     }
 
     const arr = getStudents();
+    const existingHistory = editIndex !== -1 && Array.isArray(arr[editIndex]?.deductionHistory)
+        ? arr[editIndex].deductionHistory
+        : [];
     const studentData = {
         name,
         score,
         gender,
         imageLabel,
         customImage: imageData,
-        customImageFileId: imageFileId
+        customImageFileId: imageFileId,
+        deductionHistory: editIndex === -1 ? [] : existingHistory
     };
 
     if (editIndex === -1) {
@@ -729,7 +1192,7 @@ async function importCSV(evt) {
                 const labs = GENDER_IMAGE_LABELS[gender] || ['男1'];
                 imageLabel = labs[0];
             }
-            const student = { name, score, gender, imageLabel };
+            const student = { name, score, gender, imageLabel, deductionHistory: [] };
             if (hasCustomImage && customImageFileId) {
                 try {
                     const imageUrl = await googleDrive.getImageUrlFromDrive(customImageFileId);
@@ -805,6 +1268,7 @@ function addClassPrompt() {
     classes[newName] = [];
     saveClassesLocal();
     currentClass = newName;
+    closeDeductionHistory();
     renderClassDropdown();
     renderStudents();
     renderClassList();
@@ -841,6 +1305,7 @@ function deleteClass(cName) {
     if (!confirm(`確定刪除「${cName}」?`)) return;
     delete classes[cName];
     currentClass = getInitialClassName(classes);
+    closeDeductionHistory();
     saveClassesLocal();
     renderClassDropdown();
     renderStudents();
@@ -1031,6 +1496,7 @@ function initUI() {
             return;
         }
         currentClass = evt.target.value;
+        closeDeductionHistory();
         renderStudents();
     });
 
@@ -1098,6 +1564,11 @@ function initUI() {
         }
     });
 
+    document.getElementById('btnDeductionManage')?.addEventListener('click', () => {
+        if (checkIfUpdating()) return;
+        deductionManager?.open();
+    });
+
     document.body.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
@@ -1141,7 +1612,9 @@ function initUI() {
 
     window.addEventListener('keydown', (evt) => {
         if (evt.key !== 'Escape') return;
-        if (document.getElementById('settingsOverlay')?.classList.contains('show')) {
+        if (deductionHistoryOverlay?.classList.contains('show')) {
+            closeDeductionHistory();
+        } else if (document.getElementById('settingsOverlay')?.classList.contains('show')) {
             closeScoreButtonsSettings();
         } else if (document.getElementById('overlay')?.classList.contains('show')) {
             closePopup();
@@ -1201,11 +1674,20 @@ function initializeApp() {
         }
     );
 
+    if (!deductionManager) {
+        deductionManager = createDeductionManager({
+            getItems: () => [...getDeductionItems()],
+            setItems: setDeductionItems,
+            checkIfUpdating
+        });
+    }
+
     initUI();
     setSyncState(syncState);
     updateSyncStatus();
     renderClassDropdown();
     renderStudents();
+    deductionManager?.refresh();
     initWheel(() => getStudents(), () => classes);
 
     window.clearCustomImage = clearCustomImage;
