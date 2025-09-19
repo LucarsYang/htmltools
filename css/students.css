@@ -400,6 +400,10 @@ body.sidebar-collapsed .main-content {
     position: relative;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     cursor: grab;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
 
 .student-card:active {
@@ -415,6 +419,27 @@ body.sidebar-collapsed .main-content {
 
 .student-card.drag-over {
     outline: 2px dashed var(--color-primary);
+}
+
+.student-card-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.score-button-group {
+    width: 100%;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+}
+
+.score-button-group .btn-score {
+    margin: 0;
+    min-width: 0;
+    width: 100%;
+    padding: 8px 0;
 }
 
 .student-card img {
@@ -433,7 +458,7 @@ body.sidebar-collapsed .main-content {
 }
 
 .student-card p:last-of-type {
-    margin-bottom: 16px;
+    margin-bottom: 0;
     color: #546e7a;
 }
 
@@ -487,11 +512,11 @@ body.sidebar-collapsed .main-content {
 }
 
 .quickAdjust {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 64px 1fr;
     gap: 8px;
-    margin-top: 12px;
+    width: 100%;
+    align-items: center;
 }
 
 .quickAdjust select,
@@ -500,15 +525,103 @@ body.sidebar-collapsed .main-content {
     border-radius: var(--radius-small);
     border: 1px solid var(--color-border);
     font-size: 14px;
+    width: 100%;
 }
 
 .quickAdjust button {
-    padding: 6px 12px;
+    padding: 8px 12px;
     background: var(--color-primary);
     border: none;
     border-radius: var(--radius-small);
     color: #fff;
     cursor: pointer;
+    grid-column: 1 / -1;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.quickAdjust button:hover {
+    background: var(--color-primary-dark);
+    box-shadow: var(--shadow-card);
+}
+
+.deduction-select-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 8px;
+    width: 100%;
+    align-items: center;
+}
+
+.deduction-select-group select {
+    min-width: 0;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: var(--radius-small);
+    border: 1px solid var(--color-border);
+    font-size: 14px;
+}
+
+.deduction-select-group button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--radius-small);
+    background: var(--color-primary);
+    color: #fff;
+    cursor: pointer;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    width: 100%;
+}
+
+.deduction-select-group button:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.deduction-select-group button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-card);
+}
+
+.deduction-history-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(33, 150, 243, 0.08);
+    border: 1px solid rgba(33, 150, 243, 0.2);
+    border-radius: var(--radius-small);
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.deduction-history-btn:hover,
+.deduction-history-btn:focus {
+    background: rgba(33, 150, 243, 0.18);
+    color: var(--color-primary-dark);
+    box-shadow: var(--shadow-card);
+}
+
+.deduction-history-btn:focus {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+    .quickAdjust,
+    .deduction-select-group {
+        grid-template-columns: 1fr;
+    }
+
+    .quickAdjust button,
+    .deduction-select-group button {
+        grid-column: auto;
+    }
 }
 
 .overlay,
