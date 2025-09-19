@@ -75,6 +75,44 @@
         <section class="student-list" aria-live="polite" aria-label="學生列表">
             <div class="container" id="studentContainer"></div>
         </section>
+
+        <section class="score-dashboard" id="scoreDashboard" aria-label="分數儀表板">
+            <div class="score-dashboard-card">
+                <header class="score-dashboard-header">
+                    <div>
+                        <h2 class="score-dashboard-title">分數儀表板</h2>
+                        <p class="score-dashboard-hint">掌握班級分數異動與加減分走勢</p>
+                    </div>
+                </header>
+                <div class="score-dashboard-metrics" role="list">
+                    <div class="score-dashboard-metric" role="listitem">
+                        <span class="metric-label">分數異動總數</span>
+                        <span class="metric-value" id="scoreEventTotal">0</span>
+                    </div>
+                    <div class="score-dashboard-metric metric-positive" role="listitem">
+                        <span class="metric-label">總加分</span>
+                        <span class="metric-value" id="scoreEventPositive">0</span>
+                    </div>
+                    <div class="score-dashboard-metric metric-negative" role="listitem">
+                        <span class="metric-label">總扣分</span>
+                        <span class="metric-value" id="scoreEventNegative">0</span>
+                    </div>
+                </div>
+                <div class="score-dashboard-chart">
+                    <div class="score-dashboard-chart-header">
+                        <h3 class="chart-title">最近 7 日加分／扣分趨勢</h3>
+                        <div class="chart-legend" id="scoreTrendLegend" aria-hidden="true">
+                            <span class="legend-item legend-positive">加分</span>
+                            <span class="legend-item legend-negative">扣分</span>
+                        </div>
+                    </div>
+                    <div class="score-dashboard-canvas-wrapper">
+                        <canvas id="scoreTrendCanvas" width="640" height="260" role="img" aria-label="最近 7 日的加分與扣分走勢"></canvas>
+                        <p class="score-dashboard-chart-empty" id="scoreTrendEmpty">最近尚無分數異動紀錄</p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 

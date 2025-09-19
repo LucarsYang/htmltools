@@ -391,6 +391,7 @@
     cursor: not-allowed;
 }
 
+.score-history-overlay,
 .deduction-history-overlay {
     display: none;
     position: fixed;
@@ -402,10 +403,12 @@
     padding: clamp(16px, 4vh, 48px);
 }
 
+.score-history-overlay.show,
 .deduction-history-overlay.show {
     display: flex;
 }
 
+.score-history-container,
 .deduction-history-container {
     background: #ffffff;
     width: min(920px, 95vw);
@@ -418,6 +421,7 @@
     position: relative;
 }
 
+.score-history-header,
 .deduction-history-header {
     display: flex;
     align-items: flex-start;
@@ -427,12 +431,14 @@
     border-bottom: 1px solid #e2e8f0;
 }
 
+.score-history-header-text,
 .deduction-history-header-text {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
+.score-history-header h3,
 .deduction-history-header h3 {
     margin: 0;
     font-size: 24px;
@@ -440,12 +446,14 @@
     color: #1f2937;
 }
 
+.score-history-count,
 .deduction-history-count {
     margin: 0;
     font-size: 14px;
     color: #475569;
 }
 
+.score-history-close,
 .deduction-history-close {
     width: 44px;
     height: 44px;
@@ -461,11 +469,13 @@
     transition: background 0.2s ease, transform 0.2s ease;
 }
 
+.score-history-close:hover,
 .deduction-history-close:hover {
     background: #e2e8f0;
     transform: rotate(90deg);
 }
 
+.score-history-body,
 .deduction-history-body {
     flex: 1 1 auto;
     display: flex;
@@ -475,6 +485,7 @@
     overflow: hidden;
 }
 
+.score-history-filters,
 .deduction-history-filters {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -482,18 +493,22 @@
     align-items: end;
 }
 
+.score-history-filter,
 .deduction-history-filter {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
+.score-history-filter span,
 .deduction-history-filter span {
     font-size: 14px;
     font-weight: 600;
     color: #334155;
 }
 
+.score-history-filter select,
+.score-history-filter input,
 .deduction-history-filter select,
 .deduction-history-filter input {
     padding: 10px 12px;
@@ -505,6 +520,8 @@
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.score-history-filter select:focus,
+.score-history-filter input:focus,
 .deduction-history-filter select:focus,
 .deduction-history-filter input:focus {
     border-color: #2563eb;
@@ -512,6 +529,7 @@
     outline: none;
 }
 
+.score-history-filter-actions,
 .deduction-history-filter-actions {
     display: flex;
     gap: 12px;
@@ -519,6 +537,8 @@
     align-items: center;
 }
 
+.score-history-filter-actions .btn-primary,
+.score-history-filter-actions .btn-secondary,
 .deduction-history-filter-actions .btn-primary,
 .deduction-history-filter-actions .btn-secondary {
     padding: 10px 20px;
@@ -527,6 +547,7 @@
     font-weight: 600;
 }
 
+.score-history-table-wrapper,
 .deduction-history-table-wrapper {
     background: #f8fafc;
     border-radius: 22px;
@@ -539,17 +560,21 @@
     flex-direction: column;
 }
 
+.score-history-scroll,
 .deduction-history-scroll {
     flex: 1 1 auto;
     overflow: auto;
 }
 
+.score-history-table,
 .deduction-history-table {
     width: 100%;
     border-collapse: collapse;
     min-width: 100%;
 }
 
+.score-history-table th,
+.score-history-table td,
 .deduction-history-table th,
 .deduction-history-table td {
     padding: 14px 16px;
@@ -559,22 +584,28 @@
     border-bottom: 1px solid #e2e8f0;
 }
 
+.score-history-table th:nth-child(3),
+.score-history-table td:nth-child(3),
 .deduction-history-table th:nth-child(3),
 .deduction-history-table td:nth-child(3) {
     text-align: center;
     width: 140px;
 }
 
+.score-history-table th:nth-child(4),
+.score-history-table td:nth-child(4),
 .deduction-history-table th:nth-child(4),
 .deduction-history-table td:nth-child(4) {
     text-align: center;
     width: 150px;
 }
 
+.score-history-table tbody tr:hover,
 .deduction-history-table tbody tr:hover {
     background: rgba(226, 232, 240, 0.35);
 }
 
+.score-history-empty,
 .deduction-history-empty {
     margin: 12px 0 0;
     text-align: center;
@@ -583,19 +614,23 @@
 }
 
 @media (max-width: 720px) {
+    .score-history-container,
     .deduction-history-container {
         width: 95vw;
         border-radius: 24px;
     }
 
+    .score-history-body,
     .deduction-history-body {
         padding: 20px;
     }
 
+    .score-history-filters,
     .deduction-history-filters {
         grid-template-columns: 1fr;
     }
 
+    .score-history-filter-actions,
     .deduction-history-filter-actions {
         justify-content: flex-start;
     }
