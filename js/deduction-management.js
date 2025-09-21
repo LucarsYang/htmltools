@@ -8,14 +8,14 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
         <div class="deduction-container" role="dialog" aria-modal="true" aria-labelledby="deductionTitle">
             <header class="deduction-header">
                 <div class="deduction-header-content">
-                    <h2 id="deductionTitle" class="deduction-title">管理扣分項目</h2>
-                    <p class="deduction-description">預先建立常用的扣分項目，於學生卡片快速套用</p>
+                    <h2 id="deductionTitle" class="deduction-title">加扣分管理</h2>
+                    <p class="deduction-description">預先建立常用的加扣分項目，於學生卡片快速套用</p>
                 </div>
-                <button type="button" class="deduction-close" aria-label="關閉扣分項目管理">×</button>
+                <button type="button" class="deduction-close" aria-label="關閉加扣分管理">×</button>
             </header>
             <div class="deduction-body">
                 <div class="deduction-actions">
-                    <button type="button" class="deduction-add-btn">+ 新增扣分項目</button>
+                    <button type="button" class="deduction-add-btn">+ 新增加扣分項目</button>
                 </div>
                 <div class="deduction-table-wrapper">
                     <div class="deduction-table-scroll">
@@ -23,7 +23,7 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
                             <thead>
                                 <tr>
                                     <th scope="col">項目名稱</th>
-                                    <th scope="col">扣除分數</th>
+                                    <th scope="col">分數變化</th>
                                     <th scope="col">操作</th>
                                 </tr>
                             </thead>
@@ -44,8 +44,8 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
     editorOverlay.innerHTML = `
         <div class="deduction-editor" role="dialog" aria-modal="true" aria-labelledby="deductionEditorTitle">
             <header class="deduction-editor-header">
-                <h3 id="deductionEditorTitle">新增扣分項目</h3>
-                <button type="button" class="deduction-editor-close" aria-label="關閉扣分項目編輯">×</button>
+                <h3 id="deductionEditorTitle">新增加扣分項目</h3>
+                <button type="button" class="deduction-editor-close" aria-label="關閉加扣分項目編輯">×</button>
             </header>
             <div class="deduction-editor-body">
                 <form class="deduction-editor-form">
@@ -54,9 +54,9 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
                         <input type="text" id="deductionName" name="deductionName" placeholder="例如：未交作業" required maxlength="30">
                     </label>
                     <label class="deduction-field" for="deductionPoints">
-                        <span>扣除分數</span>
-                        <input type="number" id="deductionPoints" name="deductionPoints" placeholder="例如：-5" required max="0">
-                        <small>請輸入 0 或負數，例如 -5</small>
+                        <span>分數變化</span>
+                        <input type="number" id="deductionPoints" name="deductionPoints" placeholder="例如：5 或 -5" required>
+                        <small>可輸入正數或負數，例如 5 或 -5</small>
                     </label>
                     <p class="deduction-error" role="alert" aria-live="assertive"></p>
                     <div class="deduction-editor-footer">
@@ -109,7 +109,7 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
 
         if (!items.length) {
             table.style.display = 'none';
-            emptyMessage.textContent = '尚未建立扣分項目';
+            emptyMessage.textContent = '尚未建立加扣分項目';
             emptyMessage.style.display = 'block';
             return;
         }
@@ -179,14 +179,14 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
             if (!targetItem) {
                 editingId = null;
             } else {
-                editorTitle.textContent = '編輯扣分項目';
+                editorTitle.textContent = '編輯加扣分項目';
                 nameInput.value = targetItem.name;
                 pointsInput.value = String(targetItem.points);
             }
         }
 
         if (editingId === null) {
-            editorTitle.textContent = '新增扣分項目';
+            editorTitle.textContent = '新增加扣分項目';
             nameInput.value = '';
             pointsInput.value = '';
         }
@@ -239,19 +239,14 @@ export function createDeductionManager({ getItems, setItems, checkIfUpdating }) 
             return;
         }
         if (!rawPoints) {
-            errorEl.textContent = '請輸入扣除分數';
+            errorEl.textContent = '請輸入分數變化';
             pointsInput.focus();
             return;
         }
 
         const points = Number(rawPoints);
         if (!Number.isFinite(points)) {
-            errorEl.textContent = '扣除分數必須為數字';
-            pointsInput.focus();
-            return;
-        }
-        if (points > 0) {
-            errorEl.textContent = '扣除分數需為 0 或負數';
+            errorEl.textContent = '分數變化必須為數字';
             pointsInput.focus();
             return;
         }

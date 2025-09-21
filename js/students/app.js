@@ -491,11 +491,12 @@ function ensureScoreHistoryOverlay() {
                         <span>紀錄類型</span>
                         <select id="historyTypeFilter" name="historyTypeFilter">
                             <option value="all">全部紀錄</option>
+                            <option value="bonuses">僅加分</option>
                             <option value="deductions">僅扣分</option>
                         </select>
                     </label>
                     <label class="score-history-filter" for="historyItemFilter">
-                        <span>扣分項目</span>
+                        <span>加扣分項目</span>
                         <select id="historyItemFilter" name="historyItemFilter" disabled></select>
                     </label>
                     <label class="score-history-filter" for="historyStartDate">
@@ -595,11 +596,15 @@ function getActiveHistoryStudent() {
 function updateScoreHistoryFilterState() {
     const typeValue = scoreHistoryElements?.typeSelect?.value || 'all';
     if (scoreHistoryElements?.itemSelect) {
-        scoreHistoryElements.itemSelect.disabled = typeValue !== 'deductions';
+        const shouldEnable = typeValue === 'deductions' || typeValue === 'bonuses';
+        if (!shouldEnable) {
+            scoreHistoryElements.itemSelect.value = '';
+        }
+        scoreHistoryElements.itemSelect.disabled = !shouldEnable;
     }
 }
 
-function populateScoreHistoryItemFilter(events) {
+function populateScoreHistoryItemFilter(events, typeValue = 'all') {
     if (!scoreHistoryElements?.itemSelect) return;
     const select = scoreHistoryElements.itemSelect;
     const previousValue = select.value;
@@ -615,8 +620,10 @@ function populateScoreHistoryItemFilter(events) {
 
     events.forEach(event => {
         if (!event) return;
+        if (event.type !== 'deduction-item') return;
         const delta = Number(event.delta) || 0;
-        if (delta >= 0) return;
+        if (typeValue === 'bonuses' && delta <= 0) return;
+        if (typeValue === 'deductions' && delta >= 0) return;
         const rawName = typeof event.metadata?.itemName === 'string' ? event.metadata.itemName.trim() : '';
         const itemId = event.metadata?.itemId;
         if (rawName) {
@@ -639,7 +646,9 @@ function populateScoreHistoryItemFilter(events) {
     if (hasOther) {
         const otherOpt = document.createElement('option');
         otherOpt.value = 'other';
-        otherOpt.textContent = '其他扣分';
+        const otherLabel =
+            typeValue === 'bonuses' ? '其他加分' : typeValue === 'deductions' ? '其他扣分' : '其他加扣分';
+        otherOpt.textContent = otherLabel;
         select.appendChild(otherOpt);
     }
 
@@ -648,6 +657,10 @@ function populateScoreHistoryItemFilter(events) {
     } else {
         select.value = '';
     }
+
+    const optionCount = uniqueItems.size + (hasOther ? 1 : 0);
+    const shouldEnable = (typeValue === 'deductions' || typeValue === 'bonuses') && optionCount > 0;
+    select.disabled = !shouldEnable;
 }
 
 function formatHistoryDate(value) {
@@ -734,8 +747,8 @@ function describeScoreEvent(event) {
         }
         case 'deduction-item':
             return {
-                title: '扣分項目',
-                detail: metadata.itemName || '扣分'
+                title: '加扣分項目',
+                detail: metadata.itemName || '加扣分'
             };
         default:
             if (metadata.source) {
@@ -827,10 +840,10 @@ function renderScoreHistoryList() {
     if (!tbody || !table || !emptyMessage) return;
 
     const events = getStudentScoreEvents(activeHistoryStudentIndex);
-    populateScoreHistoryItemFilter(events);
+    const typeFilterValue = scoreHistoryElements.typeSelect?.value || 'all';
+    populateScoreHistoryItemFilter(events, typeFilterValue);
     const total = events.length;
 
-    const typeFilterValue = scoreHistoryElements.typeSelect?.value || 'all';
     const itemFilterValue = scoreHistoryElements.itemSelect?.value || '';
     const startDateValue = scoreHistoryElements.startInput?.value || '';
     const endDateValue = scoreHistoryElements.endInput?.value || '';
@@ -839,9 +852,16 @@ function renderScoreHistoryList() {
 
     if (typeFilterValue === 'deductions') {
         filtered = filtered.filter(event => Number(event.delta) < 0);
-        if (itemFilterValue && !(scoreHistoryElements.itemSelect?.disabled)) {
-            filtered = filtered.filter(event => matchesScoreHistoryItemFilter(event, itemFilterValue));
-        }
+    } else if (typeFilterValue === 'bonuses') {
+        filtered = filtered.filter(event => Number(event.delta) > 0);
+    }
+
+    if (
+        (typeFilterValue === 'deductions' || typeFilterValue === 'bonuses') &&
+        itemFilterValue &&
+        !(scoreHistoryElements.itemSelect?.disabled)
+    ) {
+        filtered = filtered.filter(event => matchesScoreHistoryItemFilter(event, itemFilterValue));
     }
 
     if (startDateValue) {
@@ -1074,16 +1094,16 @@ function renderStudents() {
         deductionGroup.className = 'deduction-select-group';
         const deductionSelect = document.createElement('select');
         deductionSelect.id = `deduction-${idx}`;
-        deductionSelect.setAttribute('aria-label', '套用扣分項目');
+        deductionSelect.setAttribute('aria-label', '套用加扣分項目');
         const placeholderOption = document.createElement('option');
         placeholderOption.value = '';
-        placeholderOption.textContent = '選擇扣分項目';
+        placeholderOption.textContent = '選擇加扣分選項';
         deductionSelect.appendChild(placeholderOption);
 
         const deductionItems = getDeductionItems();
         if (deductionItems.length === 0) {
             deductionSelect.disabled = true;
-            placeholderOption.textContent = '尚未建立扣分項目';
+            placeholderOption.textContent = '尚未建立加扣分項目';
         } else {
             deductionItems.forEach(item => {
                 const option = document.createElement('option');
@@ -1233,18 +1253,18 @@ function applyDeduction(idx) {
     if (!select) return;
     const selectedId = select.value;
     if (!selectedId) {
-        alert('請先選擇扣分項目');
+        alert('請先選擇加扣分項目');
         return;
     }
     const item = findDeductionItemById(selectedId);
     if (!item) {
-        alert('找不到對應的扣分項目，請重新整理後再試');
+        alert('找不到對應的加扣分項目，請重新整理後再試');
         renderStudents();
         return;
     }
     const points = Number(item.points);
     if (!Number.isFinite(points)) {
-        alert('扣分項目資料異常，請重新設定');
+        alert('加扣分項目資料異常，請重新設定');
         return;
     }
     const appliedAt = new Date().toISOString();
