@@ -11,6 +11,7 @@ import {
     resolveImageLabel
 } from './data-store.js';
 import { init as initWheel } from '../wheel.js';
+import { init as initRandomPicker } from '../random-picker.js';
 import { createDeductionManager } from '../deduction-management.js';
 
 const storage = typeof window !== 'undefined' ? window.localStorage : null;
@@ -1139,6 +1140,15 @@ function renderStudents() {
         container.appendChild(card);
     });
 
+    document.dispatchEvent(
+        new CustomEvent('students:rendered', {
+            detail: {
+                className: currentClass,
+                count: arr.length
+            }
+        })
+    );
+
 }
 
 function handleDragStart(e) {
@@ -2076,6 +2086,7 @@ function initializeApp() {
     renderStudents();
     deductionManager?.refresh();
     initWheel(() => getStudents(), () => classes);
+    initRandomPicker(() => getStudents(), () => currentClass);
 
     window.clearCustomImage = clearCustomImage;
 }
