@@ -9,11 +9,15 @@ const RESULT_LIST_ID = 'randomPickerResultList';
 const ACTION_ID = 'randomPickerAction';
 const SUMMARY_ID = 'randomPickerSummary';
 
+const DEFAULT_RANGE_MAX = 30;
+const RANGE_EXPAND_STEP = 10;
+
 const state = {
     rangeStart: 1,
     rangeEnd: 0,
     pickCount: 1,
-    excluded: new Set()
+    excluded: new Set(),
+    maxOption: DEFAULT_RANGE_MAX
 };
 
 let getStudentsRef = () => [];
@@ -30,9 +34,12 @@ let actionEl = null;
 let summaryEl = null;
 let emptyStateEl = null;
 let settingsWrapperEl = null;
+let expandEl = null;
+let expandIconEl = null;
 let lastTrigger = null;
 let isInitialized = false;
 let escHandler = null;
+let isModalExpanded = false;
 
 function createOverlay() {
     if (overlayEl) return;
@@ -43,11 +50,14 @@ function createOverlay() {
     overlayEl.innerHTML = `
         <div class="random-picker-modal" id="${MODAL_ID}" role="dialog" aria-modal="true" aria-labelledby="randomPickerTitle">
             <div class="random-picker-header">
-                <div>
+                <div class="random-picker-header-main">
                     <h2 class="random-picker-title" id="randomPickerTitle">🎲 隨機選人</h2>
                     <p class="random-picker-subtitle" id="${SUMMARY_ID}"></p>
                 </div>
-                <button type="button" class="random-picker-close" data-random-close aria-label="關閉隨機選人面板">×</button>
+                <div class="random-picker-header-actions">
+                    <button type="button" class="random-picker-expand" data-random-expand aria-pressed="false" aria-label="放大顯示隨機選人視窗"><span aria-hidden="true">⤢</span></button>
+                    <button type="button" class="random-picker-close" data-random-close aria-label="關閉隨機選人面板"><span aria-hidden="true">×</span></button>
+                </div>
             </div>
             <div class="random-picker-body">
                 <div class="random-picker-empty-state" data-random-empty hidden>目前班級沒有學生，請先建立學生資料。</div>
@@ -109,6 +119,8 @@ function createOverlay() {
     summaryEl = overlayEl.querySelector(`#${SUMMARY_ID}`);
     emptyStateEl = overlayEl.querySelector('[data-random-empty]');
     settingsWrapperEl = overlayEl.querySelector('[data-random-settings]');
+    expandEl = overlayEl.querySelector('[data-random-expand]');
+    expandIconEl = expandEl?.querySelector('span') || null;
 
     overlayEl.addEventListener('click', (event) => {
         if (event.target === overlayEl) {
@@ -117,11 +129,33 @@ function createOverlay() {
     });
 
     overlayEl.querySelector('[data-random-close]')?.addEventListener('click', closeOverlay);
+    expandEl?.addEventListener('click', handleExpandToggle);
     rangeStartEl?.addEventListener('change', handleRangeChange);
     rangeEndEl?.addEventListener('change', handleRangeChange);
     pickCountEl?.addEventListener('input', handlePickCountInput);
     exclusionsEl?.addEventListener('change', handleExclusionChange);
     actionEl?.addEventListener('click', handleRandomPick);
+
+    applyExpandedState();
+}
+
+function handleExpandToggle() {
+    isModalExpanded = !isModalExpanded;
+    applyExpandedState();
+    modalEl?.focus({ preventScroll: true });
+}
+
+function applyExpandedState() {
+    if (!modalEl || !expandEl) return;
+    modalEl.classList.toggle('is-expanded', isModalExpanded);
+    const expanded = isModalExpanded ? 'true' : 'false';
+    expandEl.setAttribute('aria-pressed', expanded);
+    const label = isModalExpanded ? '縮小顯示隨機選人視窗' : '放大顯示隨機選人視窗';
+    expandEl.setAttribute('aria-label', label);
+    expandEl.title = label;
+    if (expandIconEl) {
+        expandIconEl.textContent = isModalExpanded ? '⤡' : '⤢';
+    }
 }
 
 function openOverlay(trigger) {
@@ -136,6 +170,7 @@ function openOverlay(trigger) {
 
     document.body.classList.add('random-picker-open');
     overlayEl.classList.add('show');
+    applyExpandedState();
     modalEl?.setAttribute('tabindex', '-1');
     modalEl?.focus({ preventScroll: true });
 
@@ -171,11 +206,16 @@ function handleRangeChange() {
     if (!Number.isNaN(start)) state.rangeStart = start;
     if (!Number.isNaN(end)) state.rangeEnd = end;
 
-    if (state.rangeStart > state.rangeEnd) {
+    if (state.rangeStart < 1) {
+        state.rangeStart = 1;
+    }
+
+    if (state.rangeEnd < state.rangeStart) {
         state.rangeEnd = state.rangeStart;
     }
 
-    syncWithClassSize({ clampOnly: true });
+    maybeExpandRangeOptions(Math.max(state.rangeStart, state.rangeEnd));
+    syncWithClassSize();
     clearResults();
 }
 
@@ -205,7 +245,7 @@ function handleExclusionChange(event) {
         state.excluded.delete(value);
     }
 
-    syncWithClassSize({ clampOnly: true });
+    syncWithClassSize();
     clearResults();
 }
 
@@ -224,7 +264,7 @@ function handleRandomPick() {
     renderResults(selected);
 }
 
-function syncWithClassSize({ resetRange = false, resetExclusions = false, resetPickCount = false, clampOnly = false } = {}) {
+function syncWithClassSize({ resetRange = false, resetExclusions = false, resetPickCount = false } = {}) {
     const students = getStudentsRef?.() || [];
     const classSize = Array.isArray(students) ? students.length : 0;
 
@@ -247,25 +287,36 @@ function syncWithClassSize({ resetRange = false, resetExclusions = false, resetP
         state.rangeStart = 1;
         state.rangeEnd = 0;
         state.pickCount = 0;
+        state.maxOption = DEFAULT_RANGE_MAX;
         state.excluded.clear();
-        updateSelectOptions(0);
+        updateSelectOptions({ disable: true });
+        if (rangeStartEl) {
+            rangeStartEl.value = '1';
+        }
+        if (rangeEndEl) {
+            rangeEndEl.value = '';
+        }
+        renderExclusions();
+        enforcePickCountBounds();
         updateActionState();
         return;
     }
 
+    const defaultUpperBound = Math.max(DEFAULT_RANGE_MAX, classSize);
+
     if (resetRange) {
         state.rangeStart = 1;
         state.rangeEnd = classSize;
-    } else if (!clampOnly) {
-        if (state.rangeStart < 1 || state.rangeStart > classSize) {
-            state.rangeStart = 1;
-        }
-        if (state.rangeEnd < state.rangeStart || state.rangeEnd > classSize) {
-            state.rangeEnd = classSize;
-        }
+        state.maxOption = defaultUpperBound;
     } else {
-        state.rangeStart = Math.min(Math.max(state.rangeStart, 1), classSize);
-        state.rangeEnd = Math.min(Math.max(state.rangeEnd, state.rangeStart), classSize);
+        state.rangeStart = Math.max(1, state.rangeStart);
+        state.rangeEnd = Math.max(state.rangeEnd, state.rangeStart);
+        const highest = Math.max(state.rangeEnd, state.rangeStart, defaultUpperBound);
+        if (highest > state.maxOption) {
+            const diff = highest - state.maxOption;
+            const steps = Math.max(1, Math.ceil(diff / RANGE_EXPAND_STEP));
+            state.maxOption += steps * RANGE_EXPAND_STEP;
+        }
     }
 
     if (resetExclusions) {
@@ -278,23 +329,55 @@ function syncWithClassSize({ resetRange = false, resetExclusions = false, resetP
         });
     }
 
+    extendMaxOptionTo(state.rangeEnd);
+
     if (resetPickCount || state.pickCount < 1) {
-        state.pickCount = Math.min(1, classSize);
+        const available = getAvailableNumbers().length;
+        state.pickCount = available > 0 ? 1 : 0;
     }
 
-    updateSelectOptions(classSize);
-    rangeStartEl.value = String(state.rangeStart);
-    rangeEndEl.value = String(state.rangeEnd);
+    updateSelectOptions({ disable: false });
+    if (rangeStartEl) {
+        rangeStartEl.value = String(state.rangeStart);
+    }
+    if (rangeEndEl) {
+        rangeEndEl.value = state.rangeEnd >= 1 ? String(state.rangeEnd) : '';
+    }
     renderExclusions();
     enforcePickCountBounds();
     updateActionState();
 }
 
-function updateSelectOptions(classSize) {
+function extendMaxOptionTo(targetValue, { includeNextStep = false } = {}) {
+    if (!Number.isFinite(targetValue)) return;
+    const students = getStudentsRef?.() || [];
+    const classSize = Array.isArray(students) ? students.length : 0;
+    const baseline = Math.max(DEFAULT_RANGE_MAX, classSize, targetValue);
+    let desiredMax = baseline;
+    if (includeNextStep) {
+        desiredMax = Math.max(desiredMax, targetValue + RANGE_EXPAND_STEP);
+    }
+    if (desiredMax <= state.maxOption) {
+        if (includeNextStep && targetValue >= state.maxOption) {
+            state.maxOption += RANGE_EXPAND_STEP;
+        }
+        return;
+    }
+    const diff = desiredMax - state.maxOption;
+    const steps = Math.max(1, Math.ceil(diff / RANGE_EXPAND_STEP));
+    state.maxOption += steps * RANGE_EXPAND_STEP;
+}
+
+function maybeExpandRangeOptions(targetValue) {
+    extendMaxOptionTo(targetValue, { includeNextStep: true });
+}
+
+function updateSelectOptions({ disable = false } = {}) {
     if (!rangeStartEl || !rangeEndEl) return;
+    const maxOption = Math.max(1, state.maxOption);
     const fragmentStart = document.createDocumentFragment();
     const fragmentEnd = document.createDocumentFragment();
-    for (let i = 1; i <= classSize; i += 1) {
+    for (let i = 1; i <= maxOption; i += 1) {
         const optStart = document.createElement('option');
         optStart.value = String(i);
         optStart.textContent = String(i);
@@ -310,8 +393,8 @@ function updateSelectOptions(classSize) {
     rangeStartEl.appendChild(fragmentStart);
     rangeEndEl.appendChild(fragmentEnd);
 
-    rangeStartEl.disabled = classSize === 0;
-    rangeEndEl.disabled = classSize === 0;
+    rangeStartEl.disabled = disable;
+    rangeEndEl.disabled = disable;
 }
 
 function renderExclusions() {
@@ -433,6 +516,16 @@ function renderResults(numbers) {
 
     resultListEl.appendChild(fragment);
     showMessage(`已隨機選出 ${numbers.length} 位同學。`, 'success');
+    notifyCompletion(numbers.length);
+}
+
+function notifyCompletion(count) {
+    if (typeof window === 'undefined') return;
+    const total = Number(count);
+    if (!Number.isFinite(total) || total <= 0) return;
+    window.setTimeout(() => {
+        window.alert(`已完成抽選，共選出 ${total} 位同學。`);
+    }, 60);
 }
 
 function updateSummaryLabel(classSize, hasStudents) {
@@ -458,7 +551,7 @@ function handleStudentsRendered() {
     if (!overlayEl) return;
     const wasVisible = overlayEl.classList.contains('show');
     if (wasVisible) {
-        syncWithClassSize({ clampOnly: true });
+        syncWithClassSize();
     }
 }
 
