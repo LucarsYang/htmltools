@@ -302,15 +302,18 @@ body.random-picker-result-open {
 }
 
 .random-picker-result-inner {
+    --result-inner-padding: clamp(24px, 6vh, 48px);
+    --result-inner-gap: clamp(16px, 3vh, 32px);
     position: relative;
     width: min(1200px, 96vw);
-    height: min(820px, 92vh);
+    min-height: clamp(420px, 60vh, 820px);
+    max-height: 92vh;
     display: flex;
     flex-direction: column;
-    gap: clamp(16px, 3vh, 32px);
+    gap: var(--result-inner-gap);
     background: linear-gradient(145deg, rgba(38, 198, 218, 0.18), rgba(67, 160, 71, 0.24));
     border-radius: clamp(20px, 4vw, 36px);
-    padding: clamp(24px, 6vh, 48px);
+    padding: var(--result-inner-padding);
     box-shadow: 0 28px 96px rgba(0, 0, 0, 0.45);
     overflow: hidden;
 }
@@ -351,25 +354,29 @@ body.random-picker-result-open {
 }
 
 .random-picker-result-grid {
+    --result-grid-gap: clamp(20px, 4vw, 48px);
+    --result-grid-padding: clamp(12px, 3vh, 32px);
+    --result-card-padding: clamp(24px, 5vh, 48px);
     flex: 1;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--result-card-min-width, 220px), 1fr));
-    gap: clamp(20px, 4vw, 48px);
+    gap: var(--result-grid-gap);
     align-content: center;
     justify-items: center;
-    padding: clamp(12px, 3vh, 32px);
+    padding: var(--result-grid-padding);
 }
 
 .random-picker-result-card {
+    --result-card-gap: clamp(8px, 2vh, 16px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: clamp(8px, 2vh, 16px);
+    gap: var(--result-card-gap);
     width: 100%;
     background: rgba(13, 71, 161, 0.18);
     border-radius: clamp(18px, 3vw, 28px);
-    padding: clamp(24px, 5vh, 48px);
+    padding: var(--result-card-padding);
     backdrop-filter: blur(4px);
     border: 2px solid rgba(255, 255, 255, 0.25);
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
