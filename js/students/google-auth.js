@@ -7,32 +7,76 @@ export function createGoogleAuth(storage) {
     const TOKEN_REFRESH_MARGIN_MS = 60 * 1000;
     const DEFAULT_TOKEN_LIFESPAN_SEC = 3600;
     let initialSignInCompleted = isSignedIn;
+    let googleReadyPromise = null;
+    const GOOGLE_LOAD_CHECK_INTERVAL_MS = 100;
+    const GOOGLE_LOAD_TIMEOUT_MS = 15 * 1000;
+
+    function waitForGoogleOAuth() {
+        if (typeof window === 'undefined') {
+            return Promise.reject(new Error('Google OAuth 僅能在瀏覽器環境使用'));
+        }
+
+        if (window.google?.accounts?.oauth2) {
+            return Promise.resolve(window.google);
+        }
+
+        if (!googleReadyPromise) {
+            googleReadyPromise = new Promise((resolve, reject) => {
+                const deadline = Date.now() + GOOGLE_LOAD_TIMEOUT_MS;
+
+                const checkGoogleLoaded = () => {
+                    if (window.google?.accounts?.oauth2) {
+                        resolve(window.google);
+                        return;
+                    }
+
+                    if (Date.now() >= deadline) {
+                        reject(new Error('Google Identity Services 載入逾時'));
+                        return;
+                    }
+
+                    window.setTimeout(checkGoogleLoaded, GOOGLE_LOAD_CHECK_INTERVAL_MS);
+                };
+
+                window.setTimeout(checkGoogleLoaded, GOOGLE_LOAD_CHECK_INTERVAL_MS);
+            });
+        }
+
+        return googleReadyPromise;
+    }
 
     function initGoogleAuth(onSuccess, onFailure) {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: '310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com',
-            scope: 'https://www.googleapis.com/auth/drive.file',
-            callback: (resp) => {
-                if (resp.error) {
-                    clearRefreshTimer();
-                    onFailure?.(resp.error);
-                } else {
-                    accessToken = resp.access_token;
-                    store?.setItem('googleAccessToken', accessToken);
-                    isSignedIn = true;
-                    scheduleTokenRefresh(resp.expires_in);
-                    if (!initialSignInCompleted) {
-                        initialSignInCompleted = true;
-                        onSuccess?.();
+        waitForGoogleOAuth()
+            .then((googleGlobal) => {
+                tokenClient = googleGlobal.accounts.oauth2.initTokenClient({
+                    client_id: '310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com',
+                    scope: 'https://www.googleapis.com/auth/drive.file',
+                    callback: (resp) => {
+                        if (resp.error) {
+                            clearRefreshTimer();
+                            onFailure?.(resp.error);
+                        } else {
+                            accessToken = resp.access_token;
+                            store?.setItem('googleAccessToken', accessToken);
+                            isSignedIn = true;
+                            scheduleTokenRefresh(resp.expires_in);
+                            if (!initialSignInCompleted) {
+                                initialSignInCompleted = true;
+                                onSuccess?.();
+                            }
+                        }
                     }
-                }
-            }
-        });
+                });
 
-        if (isSignedIn) {
-            scheduleTokenRefresh();
-            requestSilentRefresh();
-        }
+                if (isSignedIn) {
+                    scheduleTokenRefresh();
+                    requestSilentRefresh();
+                }
+            })
+            .catch((err) => {
+                console.error('初始化 Google 登入失敗', err);
+                onFailure?.(err);
+            });
     }
 
     function signIn() {
@@ -48,14 +92,26 @@ export function createGoogleAuth(storage) {
             callback?.();
             return;
         }
-        google.accounts.oauth2.revoke(accessToken, () => {
-            accessToken = null;
-            isSignedIn = false;
-            store?.removeItem('googleAccessToken');
-            clearRefreshTimer();
-            initialSignInCompleted = false;
-            callback?.();
+
+        const googleRevoke = window?.google?.accounts?.oauth2?.revoke;
+        if (typeof googleRevoke !== 'function') {
+            console.warn('找不到 Google OAuth revoke 函式，改為本地登出');
+            completeSignOut(callback);
+            return;
+        }
+
+        googleRevoke(accessToken, () => {
+            completeSignOut(callback);
         });
+    }
+
+    function completeSignOut(callback) {
+        accessToken = null;
+        isSignedIn = false;
+        store?.removeItem('googleAccessToken');
+        clearRefreshTimer();
+        initialSignInCompleted = false;
+        callback?.();
     }
 
     function getAccessToken() {
