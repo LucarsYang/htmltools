@@ -8,6 +8,8 @@ const MESSAGE_ID = 'randomPickerMessage';
 const RESULT_LIST_ID = 'randomPickerResultList';
 const ACTION_ID = 'randomPickerAction';
 const SUMMARY_ID = 'randomPickerSummary';
+const RESULT_OVERLAY_ID = 'randomPickerResultOverlay';
+const RESULT_GRID_ID = 'randomPickerResultGrid';
 
 const DEFAULT_RANGE_MAX = 30;
 const RANGE_EXPAND_STEP = 10;
@@ -36,10 +38,15 @@ let emptyStateEl = null;
 let settingsWrapperEl = null;
 let expandEl = null;
 let expandIconEl = null;
+let resultOverlayEl = null;
+let resultGridEl = null;
+let resultInnerEl = null;
+let resultCloseEl = null;
 let lastTrigger = null;
 let isInitialized = false;
 let escHandler = null;
 let isModalExpanded = false;
+let resultEscHandler = null;
 
 function createOverlay() {
     if (overlayEl) return;
@@ -137,6 +144,8 @@ function createOverlay() {
     actionEl?.addEventListener('click', handleRandomPick);
 
     applyExpandedState();
+
+    createResultOverlay();
 }
 
 function handleExpandToggle() {
@@ -188,6 +197,7 @@ function closeOverlay() {
     if (!overlayEl) return;
     overlayEl.classList.remove('show');
     document.body.classList.remove('random-picker-open');
+    closeResultLightbox();
     if (escHandler) {
         document.removeEventListener('keydown', escHandler);
         escHandler = null;
@@ -198,6 +208,220 @@ function closeOverlay() {
     if (lastTrigger && document.body.contains(lastTrigger)) {
         lastTrigger.focus({ preventScroll: true });
     }
+}
+
+function createResultOverlay() {
+    if (resultOverlayEl) return;
+
+    resultOverlayEl = document.createElement('div');
+    resultOverlayEl.id = RESULT_OVERLAY_ID;
+    resultOverlayEl.className = 'random-picker-result-overlay';
+    resultOverlayEl.setAttribute('aria-hidden', 'true');
+    resultOverlayEl.innerHTML = `
+        <div class="random-picker-result-inner" role="dialog" aria-modal="true" aria-labelledby="randomPickerResultHeading">
+            <button type="button" class="random-picker-result-close" data-result-close aria-label="關閉抽選結果"><span aria-hidden="true">×</span></button>
+            <h3 class="random-picker-result-heading" id="randomPickerResultHeading">抽選結果</h3>
+            <div class="random-picker-result-grid" id="${RESULT_GRID_ID}" data-result-grid></div>
+        </div>
+    `;
+
+    document.body.appendChild(resultOverlayEl);
+    resultGridEl = resultOverlayEl.querySelector(`#${RESULT_GRID_ID}`);
+    resultCloseEl = resultOverlayEl.querySelector('[data-result-close]');
+    resultInnerEl = resultOverlayEl.querySelector('.random-picker-result-inner');
+
+    resultOverlayEl.addEventListener('click', (event) => {
+        if (event.target === resultOverlayEl) {
+            closeResultLightbox();
+        }
+    });
+
+    resultCloseEl?.addEventListener('click', closeResultLightbox);
+}
+
+function openResultLightbox(numbers, students) {
+    if (!resultOverlayEl || !resultGridEl) {
+        createResultOverlay();
+    }
+
+    if (!resultOverlayEl || !resultGridEl) return;
+
+    resultGridEl.innerHTML = '';
+
+    const {
+        fontSize,
+        minWidth,
+        cardPadding,
+        cardGap,
+        gridGap,
+        gridPadding,
+        innerPadding,
+        innerGap
+    } = calculateResultLayout(numbers.length);
+
+    resultGridEl.style.setProperty('--result-font-size', fontSize);
+    resultGridEl.style.setProperty('--result-card-min-width', minWidth);
+    resultGridEl.style.setProperty('--result-card-padding', cardPadding);
+    resultGridEl.style.setProperty('--result-card-gap', cardGap);
+    resultGridEl.style.setProperty('--result-grid-gap', gridGap);
+    resultGridEl.style.setProperty('--result-grid-padding', gridPadding);
+
+    if (resultInnerEl) {
+        resultInnerEl.style.setProperty('--result-inner-padding', innerPadding);
+        resultInnerEl.style.setProperty('--result-inner-gap', innerGap);
+    }
+
+    const fragment = document.createDocumentFragment();
+    numbers.forEach((num) => {
+        const card = document.createElement('div');
+        card.className = 'random-picker-result-card';
+
+        const numberEl = document.createElement('span');
+        numberEl.className = 'random-picker-result-number';
+        numberEl.textContent = String(num);
+        card.appendChild(numberEl);
+
+        const student = students[num - 1];
+        if (student && typeof student.name === 'string' && student.name.trim()) {
+            const nameEl = document.createElement('span');
+            nameEl.className = 'random-picker-result-name';
+            nameEl.textContent = student.name.trim();
+            card.appendChild(nameEl);
+        }
+
+        fragment.appendChild(card);
+    });
+
+    resultGridEl.appendChild(fragment);
+
+    document.body.classList.add('random-picker-result-open');
+    resultOverlayEl.classList.add('show');
+    resultOverlayEl.removeAttribute('aria-hidden');
+    resultCloseEl?.focus({ preventScroll: true });
+
+    if (!resultEscHandler) {
+        resultEscHandler = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                closeResultLightbox();
+            }
+        };
+        document.addEventListener('keydown', resultEscHandler);
+    }
+}
+
+function closeResultLightbox() {
+    if (!resultOverlayEl) return;
+    resultOverlayEl.classList.remove('show');
+    resultOverlayEl.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('random-picker-result-open');
+    if (resultEscHandler) {
+        document.removeEventListener('keydown', resultEscHandler);
+        resultEscHandler = null;
+    }
+    if (overlayEl?.classList.contains('show')) {
+        modalEl?.focus({ preventScroll: true });
+    }
+}
+
+function calculateResultLayout(count) {
+    const base = {
+        fontSize: 'clamp(64px, 12vw, 220px)',
+        minWidth: '240px',
+        cardPadding: 'clamp(24px, 5vh, 48px)',
+        gridGap: 'clamp(20px, 4vw, 48px)',
+        gridPadding: 'clamp(12px, 3vh, 32px)',
+        innerPadding: 'clamp(24px, 6vh, 48px)',
+        innerGap: 'clamp(16px, 3vh, 32px)',
+        cardGap: 'clamp(8px, 2vh, 16px)'
+    };
+
+    if (!Number.isFinite(count) || count <= 0) {
+        return base;
+    }
+
+    if (count === 1) {
+        return {
+            ...base,
+            fontSize: 'clamp(140px, 22vw, 320px)',
+            minWidth: '420px',
+            cardPadding: 'clamp(36px, 6vh, 64px)',
+            gridGap: 'clamp(24px, 5vw, 60px)',
+            gridPadding: 'clamp(16px, 4vh, 36px)',
+            cardGap: 'clamp(10px, 2.4vh, 18px)'
+        };
+    }
+
+    if (count === 2) {
+        return {
+            ...base,
+            fontSize: 'clamp(120px, 18vw, 280px)',
+            minWidth: '360px',
+            cardPadding: 'clamp(32px, 5.5vh, 56px)',
+            gridGap: 'clamp(24px, 4.5vw, 56px)',
+            cardGap: 'clamp(10px, 2.2vh, 18px)'
+        };
+    }
+
+    if (count <= 4) {
+        return {
+            ...base,
+            fontSize: 'clamp(96px, 14vw, 220px)',
+            minWidth: '280px'
+        };
+    }
+
+    if (count <= 6) {
+        return {
+            ...base,
+            fontSize: 'clamp(80px, 12vw, 180px)',
+            minWidth: '240px',
+            gridGap: 'clamp(18px, 3.6vw, 40px)',
+            gridPadding: 'clamp(12px, 2.8vh, 28px)',
+            cardGap: 'clamp(8px, 2vh, 16px)'
+        };
+    }
+
+    if (count <= 9) {
+        return {
+            ...base,
+            fontSize: 'clamp(64px, 10vw, 150px)',
+            minWidth: '200px',
+            cardPadding: 'clamp(20px, 4vh, 36px)',
+            cardGap: 'clamp(8px, 1.8vh, 14px)',
+            gridGap: 'clamp(16px, 3vw, 32px)',
+            gridPadding: 'clamp(10px, 2.4vh, 24px)',
+            innerPadding: 'clamp(20px, 5vh, 40px)',
+            innerGap: 'clamp(14px, 2.6vh, 28px)'
+        };
+    }
+
+    if (count <= 12) {
+        return {
+            ...base,
+            fontSize: 'clamp(52px, 8vw, 120px)',
+            minWidth: '180px',
+            cardPadding: 'clamp(18px, 3.2vh, 30px)',
+            cardGap: 'clamp(8px, 1.6vh, 14px)',
+            gridGap: 'clamp(14px, 2.6vw, 26px)',
+            gridPadding: 'clamp(10px, 2vh, 22px)',
+            innerPadding: 'clamp(18px, 4vh, 34px)',
+            innerGap: 'clamp(12px, 2.2vh, 24px)'
+        };
+    }
+
+    return {
+        ...base,
+        fontSize: 'clamp(42px, 6vw, 96px)',
+        minWidth: '160px',
+        cardPadding: 'clamp(16px, 2.4vh, 26px)',
+        cardGap: 'clamp(6px, 1.6vh, 12px)',
+        gridGap: 'clamp(12px, 2.2vw, 22px)',
+        gridPadding: 'clamp(8px, 1.8vh, 20px)',
+        innerPadding: 'clamp(16px, 3.2vh, 28px)',
+        innerGap: 'clamp(12px, 2vh, 20px)'
+    };
 }
 
 function handleRangeChange() {
@@ -516,6 +740,7 @@ function renderResults(numbers) {
 
     resultListEl.appendChild(fragment);
     showMessage(`已隨機選出 ${numbers.length} 位同學。`, 'success');
+    openResultLightbox(numbers, students);
     notifyCompletion(numbers.length);
 }
 
