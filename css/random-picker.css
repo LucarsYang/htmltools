@@ -317,6 +317,10 @@ body.random-picker-open {
     }
 }
 
+.random-picker-result-overlay[hidden] {
+    display: none !important;
+}
+
 .random-picker-result-overlay {
     position: absolute;
     inset: 0;
