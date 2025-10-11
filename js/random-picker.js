@@ -8,6 +8,8 @@ const MESSAGE_ID = 'randomPickerMessage';
 const RESULT_LIST_ID = 'randomPickerResultList';
 const ACTION_ID = 'randomPickerAction';
 const SUMMARY_ID = 'randomPickerSummary';
+const RESULT_OVERLAY_ID = 'randomPickerResultOverlay';
+const RESULT_GRID_ID = 'randomPickerResultGrid';
 
 const DEFAULT_RANGE_MAX = 30;
 const RANGE_EXPAND_STEP = 10;
@@ -36,10 +38,14 @@ let emptyStateEl = null;
 let settingsWrapperEl = null;
 let expandEl = null;
 let expandIconEl = null;
+let resultOverlayEl = null;
+let resultGridEl = null;
+let resultCloseEl = null;
 let lastTrigger = null;
 let isInitialized = false;
 let escHandler = null;
 let isModalExpanded = false;
+let resultEscHandler = null;
 
 function createOverlay() {
     if (overlayEl) return;
@@ -137,6 +143,8 @@ function createOverlay() {
     actionEl?.addEventListener('click', handleRandomPick);
 
     applyExpandedState();
+
+    createResultOverlay();
 }
 
 function handleExpandToggle() {
@@ -188,6 +196,7 @@ function closeOverlay() {
     if (!overlayEl) return;
     overlayEl.classList.remove('show');
     document.body.classList.remove('random-picker-open');
+    closeResultLightbox();
     if (escHandler) {
         document.removeEventListener('keydown', escHandler);
         escHandler = null;
@@ -198,6 +207,157 @@ function closeOverlay() {
     if (lastTrigger && document.body.contains(lastTrigger)) {
         lastTrigger.focus({ preventScroll: true });
     }
+}
+
+function createResultOverlay() {
+    if (resultOverlayEl) return;
+
+    resultOverlayEl = document.createElement('div');
+    resultOverlayEl.id = RESULT_OVERLAY_ID;
+    resultOverlayEl.className = 'random-picker-result-overlay';
+    resultOverlayEl.setAttribute('aria-hidden', 'true');
+    resultOverlayEl.innerHTML = `
+        <div class="random-picker-result-inner" role="dialog" aria-modal="true" aria-labelledby="randomPickerResultHeading">
+            <button type="button" class="random-picker-result-close" data-result-close aria-label="關閉抽選結果"><span aria-hidden="true">×</span></button>
+            <h3 class="random-picker-result-heading" id="randomPickerResultHeading">抽選結果</h3>
+            <div class="random-picker-result-grid" id="${RESULT_GRID_ID}" data-result-grid></div>
+        </div>
+    `;
+
+    document.body.appendChild(resultOverlayEl);
+    resultGridEl = resultOverlayEl.querySelector(`#${RESULT_GRID_ID}`);
+    resultCloseEl = resultOverlayEl.querySelector('[data-result-close]');
+
+    resultOverlayEl.addEventListener('click', (event) => {
+        if (event.target === resultOverlayEl) {
+            closeResultLightbox();
+        }
+    });
+
+    resultCloseEl?.addEventListener('click', closeResultLightbox);
+}
+
+function openResultLightbox(numbers, students) {
+    if (!resultOverlayEl || !resultGridEl) {
+        createResultOverlay();
+    }
+
+    if (!resultOverlayEl || !resultGridEl) return;
+
+    resultGridEl.innerHTML = '';
+
+    const { fontSize, minWidth } = calculateResultLayout(numbers.length);
+    resultGridEl.style.setProperty('--result-font-size', fontSize);
+    resultGridEl.style.setProperty('--result-card-min-width', minWidth);
+
+    const fragment = document.createDocumentFragment();
+    numbers.forEach((num) => {
+        const card = document.createElement('div');
+        card.className = 'random-picker-result-card';
+
+        const numberEl = document.createElement('span');
+        numberEl.className = 'random-picker-result-number';
+        numberEl.textContent = String(num);
+        card.appendChild(numberEl);
+
+        const student = students[num - 1];
+        if (student && typeof student.name === 'string' && student.name.trim()) {
+            const nameEl = document.createElement('span');
+            nameEl.className = 'random-picker-result-name';
+            nameEl.textContent = student.name.trim();
+            card.appendChild(nameEl);
+        }
+
+        fragment.appendChild(card);
+    });
+
+    resultGridEl.appendChild(fragment);
+
+    document.body.classList.add('random-picker-result-open');
+    resultOverlayEl.classList.add('show');
+    resultOverlayEl.removeAttribute('aria-hidden');
+    resultCloseEl?.focus({ preventScroll: true });
+
+    if (!resultEscHandler) {
+        resultEscHandler = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                closeResultLightbox();
+            }
+        };
+        document.addEventListener('keydown', resultEscHandler);
+    }
+}
+
+function closeResultLightbox() {
+    if (!resultOverlayEl) return;
+    resultOverlayEl.classList.remove('show');
+    resultOverlayEl.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('random-picker-result-open');
+    if (resultEscHandler) {
+        document.removeEventListener('keydown', resultEscHandler);
+        resultEscHandler = null;
+    }
+    if (overlayEl?.classList.contains('show')) {
+        modalEl?.focus({ preventScroll: true });
+    }
+}
+
+function calculateResultLayout(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+        return {
+            fontSize: 'clamp(64px, 12vw, 220px)',
+            minWidth: '240px'
+        };
+    }
+
+    if (count === 1) {
+        return {
+            fontSize: 'clamp(140px, 22vw, 320px)',
+            minWidth: '420px'
+        };
+    }
+
+    if (count === 2) {
+        return {
+            fontSize: 'clamp(120px, 18vw, 280px)',
+            minWidth: '360px'
+        };
+    }
+
+    if (count <= 4) {
+        return {
+            fontSize: 'clamp(96px, 14vw, 220px)',
+            minWidth: '280px'
+        };
+    }
+
+    if (count <= 6) {
+        return {
+            fontSize: 'clamp(80px, 12vw, 180px)',
+            minWidth: '240px'
+        };
+    }
+
+    if (count <= 9) {
+        return {
+            fontSize: 'clamp(64px, 10vw, 150px)',
+            minWidth: '200px'
+        };
+    }
+
+    if (count <= 12) {
+        return {
+            fontSize: 'clamp(52px, 8vw, 120px)',
+            minWidth: '180px'
+        };
+    }
+
+    return {
+        fontSize: 'clamp(42px, 6vw, 96px)',
+        minWidth: '150px'
+    };
 }
 
 function handleRangeChange() {
@@ -516,6 +676,7 @@ function renderResults(numbers) {
 
     resultListEl.appendChild(fragment);
     showMessage(`已隨機選出 ${numbers.length} 位同學。`, 'success');
+    openResultLightbox(numbers, students);
     notifyCompletion(numbers.length);
 }
 
