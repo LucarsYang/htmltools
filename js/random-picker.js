@@ -611,6 +611,8 @@ function hideResultLightbox({ restoreFocus = false } = {}) {
         return;
     }
     resultOverlayEl.setAttribute('hidden', '');
+    resultDialogEl?.removeAttribute('data-layout');
+    resultDialogListEl?.removeAttribute('data-count');
     resultDialogEl?.removeAttribute('tabindex');
     const focusTarget = restoreFocus && resultDialogLastFocus instanceof HTMLElement && document.body.contains(resultDialogLastFocus)
         ? resultDialogLastFocus
@@ -627,6 +629,23 @@ function showResultLightbox(numbers) {
     if (!resultOverlayEl || !resultDialogEl) return;
     const total = Array.isArray(numbers) ? numbers.length : 0;
     const students = getStudentsRef?.() || [];
+
+    const layout = total <= 1
+        ? 'hero'
+        : total <= 4
+            ? 'feature'
+            : total <= 9
+                ? 'grid'
+                : total <= 16
+                    ? 'compact'
+                    : 'dense';
+
+    if (resultDialogEl) {
+        resultDialogEl.setAttribute('data-layout', layout);
+    }
+    if (resultDialogListEl) {
+        resultDialogListEl.setAttribute('data-count', String(total));
+    }
 
     if (resultDialogMessageEl) {
         resultDialogMessageEl.textContent = total > 0 ? `已完成抽選，共選出 ${total} 位同學。` : '已完成抽選。';
