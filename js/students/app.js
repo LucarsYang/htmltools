@@ -40,6 +40,7 @@ let syncState = 'synced';
 let inactivityTimer = null;
 const INACTIVITY_CHECK_DELAY = 60;
 let lastActivityTime = Date.now();
+let lastPromptedCloudDataSnapshot = null;
 
 function ensureScoreEventsStore() {
     if (!Array.isArray(classes.scoreEvents)) {
@@ -132,6 +133,10 @@ async function checkCloudFile() {
         const cloudDataStr = JSON.stringify(cloudData);
 
         if (localData !== cloudDataStr) {
+            if (lastPromptedCloudDataSnapshot === cloudDataStr) {
+                return;
+            }
+            lastPromptedCloudDataSnapshot = cloudDataStr;
             if (confirm('發現雲端檔案有更新，是否要同步？\n注意：同步後本地資料將被雲端資料覆蓋。')) {
                 markUpdating();
                 classes = ensureClassesIntegrity(cloudData);
@@ -140,7 +145,10 @@ async function checkCloudFile() {
                 renderStudents();
                 deductionManager?.refresh();
                 markSynced();
+                lastPromptedCloudDataSnapshot = null;
             }
+        } else {
+            lastPromptedCloudDataSnapshot = null;
         }
     } catch (err) {
         console.error('檢查雲端檔案失敗:', err);
