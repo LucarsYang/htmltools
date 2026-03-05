@@ -1,5 +1,5 @@
-import { createGoogleAuth } from './google-auth.js';
-import { createGoogleDrive } from './google-drive.js';
+import { createGoogleAuth } from './google-auth.js?v=1.0.0';
+import { createGoogleDrive } from './google-drive.js?v=1.0.0';
 import {
     loadClasses,
     saveClasses,
@@ -9,10 +9,10 @@ import {
     IMAGE_MAP,
     GENDER_IMAGE_LABELS,
     resolveImageLabel
-} from './data-store.js';
-import { init as initWheel } from '../wheel.js';
-import { init as initRandomPicker } from '../random-picker.js';
-import { createDeductionManager } from '../deduction-management.js';
+} from './data-store.js?v=1.0.0';
+import { init as initWheel } from '../wheel.js?v=1.0.0';
+import { init as initRandomPicker } from '../random-picker.js?v=1.0.0';
+import { createDeductionManager } from '../deduction-management.js?v=1.0.0';
 
 const storage = typeof window !== 'undefined' ? window.localStorage : null;
 const googleAuth = createGoogleAuth(storage);
