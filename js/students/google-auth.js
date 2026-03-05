@@ -98,7 +98,32 @@ export function createGoogleAuth(storage) {
         scheduleTokenRefresh(effectiveExpiresIn);
     }
 
-    function initGoogleAuth(onSuccess, onFailure) {
+    function waitForGsi(timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            if (typeof google !== 'undefined' && google.accounts) {
+                return resolve();
+            }
+            const start = Date.now();
+            const interval = setInterval(() => {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    clearInterval(interval);
+                    resolve();
+                } else if (Date.now() - start > timeout) {
+                    clearInterval(interval);
+                    reject(new Error('Google Identity Services library failed to load'));
+                }
+            }, 100);
+        });
+    }
+
+    async function initGoogleAuth(onSuccess, onFailure) {
+        try {
+            await waitForGsi();
+        } catch (e) {
+            console.error(e.message);
+            onFailure?.(e.message);
+            return;
+        }
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: '310618779783-ephi24bku6psi9c7c1babi0v1n7fu8u9.apps.googleusercontent.com',
             scope: 'https://www.googleapis.com/auth/drive.file',
