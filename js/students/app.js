@@ -2101,6 +2101,12 @@ function initializeApp() {
 
 window.addEventListener('DOMContentLoaded', initializeApp);
 
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        location.reload();
+    }
+});
+
 export function getClassesReference() {
     return classes;
 }
